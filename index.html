@@ -8,6 +8,54 @@
 <meta name="mobile-web-app-capable" content="yes">
 <title>NEXUS CONNECTION</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A9%B8%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div id="device">
+  <div class="shell-top"><i class="led"></i><span class="brand">NEXUS GEAR</span><i class="speaker"></i></div>
+
+  <div id="lcd">
+    <div id="statusbar"><span id="sb-clock">--:--</span><span id="sb-name">NEXUS GEAR</span><span id="sb-ind"></span></div>
+    <div id="scr">
+      <div id="app"><div class="splash"><div class="mut">Caricamento…</div></div></div>
+    </div>
+  </div>
+
+  <div class="shell-bottom">
+    <button id="mbtn" title="Accesso Master">MASTER</button>
+    <div class="hw-group">
+      <button class="hw" id="hw-back" title="Indietro" aria-label="Indietro">◀</button>
+      <button class="hw" id="hw-home" title="Home" aria-label="Home">●</button>
+    </div>
+    <div class="hw-group">
+      <button class="hw small" id="hw-up" title="Su" aria-label="Scorri su">▲</button>
+      <button class="hw small" id="hw-down" title="Giù" aria-label="Scorri giù">▼</button>
+    </div>
+  </div>
+</div>
+
+<!-- 1. libreria Supabase (versione fissata) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<!-- 2. configurazione (da compilare) -->
+<script src="js/config.js"></script>
+<!-- 3. adattatore dati (db, utente, upload foto) -->
+<script src="js/backend.js"></script>
+<!-- 4. app -->
+<script src="js/app.js"></script>
+</body>
+</html><!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1b0b4a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>NEXUS CONNECTION</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A9%B8%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
