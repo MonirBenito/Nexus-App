@@ -407,8 +407,20 @@ option{background:#120f26;color:var(--tx)}
 svg g[data-part]{transition:filter .1s}
 svg g[data-part]:hover{filter:brightness(1.4)}
 
-/* ---------- mappe a pixel ---------- */
-.mapcv{display:block;width:100%;height:auto;image-rendering:pixelated;image-rendering:crisp-edges;border:4px solid var(--acc);background:#050309;box-shadow:0 0 0 3px var(--ink),6px 6px 0 3px var(--ink)}
+/* ---------- mappe: editor stile Inkarnate ---------- */
+.mapwrap{max-height:70vh;overflow:auto;border:4px solid var(--acc);background:#050309;box-shadow:0 0 0 3px var(--ink),6px 6px 0 3px var(--ink);scrollbar-width:thin}
+.mapcv{display:block;width:100%;height:auto;image-rendering:pixelated;image-rendering:crisp-edges;background:#050309;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.sw{display:inline-block;width:14px;height:14px;margin-right:6px;vertical-align:-2px;border:2px solid var(--ink)}
+.stgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:10px;margin:12px 0 4px}
+.stb{display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 4px 8px;background:var(--card-2);color:var(--tx);font-size:.74em;line-height:1.2;box-shadow:inset 0 0 0 2px var(--line),0 4px 0 var(--ink);margin-bottom:4px}
+.stb:hover{background:var(--acc-dim);filter:none}
+.stb.sel{background:var(--acc-dim);box-shadow:inset 0 0 0 3px var(--acc),0 4px 0 var(--ink)}
+.stb img{width:52px;height:52px;border:2px solid var(--ink);image-rendering:auto}
+details.card>summary{cursor:pointer;font:400 9px/1.7 var(--f-px);letter-spacing:1px;text-transform:uppercase;color:var(--acc-2);text-shadow:2px 2px 0 var(--ink);list-style:none}
+details.card>summary::-webkit-details-marker{display:none}
+details.card>summary::before{content:'▸ ';color:var(--acc)}
+details.card[open]>summary::before{content:'▾ '}
+details.card[open]>summary{margin-bottom:10px}
 
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 
