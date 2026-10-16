@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#3a2a8f">
+<meta name="theme-color" content="#2b1020">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<title>NEXUS CONNECTION</title>
+<title>NEXUS CONNECTION - POKÉGEAR OS</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A9%B8%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="css/styles.css">
 </head>
@@ -14,9 +14,18 @@
 <div id="desk">
   <div id="winwrap">
     <div id="win">
-      <div id="titlebar"><span class="appico">🩸</span><span id="win-title">Nexus Connection</span><span id="tb-net">Online</span></div>
+      <div id="titlebar">
+        <span class="appico">🩸</span>
+        <span id="win-title">NEXUS GEAR OS</span>
+        <span id="tb-signal"><i class="sig-bar"></i><i class="sig-bar"></i><i class="sig-bar"></i></span>
+        <span id="tb-net">Online</span>
+      </div>
       <div id="scr">
-        <div id="app"><div class="lock"><div class="mut" style="color:#fff">Caricamento…</div></div></div>
+        <div id="app">
+          <div class="lock">
+            <div class="mut" style="color:#fff">Caricamento Nexus Gear...</div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -31,13 +40,9 @@
   </div>
 </div>
 
-<!-- 1. libreria Supabase (versione fissata) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<!-- 2. configurazione (da compilare) -->
 <script src="js/config.js"></script>
-<!-- 3. adattatore dati (db, utente, upload foto) -->
 <script src="js/backend.js"></script>
-<!-- 4. app -->
 <script src="js/app.js"></script>
 </body>
 </html>
