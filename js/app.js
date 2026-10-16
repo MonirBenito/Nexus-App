@@ -846,119 +846,466 @@ function genMap(c){
   if(c.shape!=='quadrata'){const n=c.size;for(let y=0;y<n;y++)for(let x=0;x<n;x++)if(!inShape(c.shape,x,y,n))d.codes[y*n+x]=255}
   return d;
 }
-let mapCache={key:'',data:null};
-function mapData(c){const key=JSON.stringify([c.type,c.size,c.seed,c.water,c.mount,c.forest,c.detail,c.rooms,c.rsize,c.corr,c.treasure,c.dens,c.smooth,c.houses,c.trees,c.pond,c.shape]);if(mapCache.key!==key)mapCache={key,data:genMap(c)};return mapCache.data}
-function tileColor(c,P,k,x,y,data,sh){
-  const n=c.size,t=c.type;
-  if(t==='terra'||t==='isola'){
-    const col=[P.deep,P.shallow,P.sand,P.grass,P.forest,P.hill,P.mount,P.snow][k];let f=1;
-    if(c.shade&&k>=2){const e=data.el,X=(v)=>Math.max(0,Math.min(n-1,v));f+=Math.max(-.2,Math.min(.2,(e[X(y-1)*n+X(x-1)]-e[X(y+1)*n+X(x+1)])*(k>=5?5:2.5)))}
-    return shadeC(col,f+(sh-.5)*(k<2?.05:.09));
-  }
-  if(t==='villaggio'){
-    const col=[P.grass,shadeC(P.grass,.9),P.road,P.water,P.tree,P.house,P.roof,shadeC(P.roof,.6)][k];
-    return k<=1||k===4||k===2?(k===0||k===1||k===2||k===4?shadeC(typeof col==='string'&&col[0]==='#'?col:P.grass,1):col):col;
-  }
-  return [P.rock,P.floor,P.corr,P.floor,P.floor,P.floor,P.floor,P.wall,P.stairs,shadeC(P.stairs,.75)][k];
-}
-function paintMap(cv,c,Z,data,marks){
-  const n=c.size,P=PAL[c.pal]||PAL.classica,ctx=cv.getContext('2d'),seed=hashSeed(c.seed);
-  cv.width=cv.height=n*Z;ctx.imageSmoothingEnabled=false;
-  for(let y=0;y<n;y++)for(let x=0;x<n;x++){
-    const k=data.codes[y*n+x];
-    if(k===255){ctx.fillStyle='#14121a';ctx.fillRect(x*Z,y*Z,Z,Z);continue}
-    const sh=(((Math.imul(x,73856093)^Math.imul(y,19349663)^seed)>>>0)%1000)/1000;
-    let col;
-    if(c.type==='villaggio'){
-      const base={0:P.grass,1:shadeC(P.grass,.92),2:P.road,3:P.water,4:P.tree,5:P.house,6:P.roof,7:shadeC(P.roof,.55)}[k];
-      col=base[0]==='#'?shadeC(base,.96+sh*.08):base;
-    }else if(c.type==='dungeon'||c.type==='caverna'){
-      const base=[P.rock,P.floor,P.corr,P.floor,P.floor,P.floor,P.floor,P.wall,P.stairs,shadeC(P.stairs,.75)][k];
-      col=shadeC(base,k===0?1:.94+sh*.1);
-    }else col=tileColor(c,P,k,x,y,data,sh);
-    ctx.fillStyle=col;ctx.fillRect(x*Z,y*Z,Z,Z);
-    if(k===6&&(c.type==='dungeon'||c.type==='caverna')){ctx.fillStyle=P.treasure;ctx.fillRect(x*Z+Z*.25,y*Z+Z*.25,Z*.5,Z*.5)}
-    if(k===4&&c.type==='villaggio'){ctx.fillStyle=shadeC(P.tree,.75);ctx.fillRect(x*Z+Z*.2,y*Z+Z*.2,Z*.6,Z*.6)}
-  }
-  if(c.grid&&Z>=5){ctx.fillStyle='rgba(0,0,0,.16)';for(let i=1;i<n;i++){ctx.fillRect(i*Z,0,1,n*Z);ctx.fillRect(0,i*Z,n*Z,1)}}
-  (c.addons||[]).forEach(a=>drawAddon(ctx,P,a,Z));
-  if(c.scale>0)drawScale(ctx,c,Z);
-  (marks||[]).forEach(m=>drawToken(ctx,m,Z));
-}
 //#MAPCORE-END
-let MAPCFG=mapNorm({type:'terra',seed:'nexus'}),mapSel=null,mapTool=null,mapSz=1;
-const tileAt=(cv,n,e)=>{const r=cv.getBoundingClientRect(),f=v=>Math.min(n-1,Math.max(0,Math.floor(v*n)));return {x:f((e.clientX-r.left)/r.width),y:f((e.clientY-r.top)/r.height)}};
-/* segnalini sulla mappa aperta: il Master li vede tutti, il player solo il proprio */
+
+/* ===== v13: editor mappe stile Inkarnate =====
+   Terreno a pennello (19 terreni), oggetti/stamp liberi (scala, rotazione, specchio),
+   testi, nebbia di guerra, segnalini, undo/redo, zoom. Il generatore casuale resta
+   come punto di partenza. Formato salvato: v:2 (terreno e nebbia in RLE, oggetti in elenco).
+   Le vecchie mappe (solo "cfg") vengono convertite automaticamente all'apertura. */
+const TER=[ // [codice, etichetta, gruppo, priorità di sovrapposizione sui bordi]
+ [0,'Acqua profonda','Acqua',0],[1,'Acqua bassa','Acqua',1],
+ [2,'Sabbia','Terra',3],[3,'Erba','Terra',4],[4,'Foresta','Terra',5],[5,'Colline','Terra',6],[6,'Montagna','Terra',7],[7,'Neve','Terra',8],[17,'Ghiaccio','Terra',8.5],[8,'Sentiero','Terra',2],[13,'Palude','Terra',3.5],
+ [9,'Pavimento','Dungeon',9],[15,'Ciottoli','Dungeon',9],[14,'Legno','Dungeon',9.5],[10,'Muro','Dungeon',11],[11,'Roccia scura','Dungeon',10],[12,'Lava','Dungeon',2.5],[16,'Tetto','Dungeon',10.5],[18,'Vuoto','Dungeon',20]];
+const MGROUPS=['Acqua','Terra','Dungeon'],TPRI=[];TER.forEach(t=>TPRI[t[0]]=t[3]);
+const mixC=(a,b,t)=>{const A=hexRGB(a),B=hexRGB(b);return '#'+A.map((v,i)=>Math.round(v+(B[i]-v)*t).toString(16).padStart(2,'0')).join('')};
+const terCols=P=>[P.deep,P.shallow,P.sand,P.grass,P.forest,P.hill,P.mount,P.snow,P.road,P.floor,P.wall,P.rock,'#e8531f',mixC(P.forest,P.deep,.45),mixC(P.house,'#5a3b22',.55),P.corr,P.roof,'#c4e6f3','#0b0912'];
+const COLC={};
+function colsFor(pal){
+  if(COLC[pal])return COLC[pal];
+  const P=PAL[pal]||PAL.classica;
+  return COLC[pal]=terCols(P).map(h=>({hex:h,sh:Array.from({length:9},(_,i)=>shadeC(h,.9+i*.025)),dk:shadeC(h,.72),lt:shadeC(h,1.28)}));
+}
+const mpZ=n=>Math.max(6,Math.min(32,Math.floor(1024/n)));
+const _fr=(c,x,y,w,h)=>c.fillRect(x,y,Math.max(1,w),Math.max(1,h));
+const TDET={
+ 0:(c,X,Y,Z,C,h)=>{if(h<.16){c.fillStyle=C.lt;_fr(c,X+Z*.2,Y+Z*.5,Z*.5,Z*.08)}},
+ 1:(c,X,Y,Z,C,h)=>{if(h<.2){c.fillStyle=C.lt;_fr(c,X+Z*.25,Y+Z*.55,Z*.5,Z*.08)}},
+ 2:(c,X,Y,Z,C,h)=>{if(h<.3){c.fillStyle=C.dk;_fr(c,X+Z*(.2+h*2),Y+Z*.6,Z*.1,Z*.1)}},
+ 3:(c,X,Y,Z,C,h)=>{if(h<.22){c.fillStyle=C.dk;_fr(c,X+Z*.35,Y+Z*.42,Z*.08,Z*.26);_fr(c,X+Z*.52,Y+Z*.52,Z*.08,Z*.2)}},
+ 4:(c,X,Y,Z,C)=>{c.fillStyle=C.dk;c.beginPath();c.ellipse(X+Z*.5,Y+Z*.58,Z*.4,Z*.34,0,0,6.2832);c.fill();c.fillStyle=C.lt;c.beginPath();c.ellipse(X+Z*.4,Y+Z*.45,Z*.2,Z*.15,0,0,6.2832);c.fill()},
+ 5:(c,X,Y,Z,C)=>{c.fillStyle=C.dk;_fr(c,X+Z*.15,Y+Z*.62,Z*.7,Z*.14);c.fillStyle=C.lt;_fr(c,X+Z*.2,Y+Z*.35,Z*.45,Z*.16)},
+ 6:(c,X,Y,Z,C)=>{c.fillStyle=C.dk;c.beginPath();c.moveTo(X+Z*.08,Y+Z*.92);c.lineTo(X+Z*.5,Y+Z*.1);c.lineTo(X+Z*.92,Y+Z*.92);c.fill();c.fillStyle=C.lt;c.beginPath();c.moveTo(X+Z*.08,Y+Z*.92);c.lineTo(X+Z*.5,Y+Z*.1);c.lineTo(X+Z*.5,Y+Z*.92);c.fill();c.fillStyle='#fff';c.beginPath();c.moveTo(X+Z*.5,Y+Z*.1);c.lineTo(X+Z*.37,Y+Z*.36);c.lineTo(X+Z*.5,Y+Z*.3);c.lineTo(X+Z*.62,Y+Z*.36);c.fill()},
+ 7:(c,X,Y,Z,C,h)=>{if(h<.14){c.fillStyle=C.dk;_fr(c,X+Z*.4,Y+Z*.4,Z*.12,Z*.12)}},
+ 8:(c,X,Y,Z,C,h)=>{if(h<.35){c.fillStyle=C.dk;_fr(c,X+Z*(.15+h),Y+Z*.55,Z*.1,Z*.1)}},
+ 9:(c,X,Y,Z,C)=>{c.fillStyle='rgba(0,0,0,.16)';_fr(c,X+Z-1,Y,1,Z);_fr(c,X,Y+Z-1,Z,1)},
+ 10:(c,X,Y,Z,C)=>{c.fillStyle='rgba(0,0,0,.28)';_fr(c,X,Y+Z*.5,Z,1);_fr(c,X+Z*.5,Y,1,Z*.5);_fr(c,X+Z*.25,Y+Z*.5,1,Z*.5);c.fillStyle='rgba(255,255,255,.12)';_fr(c,X,Y,Z,1)},
+ 11:(c,X,Y,Z,C,h)=>{if(h<.2){c.fillStyle=C.lt;_fr(c,X+Z*.3,Y+Z*.3,Z*.2,Z*.14)}},
+ 12:(c,X,Y,Z,C,h)=>{if(h<.25){c.fillStyle='#ffd36a';_fr(c,X+Z*.2,Y+Z*.45,Z*.45,Z*.1)}else if(h>.8){c.fillStyle='#a8300e';_fr(c,X+Z*.4,Y+Z*.2,Z*.3,Z*.1)}},
+ 13:(c,X,Y,Z,C,h)=>{if(h<.3){c.fillStyle=C.dk;_fr(c,X+Z*.4,Y+Z*.3,Z*.08,Z*.35);_fr(c,X+Z*.55,Y+Z*.4,Z*.08,Z*.25)}},
+ 14:(c,X,Y,Z,C)=>{c.fillStyle='rgba(0,0,0,.25)';_fr(c,X,Y+Z*.33,Z,1);_fr(c,X,Y+Z*.66,Z,1)},
+ 15:(c,X,Y,Z,C)=>{c.fillStyle='rgba(0,0,0,.22)';_fr(c,X+Z*.5,Y,1,Z);_fr(c,X,Y+Z*.5,Z,1)},
+ 16:(c,X,Y,Z,C)=>{c.fillStyle='rgba(0,0,0,.25)';_fr(c,X,Y+Z*.33,Z,1);_fr(c,X,Y+Z*.66,Z,1);c.fillStyle='rgba(255,255,255,.12)';_fr(c,X,Y,Z,1)},
+ 17:(c,X,Y,Z,C,h)=>{if(h<.2){c.fillStyle='#fff';_fr(c,X+Z*.3,Y+Z*.3,Z*.3,Z*.08)}}
+};
+function paintTile(ctx,mp,x,y,Z){
+  const n=mp.n,t=mp.ter,cols=colsFor(mp.pal),k=cols[t[y*n+x]]?t[y*n+x]:3,C=cols[k],X=x*Z,Y=y*Z,s=mp.hs|0;
+  const h=(((Math.imul(x,73856093)^Math.imul(y,19349663)^s)>>>0)%997)/997,h2=(((Math.imul(x,2654435761)^Math.imul(y,40503)^(s+7))>>>0)%991)/991;
+  ctx.fillStyle=C.sh[Math.min(8,Math.floor(h*9))];ctx.fillRect(X,Y,Z,Z);
+  if(Z>=5&&TDET[k])TDET[k](ctx,X,Y,Z,C,h2);
+  const b=Math.max(1,Math.round(Z*.2)),pk=TPRI[k],nb=(dx,dy)=>{const xx=x+dx,yy=y+dy;return xx<0||yy<0||xx>=n||yy>=n?k:t[yy*n+xx]};
+  let q=nb(0,-1);if(q!==k&&TPRI[q]>pk&&cols[q]){ctx.fillStyle=cols[q].sh[4];ctx.fillRect(X,Y,Z,b)}
+  q=nb(0,1);if(q!==k&&TPRI[q]>pk&&cols[q]){ctx.fillStyle=cols[q].sh[4];ctx.fillRect(X,Y+Z-b,Z,b)}
+  q=nb(-1,0);if(q!==k&&TPRI[q]>pk&&cols[q]){ctx.fillStyle=cols[q].sh[4];ctx.fillRect(X,Y,b,Z)}
+  q=nb(1,0);if(q!==k&&TPRI[q]>pk&&cols[q]){ctx.fillStyle=cols[q].sh[4];ctx.fillRect(X+Z-b,Y,b,Z)}
+}
+function mpBuild(mp){
+  const Z=mpZ(mp.n),cv=mp.tc||(mp.tc=document.createElement('canvas'));
+  cv.width=cv.height=mp.n*Z;const c=cv.getContext('2d');
+  for(let y=0;y<mp.n;y++)for(let x=0;x<mp.n;x++)paintTile(c,mp,x,y,Z);
+  mp.tcZ=Z;mp.tcPal=mp.pal;mp.tcDirty=false;
+}
+function mpTiles(mp,x0,y0,x1,y1){
+  const c=mp.tc.getContext('2d');x0=Math.max(0,x0-1);y0=Math.max(0,y0-1);x1=Math.min(mp.n-1,x1+1);y1=Math.min(mp.n-1,y1+1);
+  for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++)paintTile(c,mp,x,y,mp.tcZ);
+}
+const mpEnsure=mp=>{const Z=mpZ(mp.n);if(!mp.tc||mp.tcDirty||mp.tcPal!==mp.pal||mp.tcZ!==Z||mp.tc.width!==mp.n*Z)mpBuild(mp)};
+
+/* ---- stamp (oggetti) disegnati in coordinate unitarie [-.5,.5] ---- */
+const _R=(c,x,y,w,h,f)=>{c.fillStyle=f;c.fillRect(x,y,w,h)};
+const _E=(c,x,y,rx,ry,f)=>{c.fillStyle=f;c.beginPath();c.ellipse(x,y,rx,ry,0,0,6.2832);c.fill()};
+const _P=(c,p,f)=>{c.fillStyle=f;c.beginPath();c.moveTo(p[0],p[1]);for(let i=2;i<p.length;i+=2)c.lineTo(p[i],p[i+1]);c.closePath();c.fill()};
+const sh=shadeC,stoneC=P=>mixC(P.wall,'#ffffff',.5);
+const _house=(c,P,x,y,s)=>{c.save();c.translate(x,y);c.scale(s,s);_R(c,-.38,-.05,.76,.45,P.house);_P(c,[-.46,-.02,-.3,-.4,.3,-.4,.46,-.02],P.roof);_R(c,-.08,.14,.16,.26,sh(P.roof,.5));c.restore()};
+const STAMPS=[
+['pino','Pino','Natura',1.2,(c,P)=>{_R(c,-.05,.26,.1,.22,'#5a3d22');_P(c,[-.36,.32,0,-.02,.36,.32],sh(P.tree,.78));_P(c,[-.3,.12,0,-.3,.3,.12],sh(P.tree,.94));_P(c,[-.22,-.08,0,-.5,.22,-.08],sh(P.tree,1.14))}],
+['quercia','Albero','Natura',1.4,(c,P)=>{_R(c,-.06,.2,.12,.28,'#6b4a2b');_E(c,0,-.04,.4,.34,sh(P.tree,.8));_E(c,-.08,-.12,.28,.22,P.tree);_E(c,-.14,-.2,.12,.09,sh(P.tree,1.3))}],
+['palma','Palma','Natura',1.4,(c,P)=>{_P(c,[-.05,.48,.05,.48,.09,-.1,-.01,-.1],'#8a6538');for(let i=0;i<6;i++){c.save();c.translate(.04,-.12);c.rotate(i*1.047+.3);_P(c,[0,-.03,.2,-.1,.42,0,.2,.07],i%2?sh(P.tree,1.1):P.tree);c.restore()}_E(c,.04,-.12,.05,.05,'#5a3d22')}],
+['morto','Albero secco','Natura',1.3,(c,P)=>{_P(c,[-.06,.48,.06,.48,.04,-.12,-.04,-.12],'#5a4a3a');c.save();c.translate(0,-.05);c.rotate(-.7);_R(c,-.025,-.35,.05,.35,'#5a4a3a');c.restore();c.save();c.translate(0,.1);c.rotate(.8);_R(c,-.025,-.3,.05,.3,'#5a4a3a');c.restore()}],
+['cespuglio','Cespuglio','Natura',.8,(c,P)=>{_E(c,-.2,.1,.22,.18,sh(P.tree,.85));_E(c,.2,.1,.22,.18,sh(P.tree,.9));_E(c,0,-.02,.26,.22,P.tree);_E(c,-.05,-.08,.1,.07,sh(P.tree,1.25))}],
+['fiori','Fiori','Natura',.8,(c,P)=>{[[-.25,-.1,'#ff6b8a'],[.05,-.2,'#ffd34a'],[.25,.05,'#ffffff'],[-.05,.15,'#b57bff'],[-.28,.22,'#ffd34a'],[.2,.25,'#ff6b8a']].forEach(([x,y,f])=>{_R(c,x-.015,y,.03,.12,'#3b7a3a');_E(c,x,y,.07,.07,f)})}],
+['cactus','Cactus','Natura',1,(c,P)=>{const g='#3f8a4a';_R(c,-.07,-.32,.14,.78,g);_R(c,-.27,-.1,.2,.09,g);_R(c,-.27,-.22,.09,.2,g);_R(c,.07,.05,.2,.09,g);_R(c,.19,-.1,.09,.2,g)}],
+['roccia','Roccia','Natura',1,(c,P)=>{_P(c,[-.38,.25,-.3,-.05,-.08,-.3,.2,-.22,.38,.08,.3,.28],P.mount);_P(c,[-.3,-.05,-.08,-.3,.05,-.1,-.12,.05],sh(P.mount,1.25));_P(c,[.05,-.1,.2,-.22,.38,.08,.3,.28,.1,.28],sh(P.mount,.78))}],
+['collina','Collina','Natura',3,(c,P)=>{_E(c,0,.12,.48,.34,sh(P.hill,.85));_E(c,-.04,.02,.4,.26,P.hill);_E(c,-.14,-.04,.18,.1,sh(P.hill,1.2))}],
+['montagna','Montagna','Natura',3,(c,P)=>{_P(c,[-.5,.42,-.12,-.38,.12,-.05,.22,-.22,.5,.42],P.mount);_P(c,[-.12,-.38,.12,-.05,.22,-.22,.5,.42,.05,.42],sh(P.mount,.78));_P(c,[-.12,-.38,-.2,-.22,-.14,-.25,-.09,-.19,-.04,-.26,-.025,-.25],P.snow)}],
+['vulcano','Vulcano','Natura',3.4,(c,P)=>{_P(c,[-.5,.42,-.14,-.3,.14,-.3,.5,.42],'#5b4640');_P(c,[-.14,-.3,.14,-.3,.5,.42,.1,.42],'#3f2e2a');_P(c,[-.14,-.3,-.08,-.38,.08,-.38,.14,-.3],'#e8531f');_P(c,[-.03,-.38,0,-.48,.04,-.38],'#ffd36a')}],
+['casa','Casa','Edifici',2,(c,P)=>{_R(c,-.38,-.05,.76,.45,P.house);_P(c,[-.46,-.02,-.3,-.4,.3,-.4,.46,-.02],P.roof);_R(c,-.08,.14,.16,.26,sh(P.roof,.5));_R(c,-.28,.06,.12,.12,'#9ad4f0');_R(c,.16,.06,.12,.12,'#9ad4f0')}],
+['capanna','Capanna','Edifici',1.6,(c,P)=>{_R(c,-.3,0,.6,.38,'#a07a4d');_P(c,[-.4,.02,0,-.42,.4,.02],'#d9b85c');_R(c,-.06,.16,.12,.22,'#3a2a1a')}],
+['castello','Castello','Edifici',4,(c,P)=>{const s=stoneC(P),d=sh(s,.8);_R(c,-.44,-.05,.88,.45,s);_R(c,-.5,-.32,.2,.72,d);_R(c,.3,-.32,.2,.72,d);_R(c,-.16,-.34,.32,.74,s);for(let i=0;i<3;i++){_R(c,-.5+i*.09,-.38,.06,.08,d);_R(c,.3+i*.09,-.38,.06,.08,d);_R(c,-.16+i*.12,-.4,.08,.08,s)}_P(c,[-.5,-.32,-.4,-.5,-.3,-.32],P.roof);_P(c,[.3,-.32,.4,-.5,.5,-.32],P.roof);_R(c,-.08,.12,.16,.28,'#14121a');_R(c,-.4,.05,.06,.1,'#14121a');_R(c,.34,.05,.06,.1,'#14121a')}],
+['torre','Torre','Edifici',2,(c,P)=>{const s=stoneC(P);_R(c,-.2,-.3,.4,.72,s);_P(c,[-.28,-.3,0,-.5,.28,-.3],P.roof);_R(c,-.05,-.1,.1,.16,'#14121a');_R(c,-.2,.2,.4,.04,sh(s,.8))}],
+['tenda','Tenda','Edifici',1.6,(c,P)=>{_P(c,[-.45,.4,0,-.38,.45,.4],P.roof);_P(c,[0,-.38,.45,.4,.1,.4],sh(P.roof,.8));_P(c,[-.1,.4,0,0,.1,.4],'#14121a')}],
+['mulino','Mulino','Edifici',2.4,(c,P)=>{_R(c,-.2,-.1,.4,.5,P.house);_P(c,[-.26,-.08,0,-.3,.26,-.08],P.roof);c.save();c.translate(0,-.2);c.rotate(.4);_R(c,-.03,-.45,.06,.9,'#c8b48a');_R(c,-.45,-.03,.9,.06,'#c8b48a');_R(c,-.03,-.45,.2,.16,'#e8dcc0');_R(c,-.45,-.03,.16,.2,'#e8dcc0');c.restore();_R(c,-.05,.22,.1,.18,'#3a2a1a')}],
+['tempio','Tempio','Edifici',3,(c,P)=>{const s=stoneC(P);_P(c,[-.45,-.18,0,-.42,.45,-.18],s);_R(c,-.42,-.18,.84,.08,sh(s,.8));for(let i=0;i<4;i++)_R(c,-.36+i*.24,-.1,.1,.46,'#e6e2ee');_R(c,-.46,.36,.92,.1,s)}],
+['citta','Città','Edifici',4,(c,P)=>{_house(c,P,-.22,-.12,.55);_house(c,P,.24,-.1,.5);_house(c,P,-.02,.22,.6)}],
+['ponte','Ponte','Edifici',3,(c,P)=>{_R(c,-.5,-.2,1,.4,'#8a5e34');for(let i=0;i<8;i++)_R(c,-.5+i*.125,-.2,.02,.4,'#5a3b1e');_R(c,-.5,-.25,1,.06,'#5a3b1e');_R(c,-.5,.19,1,.06,'#5a3b1e')}],
+['recinto','Recinto','Edifici',2,(c,P)=>{_R(c,-.5,-.04,1,.07,'#8a5e34');_R(c,-.5,.14,1,.07,'#8a5e34');for(let i=0;i<5;i++)_R(c,-.48+i*.24,-.14,.06,.4,'#6b4528')}],
+['nave','Nave','Edifici',3,(c,P)=>{_P(c,[-.45,.1,.45,.1,.3,.35,-.3,.35],'#6b4528');_R(c,-.02,-.42,.04,.55,'#3a2a1a');_P(c,[.03,-.4,.32,.02,.03,.02],'#f2ead6');_P(c,[-.03,-.34,-.3,.02,-.03,.02],'#e3d8bd')}],
+['porta','Porta','Dungeon',1.2,(c,P)=>{_R(c,-.45,-.25,.9,.5,'#3a2a1a');_R(c,-.38,-.18,.76,.36,'#8a5e34');_R(c,0,-.18,.02,.36,'#5a3b1e');_E(c,.28,0,.04,.04,'#f0c419');_E(c,-.28,0,.04,.04,'#f0c419')}],
+['baule','Baule','Dungeon',.9,(c,P)=>{_R(c,-.35,-.15,.7,.45,'#7a4e2a');_R(c,-.35,-.28,.7,.18,'#966034');_R(c,-.35,-.02,.7,.06,P.treasure);_R(c,-.05,-.06,.1,.14,P.treasure)}],
+['scala','Scala','Dungeon',1.5,(c,P)=>{for(let i=0;i<6;i++)_R(c,-.35,-.42+i*.14,.7,.11,sh(P.stairs,1-i*.09));_R(c,-.37,-.44,.04,.86,'#14121a');_R(c,.33,-.44,.04,.86,'#14121a')}],
+['colonna','Colonna','Dungeon',1,(c,P)=>{_E(c,0,0,.3,.3,'#8d8a99');_E(c,-.06,-.06,.16,.16,'#bdbacb');_E(c,.08,.08,.1,.1,'#6a6578')}],
+['torcia','Torcia','Dungeon',.8,(c,P)=>{_E(c,0,-.15,.42,.42,'rgba(255,170,60,.2)');_R(c,-.04,-.05,.08,.4,'#5a3d22');_P(c,[-.14,-.05,0,-.45,.14,-.05],'#ff8a2a');_P(c,[-.07,-.05,0,-.28,.07,-.05],'#ffd34a')}],
+['falo','Falò','Dungeon',1,(c,P)=>{c.save();c.rotate(.5);_R(c,-.35,.15,.7,.09,'#5a3d22');c.restore();c.save();c.rotate(-.5);_R(c,-.35,.15,.7,.09,'#6b4a2b');c.restore();_P(c,[-.2,.2,0,-.42,.2,.2],'#ff6a2a');_P(c,[-.12,.2,0,-.2,.12,.2],'#ffb02a');_P(c,[-.05,.2,0,-.02,.05,.2],'#fff0a0')}],
+['altare','Altare','Dungeon',1.6,(c,P)=>{_R(c,-.4,-.25,.8,.5,'#6a6578');_R(c,-.34,-.19,.68,.38,'#8d8a99');_E(c,0,0,.12,.12,'#c04cff');_E(c,0,0,.06,.06,'#f1e3ff')}],
+['trappola','Trappola','Dungeon',1,(c,P)=>{_R(c,-.4,-.4,.8,.8,'#4b4559');for(let i=0;i<3;i++)for(let j=0;j<3;j++)_P(c,[-.3+i*.25,-.18+j*.25,-.2+i*.25,-.38+j*.25,-.1+i*.25,-.18+j*.25],'#d6d6e0')}],
+['botola','Botola','Dungeon',1,(c,P)=>{_R(c,-.4,-.4,.8,.8,'#6b4528');for(let i=1;i<4;i++)_R(c,-.4,-.4+i*.2,.8,.02,'#3a2a1a');_E(c,0,0,.12,.12,'#d9b85c');_E(c,0,0,.07,.07,'#6b4528')}],
+['statua','Statua','Dungeon',1,(c,P)=>{_R(c,-.28,.2,.56,.22,'#6a6578');_P(c,[-.15,.2,-.12,-.2,.12,-.2,.15,.2],'#a5a2b4');_E(c,0,-.3,.12,.12,'#bcb9ca')}],
+['barile','Barile','Dungeon',.8,(c,P)=>{_E(c,0,0,.32,.4,'#8a5e34');_R(c,-.31,-.14,.62,.05,'#4a3320');_R(c,-.31,.1,.62,.05,'#4a3320');_E(c,-.1,-.15,.1,.2,'rgba(255,255,255,.12)')}],
+['tavolo','Tavolo','Dungeon',2,(c,P)=>{_E(c,-.28,.38,.1,.1,'#6b4528');_E(c,.28,.38,.1,.1,'#6b4528');_R(c,-.45,-.25,.9,.5,'#8a5e34');_R(c,-.45,-.25,.9,.07,'#a67a48')}],
+['letto','Letto','Dungeon',1.4,(c,P)=>{_R(c,-.3,-.45,.6,.9,'#6b4528');_R(c,-.26,-.4,.52,.8,'#d9d4e8');_R(c,-.22,-.38,.44,.22,'#ffffff');_R(c,-.26,0,.52,.4,P.roof)}],
+['teschio','Teschio','Dungeon',.6,(c,P)=>{_E(c,0,-.05,.28,.26,'#eee8d6');_R(c,-.14,.12,.28,.16,'#eee8d6');_E(c,-.1,-.05,.07,.08,'#14121a');_E(c,.1,-.05,.07,.08,'#14121a')}],
+['bandiera','Bandiera','Segni',1.2,(c,P)=>{_R(c,-.2,-.45,.05,.9,'#3a3340');_P(c,[-.15,-.42,.35,-.28,-.15,-.12],'#d02f3a')}],
+['croce','Segno X','Segni',1.4,(c,P)=>{c.save();c.rotate(.785);_R(c,-.07,-.42,.14,.84,'#14121a');_R(c,-.42,-.07,.84,.14,'#14121a');_R(c,-.045,-.38,.09,.76,'#d02f3a');_R(c,-.38,-.045,.76,.09,'#d02f3a');c.restore()}],
+['pin','Segnaposto','Segni',1.2,(c,P)=>{_P(c,[-.19,-.04,0,.46,.19,-.04],'#d02f3a');_E(c,0,-.14,.22,.22,'#d02f3a');_E(c,0,-.14,.08,.08,'#ffffff')}],
+['stella','Punto d\'interesse','Segni',1.6,(c,P)=>{const p=[];for(let i=0;i<10;i++){const a=-1.5708+i*.6283,r=i%2?.2:.46;p.push(Math.cos(a)*r,Math.sin(a)*r)}_P(c,p,'#14121a');const q=[];for(let i=0;i<10;i++){const a=-1.5708+i*.6283,r=i%2?.15:.38;q.push(Math.cos(a)*r,Math.sin(a)*r)}_P(c,q,'#ffcb3d')}],
+['cartello','Cartello','Segni',1,(c,P)=>{_R(c,-.04,-.1,.08,.55,'#5a3d22');_R(c,-.34,-.4,.68,.34,'#a67a48');_R(c,-.34,-.4,.68,.05,'#c79a62');_R(c,-.22,-.28,.44,.04,'#5a3d22');_R(c,-.22,-.19,.3,.04,'#5a3d22')}],
+['pozzo','Pozzo','Segni',1.4,(c,P)=>{_E(c,0,0,.38,.38,'#8d8a99');_E(c,0,0,.26,.26,'#2d6cb0');_E(c,-.06,-.06,.1,.08,'#6fb2ee')}],
+['rovine','Rovine','Segni',2,(c,P)=>{const s=stoneC(P);_R(c,-.42,-.1,.16,.5,s);_R(c,-.18,.1,.16,.3,sh(s,.85));_R(c,.06,-.2,.16,.6,s);_R(c,.3,.15,.16,.25,sh(s,.8));_R(c,-.5,.4,1,.06,sh(s,.7))}],
+['portale','Portale','Segni',1.6,(c,P)=>{_E(c,0,0,.44,.44,'#3a1a7a');_E(c,0,0,.36,.36,'#6a2fbf');_E(c,0,0,.26,.26,'#b57bff');_E(c,0,0,.14,.14,'#f1e3ff')}],
+['cristallo','Cristallo','Segni',1,(c,P)=>{_P(c,[-.18,.4,-.24,-.05,0,-.45,.24,-.05,.18,.4],'#38c8e8');_P(c,[0,-.45,.24,-.05,.18,.4,0,.4],'#1f8fb0');_P(c,[-.14,.0,-.1,-.15,-.02,-.25,-.04,0],'#bdf0ff')}],
+['tomba','Tomba','Segni',1,(c,P)=>{_R(c,-.2,-.25,.4,.65,'#9a97a8');_E(c,0,-.25,.2,.15,'#9a97a8');_R(c,-.03,-.28,.06,.3,'#5b5870');_R(c,-.11,-.18,.22,.06,'#5b5870')}]
+];
+const STM=Object.fromEntries(STAMPS.map(s=>[s[0],s])),MCATS=['Natura','Edifici','Dungeon','Segni'];
+const SHADOW=new Set(['pino','quercia','palma','morto','cespuglio','roccia','montagna','vulcano','cactus','casa','capanna','castello','torre','tenda','mulino','tempio','citta','nave','statua','barile','cartello','pozzo','colonna','rovine','cristallo','tomba','bandiera']);
+const MLEG={casa:'casa',montagna:'montagna',albero:'quercia',torre:'torre',tenda:'tenda',tesoro:'baule',bandiera:'bandiera'};
+function drawObj(c,P,o,Z,al){
+  c.save();c.globalAlpha=al==null?1:al;
+  if(o.k==='testo'){
+    c.translate(o.x*Z,o.y*Z);c.rotate((o.r||0)*Math.PI/180);
+    c.font='bold '+Math.max(8,Math.round(o.s*Z))+'px "Pixelify Sans",sans-serif';c.textAlign='center';c.textBaseline='middle';c.lineJoin='round';
+    c.lineWidth=Math.max(2,o.s*Z*.18);c.strokeStyle='#14121a';c.strokeText(o.t||'',0,0);c.fillStyle='#fff6d8';c.fillText(o.t||'',0,0);
+    c.restore();return;
+  }
+  const st=STM[o.k];if(!st){c.restore();return}
+  const S=o.s*Z;c.translate(o.x*Z,o.y*Z);
+  if(SHADOW.has(o.k)){c.fillStyle='rgba(0,0,0,.26)';c.beginPath();c.ellipse(S*.04,S*.38,S*.38,S*.09,0,0,6.2832);c.fill()}
+  c.rotate((o.r||0)*Math.PI/180);c.scale((o.f?-1:1)*S,S);st[4](c,P);c.restore();
+}
+const THUMB={};
+function stThumb(k,pal){
+  const key=k+'|'+pal;if(THUMB[key])return THUMB[key];
+  const cv=document.createElement('canvas');cv.width=cv.height=64;const c=cv.getContext('2d');
+  c.fillStyle=colsFor(pal)[3].sh[3];c.fillRect(0,0,64,64);
+  drawObj(c,PAL[pal]||PAL.classica,{k,x:.5,y:.5,s:.92,r:0,f:0},64,1);
+  return THUMB[key]=cv.toDataURL();
+}
+
+/* ---- modello mappa, (de)serializzazione ---- */
+const rleEnc=a=>{const o=[];let p=a[0],c=0;for(let i=0;i<a.length;i++){if(a[i]===p)c++;else{o.push(p+'.'+c);p=a[i];c=1}}o.push(p+'.'+c);return o.join(' ')};
+const rleDec=(s,len,def)=>{const a=new Uint8Array(len);if(def)a.fill(def);let i=0;for(const t of String(s||'').split(' ')){const [v,c]=t.split('.').map(Number);if(isNaN(v)||isNaN(c))continue;for(let j=0;j<c&&i<len;j++)a[i++]=v}return a};
+function mpGenerate(c){
+  const n=c.size,d=genMap(c),ter=new Uint8Array(n*n),objs=[],t=c.type,dn=t==='dungeon'||t==='caverna';
+  const put=(k,i)=>objs.push({id:uid8(),k,x:i%n+.5,y:Math.floor(i/n)+.5,s:STM[k][3],r:0,f:0});
+  for(let i=0;i<n*n;i++){
+    const v=d.codes[i];let k;
+    if(v===255)k=18;
+    else if(t==='terra'||t==='isola')k=v;
+    else if(dn){const fl=t==='caverna'?8:9;k=v===0?11:v===1?fl:v===2?15:v===7?10:fl;if(v===6)put('baule',i);if(v===8||v===9)put('scala',i)}
+    else k=[3,3,8,1,4,14,16,14][v]??3;
+    ter[i]=k;
+  }
+  return {n,ter,fog:new Uint8Array(n*n),fogOn:false,objs,pal:c.pal,grid:!!c.grid,scale:c.scale||0,unit:c.unit||'m',gt:t,hs:hashSeed(c.seed),pub:true};
+}
+function mpBlank(n,base){const k={mare:0,erba:3,neve:7,pavimento:9}[base]??3,ter=new Uint8Array(n*n).fill(k);return {n,ter,fog:new Uint8Array(n*n),fogOn:false,objs:[],pal:'classica',grid:false,scale:0,unit:'m',gt:'terra',hs:hashSeed('b'+n+base),pub:true}}
+function mpToDoc(mp){
+  return JSON.parse(JSON.stringify({v:2,n:mp.n,ter:rleEnc(mp.ter),fog:rleEnc(mp.fog),fogOn:!!mp.fogOn,objs:mp.objs,pal:mp.pal,grid:!!mp.grid,scale:mp.scale||0,unit:mp.unit,gt:mp.gt,hs:mp.hs|0,pub:mp.pub!==false,cfg:{type:mp.gt,size:mp.n}}));
+}
+function mpFromDoc(m){
+  if(m&&m.v===2){
+    const n=Math.min(128,Math.max(8,parseInt(m.n)||48));
+    return {n,ter:rleDec(m.ter,n*n,3),fog:rleDec(m.fog,n*n,0),fogOn:!!m.fogOn,objs:(m.objs||[]).filter(o=>o&&(o.k==='testo'||STM[o.k])).map(o=>({...o,id:o.id||uid8()})),pal:PAL[m.pal]?m.pal:'classica',grid:!!m.grid,scale:+m.scale||0,unit:UNITS.includes(m.unit)?m.unit:'m',gt:m.gt||'terra',hs:m.hs||1,pub:m.pub!==false};
+  }
+  const c=mapNorm((m&&m.cfg)||{}),mp=mpGenerate(c);
+  (c.addons||[]).forEach(a=>mp.objs.push({id:uid8(),k:MLEG[a.t]||'quercia',x:a.x+a.s/2,y:a.y+a.s/2,s:a.s,r:0,f:0}));
+  return mp;
+}
+
+/* ---- disegno completo (terreno in cache + oggetti + nebbia + segnalini) ---- */
+function mpDab(n,cx,cy,s,shape,fn){
+  const c0=(s-1)/2,x0=cx-Math.floor(c0),y0=cy-Math.floor(c0),r2=c0*c0+c0*.5+.25;
+  for(let j=0;j<s;j++)for(let i=0;i<s;i++){const x=x0+i,y=y0+j;if(x<0||y<0||x>=n||y>=n)continue;if(shape==='round'){const dx=i-c0,dy=j-c0;if(dx*dx+dy*dy>r2)continue}fn(x,y)}
+}
+function mpStep(x0,y0,x1,y1,fn){const dx=x1-x0,dy=y1-y0,st=Math.max(Math.abs(dx),Math.abs(dy))||1;for(let i=0;i<=st;i++)fn(Math.round(x0+dx*i/st),Math.round(y0+dy*i/st))}
+function mpDraw(cv,mp,M,ov,marks){
+  mpEnsure(mp);ov=ov||{};
+  const n=mp.n,Z=mp.tcZ,P=PAL[mp.pal]||PAL.classica;
+  if(cv.width!==n*Z){cv.width=n*Z;cv.height=n*Z}
+  const c=cv.getContext('2d');c.setLineDash([]);c.globalAlpha=1;c.imageSmoothingEnabled=false;
+  c.drawImage(mp.tc,0,0);
+  if(mp.grid&&Z>=5){c.fillStyle='rgba(0,0,0,.2)';for(let i=1;i<n;i++){c.fillRect(i*Z,0,1,n*Z);c.fillRect(0,i*Z,n*Z,1)}}
+  const cl=v=>Math.min(n-1,Math.max(0,Math.floor(v))),vis=o=>M||(!o.h&&!(mp.fogOn&&mp.fog[cl(o.y)*n+cl(o.x)]));
+  mp.objs.filter(vis).sort((a,b)=>a.y-b.y).forEach(o=>drawObj(c,P,o,Z,M&&o.h?.5:1));
+  if(mp.fogOn||(M&&ov.fog)){c.fillStyle=M?'rgba(14,4,30,.6)':'#05030a';for(let y=0;y<n;y++)for(let x=0;x<n;x++)if(mp.fog[y*n+x])c.fillRect(x*Z,y*Z,Z,Z)}
+  if(mp.scale>0)drawScale(c,{size:n,scale:mp.scale,unit:mp.unit},Z);
+  (marks||[]).forEach(m=>drawToken(c,m,Z));
+  if(!M)return;
+  c.save();c.lineWidth=2;c.strokeStyle='#ffffff';c.setLineDash([5,4]);
+  const so=ov.sel&&mp.objs.find(o=>o.id===ov.sel);
+  if(so){const w=so.k==='testo'?Math.max(1,(so.t||'').length*so.s*.6):so.s,h=so.s;c.strokeRect((so.x-w/2)*Z,(so.y-h/2)*Z,w*Z,h*Z)}
+  c.setLineDash([]);
+  const hv=ov.hover;
+  if(hv&&hv.obj){c.globalAlpha=.55;drawObj(c,P,hv.obj,Z,.55);c.globalAlpha=1}
+  else if(hv&&hv.s){c.fillStyle='rgba(255,255,255,.3)';c.beginPath();mpDab(n,hv.x,hv.y,hv.s,hv.sh,(x,y)=>c.rect(x*Z,y*Z,Z,Z));c.fill()}
+  const s=ov.shape;
+  if(s){
+    const x0=Math.min(s.sx,s.ex),x1=Math.max(s.sx,s.ex),y0=Math.min(s.sy,s.ey),y1=Math.max(s.sy,s.ey);
+    c.setLineDash([6,4]);c.strokeStyle='#ffcb3d';
+    if(s.m==='rect')c.strokeRect(x0*Z,y0*Z,(x1-x0+1)*Z,(y1-y0+1)*Z);
+    else if(s.m==='ellipse'){c.beginPath();c.ellipse((x0+x1+1)/2*Z,(y0+y1+1)/2*Z,(x1-x0+1)/2*Z,(y1-y0+1)/2*Z,0,0,6.2832);c.stroke()}
+    else{c.beginPath();c.moveTo((s.sx+.5)*Z,(s.sy+.5)*Z);c.lineTo((s.ex+.5)*Z,(s.ey+.5)*Z);c.stroke()}
+  }
+  c.restore();
+}
+function mpFill(mp,x,y,k){
+  const n=mp.n,t=mp.ter,src=t[y*n+x];if(src===k)return false;
+  const st=[y*n+x];t[y*n+x]=k;
+  while(st.length){const i=st.pop(),cx=i%n,cy=(i-cx)/n;for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){const xx=cx+dx,yy=cy+dy;if(xx<0||yy<0||xx>=n||yy>=n)continue;const j=yy*n+xx;if(t[j]===src){t[j]=k;st.push(j)}}}
+  return true;
+}
+function mpHit(mp,x,y){
+  const l=[...mp.objs].sort((a,b)=>a.y-b.y);
+  for(let i=l.length-1;i>=0;i--){const o=l[i],w=o.k==='testo'?Math.max(.6,(o.t||'').length*o.s*.3):o.s/2,h=o.k==='testo'?o.s/2:o.s/2;if(Math.abs(x-o.x)<=w&&Math.abs(y-o.y)<=h)return o}
+  return null;
+}
+//#MAPCORE-END2
+
+/* ---- stato dell'editor ---- */
 const mapMarks=M=>{
   if(!mapSel)return [];
   const out=[],add=(id,p)=>{const q=p.mpos&&p.mpos[mapSel];if(q)out.push({x:q.x,y:q.y,label:String(p.username||'?')[0].toUpperCase(),color:'hsl('+(hashSeed(id)%360)+' 75% 42%)',me:id===uid})};
   if(M)Object.entries(S.players).forEach(([id,p])=>add(id,p));else{const p=me();if(p)add(uid,p)}
   return out;
 };
-const mapList=(M,saved)=>`<div class="card"><h3>${M?'Mappe salvate':'Mappe del Master'}</h3>${saved.map(m=>`<div class="move"${m.id===mapSel?' style="border-left-color:var(--ok)"':''}><div class="grow"><b>${esc(m.name)}</b><div class="mut">${esc((MAP_TYPES.find(t=>t[0]===m.cfg.type)||[0,String(m.cfg.type)])[1])} · ${m.cfg.size}×${m.cfg.size}</div></div><button class="mini" data-mo="${m.id}">${m.id===mapSel?'Aperta':'Apri'}</button>${M?`<button class="d mini" data-mdel="${m.id}">🗑</button>`:''}</div>`).join('')||'<p class="mut">Nessuna mappa salvata.</p>'}</div>`;
+let MAPCFG=mapNorm({type:'terra',seed:'nexus',size:48}),mapSel=null,MP=null,PMP=null,mpPKey='';
+let mpTool='brush',mpTer=3,mpBr=3,mpBrShape='round',mpKind='pino',mpCat='Natura',mpSize=null,mpScatter=true,mpVar=true,mpAgg=false,mpHid=false,mpTxt='',mpTxtS=1.2;
+let mpFogMode='hide',mpTokPl=null,mpSelId=null,mpZoom=1,mpScroll=null,mpFocus=null,mpDirty=false,mpHist=[],mpRedo=[],mpHover=null,mpOpenD={gen:false,set:false};
+let mpBusy=false,mpPend=false;
+const _render0=render;
+render=function(){if(mpBusy){mpPend=true;return}_render0()};
+const mpSnapshot=()=>({n:MP.n,ter:MP.ter.slice(),fog:MP.fog.slice(),objs:JSON.parse(JSON.stringify(MP.objs)),fogOn:MP.fogOn});
+function mpPush(){mpHist.push(mpSnapshot());if(mpHist.length>40)mpHist.shift();mpRedo=[];mpDirty=true}
+function mpRestore(s){Object.assign(MP,{n:s.n,ter:s.ter,fog:s.fog,objs:s.objs,fogOn:s.fogOn});MP.tcDirty=true;if(mpSelId&&!MP.objs.some(o=>o.id===mpSelId))mpSelId=null;mpDirty=true}
+function mpUndo(){if(!mpHist.length)return;mpRedo.push(mpSnapshot());mpRestore(mpHist.pop());render()}
+function mpRedoA(){if(!mpRedo.length)return;mpHist.push(mpSnapshot());mpRestore(mpRedo.pop());render()}
+function mpOpen(id){const m=S.maps[id];if(!m)return;MP=mpFromDoc(m);mapSel=id;mpHist=[];mpRedo=[];mpDirty=false;mpSelId=null;mpScroll=null;render()}
+function mpNewBlank(){ask('🆕 Nuova mappa vuota',[{l:'Terreno di base',n:'base',t:'select',o:['erba','mare','neve','pavimento']},{l:'Dimensione (quadretti)',n:'sz',t:'select',o:[24,32,48,64,96,128]}],{base:'erba',sz:48}).then(r=>{if(!r)return;MP=mpBlank(+r.sz,r.base);mapSel=null;mpHist=[];mpRedo=[];mpDirty=true;mpSelId=null;mpScroll=null;render()})}
+function mpGenAct(){
+  if(MP.objs.length&&!confirm('Il generatore sostituisce terreno e oggetti della mappa aperta (puoi annullare con ↶). Continuare?'))return;
+  mpPush();const g=mpGenerate({...mapNorm(MAPCFG),pal:MP.pal,grid:MP.grid,scale:MP.scale,unit:MP.unit});
+  Object.assign(MP,{n:g.n,ter:g.ter,fog:g.fog,fogOn:false,objs:g.objs,gt:g.gt,hs:g.hs});MP.tcDirty=true;mpSelId=null;render();
+}
+async function mpSave(asNew){
+  let id=mapSel,name=(S.maps[id]&&S.maps[id].name)||'';
+  if(asNew||!id){const r=await ask('Salva mappa',[{l:'Nome della mappa',n:'name'}],{name});if(!r||!r.name)return;name=r.name.slice(0,60);id=uid8()}
+  const ok=await guard(db.collection('maps').doc(id).set({id,name,ts:Date.now(),...mpToDoc(MP)}).then(()=>1));
+  if(!ok)return;mapSel=id;mpDirty=false;toast('Mappa salvata'+(MP.pub?': i player la vedono nella bacheca Mappa':' (nascosta ai player)'));render();
+}
+function mpResize(nn){
+  if(nn===MP.n)return;mpPush();
+  const o=MP.n,ter=new Uint8Array(nn*nn).fill(3),fog=new Uint8Array(nn*nn),m=Math.min(o,nn);
+  for(let y=0;y<m;y++)for(let x=0;x<m;x++){ter[y*nn+x]=MP.ter[y*o+x];fog[y*nn+x]=MP.fog[y*o+x]}
+  MP.objs=MP.objs.filter(b=>b.x<nn&&b.y<nn);Object.assign(MP,{n:nn,ter,fog});MP.tcDirty=true;render();
+}
+function mpPlace(mp,x,y){
+  if(mp.objs.length>=1500){toast('Limite di 1500 oggetti');return null}
+  const st=STM[mpKind],base=mpSize??st[3],n=mp.n,px=mpAgg?Math.floor(x)+.5:x,py=mpAgg?Math.floor(y)+.5:y;
+  const o={id:uid8(),k:mpKind,x:+Math.min(n,Math.max(0,px)).toFixed(2),y:+Math.min(n,Math.max(0,py)).toFixed(2),s:+(base*(mpVar?0.85+Math.random()*0.3:1)).toFixed(2),r:mpVar&&st[2]!=='Edifici'?Math.round((Math.random()-.5)*16):0,f:mpVar&&Math.random()<.5?1:0};
+  if(mpHid)o.h=1;mp.objs.push(o);return o;
+}
+const mpStat=()=>mpDirty?'● Modifiche non salvate':(mapSel?'✔ Salvata':'Mappa non salvata');
+const MTOOLS=[['pan','✋','Muovi'],['brush','🖌️','Pennello'],['fill','🪣','Riempi'],['line','📏','Linea'],['rect','▭','Rettangolo'],['ellipse','⬭','Ellisse'],['stamp','🌲','Oggetti'],['sel','🔎','Seleziona'],['text','🔤','Testo'],['erase','🧽','Gomma'],['fog','🌫️','Nebbia'],['token','🧍','Segnalini']];
+const zoomBar=()=>`<div class="row" style="gap:6px;margin-bottom:8px"><button class="g mini" id="mpzo">−</button><span class="pill">🔍 ${Math.round(mpZoom*100)}%</span><button class="g mini" id="mpzi">+</button></div>`;
+const mapList=(M,saved)=>{const l=M?saved:saved.filter(m=>m.pub!==false);return `<div class="card"><h3>${M?'Mappe salvate':'Mappe del Master'}</h3>${l.map(m=>`<div class="move"${m.id===mapSel?' style="border-left-color:var(--ok)"':''}><div class="grow"><b>${esc(m.name)}</b>${m.pub===false?' <span class="tag">nascosta</span>':''}<div class="mut">${esc((MAP_TYPES.find(t=>t[0]===(m.gt||(m.cfg&&m.cfg.type)))||[0,'🗺️ Mappa'])[1])} · ${m.n||(m.cfg&&m.cfg.size)||'?'}×${m.n||(m.cfg&&m.cfg.size)||'?'}</div></div><button class="mini" data-mo="${m.id}">${m.id===mapSel?'Aperta':'Apri'}</button>${M?`<button class="d mini" data-mdel="${m.id}">🗑</button>`:''}</div>`).join('')||'<p class="mut">Nessuna mappa salvata.</p>'}</div>`};
+const terPal=()=>{const cl=terCols(PAL[MP.pal]||PAL.classica);return MGROUPS.map(g=>`<div class="mut" style="margin-top:8px">${g}</div><div class="chips">${TER.filter(t=>t[2]===g).map(t=>`<button class="chipb ${mpTer===t[0]?'sel':''}" data-ter="${t[0]}"><i class="sw" style="background:${cl[t[0]]}"></i>${t[1]}</button>`).join('')}</div>`).join('')};
+const slider=(id,l,v,a,b,st)=>`<div style="margin-top:8px"><div class="row sp"><span>${l}</span><b id="${id}v">${v}</b></div><input type="range" id="${id}" min="${a}" max="${b}" step="${st||1}" value="${v}"></div>`;
+const chk=(id,l,v)=>`<label class="row" style="gap:6px;margin-top:6px"><input type="checkbox" id="${id}" ${v?'checked':''}> ${l}</label>`;
+function mpOptions(){
+  const T=mpTool;
+  if(['brush','line'].includes(T))return `<div class="card"><h3>${T==='brush'?'Pennello terreno':'Linea'}</h3>${terPal()}${slider('mpbr','Dimensione',mpBr,1,20)}<label class="mut">Forma pennello</label><select id="mpbs"><option value="round" ${mpBrShape==='round'?'selected':''}>Tonda</option><option value="square" ${mpBrShape==='square'?'selected':''}>Quadrata</option></select>${T==='line'?'<p class="mut">Trascina da un punto all\'altro: ottima per strade e fiumi.</p>':''}</div>`;
+  if(['fill','rect','ellipse'].includes(T))return `<div class="card"><h3>${T==='fill'?'Riempi':T==='rect'?'Rettangolo':'Ellisse'}</h3>${terPal()}<p class="mut">${T==='fill'?'Tocca un\'area: tutto il terreno uguale collegato diventa quello scelto.':'Trascina per disegnare la forma piena.'}</p></div>`;
+  if(T==='stamp'){
+    const cat=STAMPS.filter(s=>s[2]===mpCat),defS=STM[mpKind][3];
+    return `<div class="card"><h3>Oggetti</h3><div class="chips">${MCATS.map(c=>`<button class="chipb ${mpCat===c?'sel':''}" data-cat="${c}">${c}</button>`).join('')}</div><div class="stgrid">${cat.map(s=>`<button class="stb ${mpKind===s[0]?'sel':''}" data-st="${s[0]}"><img src="${stThumb(s[0],MP.pal)}" alt=""><span>${esc(s[1])}</span></button>`).join('')}</div>${slider('mpsz','Grandezza (quadretti)',mpSize??defS,.3,10,.1)}${chk('mpsc','Spargi trascinando (foreste, folle…)',mpScatter)}${chk('mpvar','Variazione casuale (dimensione, specchio, inclinazione)',mpVar)}${chk('mpagg','Aggancia al centro dei quadretti',mpAgg)}${chk('mphid','Nascosto ai player (trappole, segreti)',mpHid)}<p class="mut">Tocca la mappa per piazzare. Per spostare/ruotare/ridimensionare usa 🔎 Seleziona.</p></div>`;
+  }
+  if(T==='sel'){
+    const o=MP.objs.find(x=>x.id===mpSelId);
+    if(!o)return `<div class="card"><h3>Seleziona</h3><p class="mut">Tocca un oggetto sulla mappa per selezionarlo, poi trascinalo per spostarlo.</p></div>`;
+    return `<div class="card"><h3>${o.k==='testo'?'Testo':esc(STM[o.k][1])}</h3>${slider('szo','Grandezza',o.s,.3,12,.1)}${slider('rot','Rotazione (°)',o.r||0,-180,180,1)}<div class="row" style="flex-wrap:wrap;gap:8px;margin-top:10px">${o.k==='testo'?'<button class="g" id="stxt">✎ Testo</button>':'<button class="g" id="sflip">↔ Specchia</button>'}<button class="g" id="sdup">⧉ Duplica</button><button class="g" id="shid">${o.h?'👁 Mostra ai player':'🙈 Nascondi ai player'}</button><button class="d" id="sdel">🗑 Elimina</button></div></div>`;
+  }
+  if(T==='text')return `<div class="card"><h3>Testo</h3><label class="mut">Scritta (nomi di regni, città, luoghi)</label><input id="mptxt" value="${esc(mpTxt)}" maxlength="40">${slider('mpts','Grandezza',mpTxtS,.5,6,.1)}<p class="mut">Tocca la mappa per piazzare la scritta; poi 🔎 per spostarla.</p></div>`;
+  if(T==='erase')return `<div class="card"><h3>Gomma oggetti</h3><p class="mut">Tocca o trascina sugli oggetti per cancellarli (il terreno non viene toccato).</p></div>`;
+  if(T==='fog')return `<div class="card"><h3>Nebbia di guerra</h3><div class="chips"><button class="chipb ${mpFogMode==='hide'?'sel':''}" data-fm="hide">🌫️ Nascondi</button><button class="chipb ${mpFogMode==='show'?'sel':''}" data-fm="show">☀️ Rivela</button></div>${slider('mpbr','Dimensione',mpBr,1,20)}<div class="row" style="flex-wrap:wrap;gap:8px;margin-top:10px"><button class="g" id="mpfall">Nascondi tutto</button><button class="g" id="mpfnone">Rivela tutto</button></div>${chk('mpfon','Nebbia attiva per i player',MP.fogOn)}<p class="mut">Con la nebbia attiva i player vedono nero dove hai nascosto (oggetti compresi). Salva per aggiornare la loro vista.</p></div>`;
+  if(T==='token'){
+    const pl=Object.entries(S.players);
+    return `<div class="card"><h3>Segnalini player</h3>${mapSel?'':'<p class="mut">Salva prima la mappa per usare i segnalini.</p>'}<div class="chips">${pl.map(([i,p])=>`<button class="chipb ${mpTokPl===i?'sel':''}" data-tp="${i}">${esc(p.username)}</button>`).join('')||'<p class="mut">Nessun player.</p>'}</div><div class="row" style="margin-top:10px;gap:8px"><button class="g" id="mptokclr">Rimuovi segnalino selezionato</button></div><p class="mut">Scegli un player e tocca la mappa per posizionarlo. I player possono anche muoversi da soli.</p></div>`;
+  }
+  return `<div class="card"><h3>Muovi</h3><p class="mut">Con questo strumento scorri/trascini la mappa (utile con lo zoom, soprattutto da telefono). Gli altri strumenti disegnano.</p></div>`;
+}
 const mapBoard=M=>{
   if(mapSel&&!S.maps[mapSel])mapSel=null;
   const saved=Object.values(S.maps||{}).sort((a,b)=>b.ts-a.ts),list=mapList(M,saved);
-  if(!M){ /* vista player: solo lista + segnalino */
+  if(!M){
     const m=S.maps[mapSel],p=me();
-    if(!m)return hdr('🗺️ Mappa',1)+list;
+    if(!m||m.pub===false)return hdr('🗺️ Mappa',1)+list;
+    const key=mapSel+'|'+m.ts;if(mpPKey!==key||!PMP){PMP=mpFromDoc(m);mpPKey=key}
     const mine=p&&p.mpos&&p.mpos[mapSel];
-    return hdr('🗺️ '+esc(m.name),1)+`<div class="card"><canvas id="mapcv" class="mapcv" style="cursor:crosshair"></canvas><p class="mut" style="margin:8px 0">Tocca la mappa per segnare dove si trova il tuo personaggio.</p><div class="row" style="flex-wrap:wrap;gap:8px">${mine?'<button class="g" id="mapunpin">Rimuovi il mio segnalino</button>':''}<button class="g" id="mapclose">‹ Altre mappe</button></div></div>`+list;
+    return hdr('🗺️ '+esc(m.name),1)+`<div class="card">${zoomBar()}<div class="mapwrap" id="mapwrap"><canvas id="mapcv" class="mapcv" style="width:${mpZoom*100}%;cursor:crosshair"></canvas></div><p class="mut" style="margin:8px 0">Tocca la mappa per segnare dove si trova il tuo personaggio.</p><div class="row" style="flex-wrap:wrap;gap:8px">${mine?'<button class="g" id="mapunpin">Rimuovi il mio segnalino</button>':''}<button class="g" id="mapclose">‹ Altre mappe</button></div></div>`+list;
   }
+  if(!MP)MP=mpGenerate({...mapNorm(MAPCFG),pal:'classica'});
   const c=mapNorm(MAPCFG),sl=MAP_SL[c.type]||[],cur=mapSel&&S.maps[mapSel];
-  return hdr('🗺️ Mappa',1)+
-  `<div class="card"><h3>Tipo di mappa</h3><div class="chips">${MAP_TYPES.map(([k,l])=>`<button class="chipb ${c.type===k?'sel':''}" data-mt="${k}">${l}</button>`).join('')}</div></div>`+
-  `<div class="card"><canvas id="mapcv" class="mapcv"${mapTool?' style="cursor:crosshair"':''}></canvas>${mapTool?`<p class="mut" style="margin:8px 0 0">${mapTool==='gomma'?'Tocca un add-on per cancellarlo.':'Tocca la mappa per piazzare: '+esc(ADDONS.find(a=>a[0]===mapTool)[1])}</p>`:''}<div class="row" style="flex-wrap:wrap;gap:8px;margin-top:10px"><button id="mapnew">🎲 Nuova mappa casuale</button><button class="g" id="mapdl">⬇ PNG</button><button class="g" id="mapcopy">📋 Codice</button><button class="g" id="mapload">📥 Carica</button><button class="g" id="mapsave">💾 Salva come nuova</button>${cur?`<button class="g" id="mapupd">💾 Aggiorna «${esc(cur.name)}»</button>`:''}</div></div>`+
-  `<div class="card"><h3>Personalizza</h3><label class="mut">Seme (stesso seme = stessa mappa)</label><div class="row"><input id="mapseed" value="${esc(c.seed)}" style="margin:0"><button class="g" id="mapdice" title="Seme casuale">🎲</button></div><div class="row" style="margin-top:10px"><div class="grow"><label class="mut">Dimensione</label><select id="mapsize">${[24,32,48,64,96,128].map(s=>`<option value="${s}" ${c.size===s?'selected':''}>${s}×${s}</option>`).join('')}</select></div><div class="grow"><label class="mut">Palette</label><select id="mappal">${Object.keys(PAL).map(k=>`<option value="${k}" ${c.pal===k?'selected':''}>${k[0].toUpperCase()+k.slice(1)}</option>`).join('')}</select></div></div><div class="row"><div class="grow"><label class="mut">Forma</label><select id="mapshape">${SHAPES.map(([k,l])=>`<option value="${k}" ${c.shape===k?'selected':''}>${l}</option>`).join('')}</select></div></div><div class="row" style="margin-top:6px"><div class="grow"><label class="mut">Scala: 1 quadretto = (0 = nascosta)</label><input id="mapscale" type="number" min="0" step="any" value="${c.scale}" style="margin:0"></div><div><label class="mut">Unità</label><select id="mapunit" style="margin:0">${UNITS.map(u=>`<option ${c.unit===u?'selected':''}>${u}</option>`).join('')}</select></div></div>${sl.map(([k,l,a,b])=>`<div style="margin-top:6px"><div class="row sp"><span>${l}</span><b id="mv-${k}">${c[k]}</b></div><input type="range" data-mk="${k}" min="${a}" max="${b}" value="${c[k]}"></div>`).join('')}<div class="row" style="margin-top:10px;gap:18px"><label class="row" style="gap:6px"><input type="checkbox" id="mapgrid" ${c.grid?'checked':''}> Griglia</label><label class="row" style="gap:6px"><input type="checkbox" id="mapshade" ${c.shade?'checked':''}> Rilievo</label></div></div>`+
-  `<div class="card"><h3>Add-on</h3><div class="chips">${ADDONS.map(([k,l])=>`<button class="chipb ${mapTool===k?'sel':''}" data-at="${k}">${l}</button>`).join('')}<button class="chipb ${mapTool==='gomma'?'sel':''}" data-at="gomma">🧽 Gomma</button></div><div class="row" style="margin-top:10px"><div class="grow"><label class="mut">Grandezza add-on</label><select id="mapaddsz" style="margin:0">${[1,2,3,4].map(s=>`<option value="${s}" ${mapSz===s?'selected':''}>${s}×${s} quadretti</option>`).join('')}</select></div><button class="g" id="mapaddclr">Svuota</button></div><p class="mut" style="margin:8px 0 0">Add-on piazzati: <b id="mapaddn">${c.addons.length}</b></p></div>`+list;
+  return hdr('🗺️ '+(cur?esc(cur.name):'Editor mappe'),1)+
+  `<div class="card"><div class="chips">${MTOOLS.map(([k,i,l])=>`<button class="chipb ${mpTool===k?'sel':''}" data-mtl="${k}">${i} ${l}</button>`).join('')}</div><div class="row" style="flex-wrap:wrap;gap:6px;margin-top:10px"><button class="g mini" id="mpu" ${mpHist.length?'':'disabled'}>↶ Annulla</button><button class="g mini" id="mpr" ${mpRedo.length?'':'disabled'}>↷ Ripeti</button><span class="grow"></span><span class="mut" id="mpstat">${mpStat()}</span></div></div>`+
+  `<div class="card">${zoomBar()}<div class="mapwrap" id="mapwrap"><canvas id="mapcv" class="mapcv" style="width:${mpZoom*100}%;touch-action:${mpTool==='pan'?'auto':'none'};cursor:${mpTool==='pan'?'grab':'crosshair'}"></canvas></div></div>`+
+  mpOptions()+
+  `<details class="card" id="dset" ${mpOpenD.set?'open':''}><summary>⚙️ Impostazioni mappa</summary><label class="mut">Palette</label><select id="mppal">${Object.keys(PAL).map(k=>`<option value="${k}" ${MP.pal===k?'selected':''}>${k[0].toUpperCase()+k.slice(1)}</option>`).join('')}</select><label class="mut">Dimensione (quadretti)</label><select id="mpsize">${[24,32,48,64,96,128].map(s=>`<option value="${s}" ${MP.n===s?'selected':''}>${s}×${s}</option>`).join('')}</select><div class="row"><div class="grow"><label class="mut">Scala: 1 quadretto = (0 = nascosta)</label><input id="mpscale" type="number" min="0" step="any" value="${MP.scale}" style="margin:0"></div><div><label class="mut">Unità</label><select id="mpunit" style="margin:0">${UNITS.map(u=>`<option ${MP.unit===u?'selected':''}>${u}</option>`).join('')}</select></div></div>${chk('mpgrid','Griglia',MP.grid)}${chk('mppub','Visibile ai player',MP.pub!==false)}</details>`+
+  `<details class="card" id="dgen" ${mpOpenD.gen?'open':''}><summary>🎲 Generatore casuale</summary><p class="mut">Crea una base da cui partire: poi ritoccala con pennello e oggetti.</p><div class="chips">${MAP_TYPES.map(([k,l])=>`<button class="chipb ${c.type===k?'sel':''}" data-mt="${k}">${l}</button>`).join('')}</div><label class="mut" style="margin-top:8px">Seme (stesso seme = stessa mappa)</label><div class="row"><input id="mapseed" value="${esc(c.seed)}" style="margin:0"><button class="g" id="mapdice" title="Seme casuale">🎲</button></div><div class="row" style="margin-top:10px"><div class="grow"><label class="mut">Dimensione</label><select id="mapgsize">${[24,32,48,64,96,128].map(s=>`<option value="${s}" ${c.size===s?'selected':''}>${s}×${s}</option>`).join('')}</select></div><div class="grow"><label class="mut">Forma</label><select id="mapgshape">${SHAPES.map(([k,l])=>`<option value="${k}" ${c.shape===k?'selected':''}>${l}</option>`).join('')}</select></div></div>${sl.map(([k,l,a,b])=>`<div style="margin-top:6px"><div class="row sp"><span>${l}</span><b id="mv-${k}">${c[k]}</b></div><input type="range" data-mk="${k}" min="${a}" max="${b}" value="${c[k]}"></div>`).join('')}<div class="row" style="margin-top:12px;flex-wrap:wrap;gap:8px"><button id="mapgen">⚡ Genera</button><button class="g" id="mapnew">🎲 Nuova casuale</button></div></details>`+
+  `<div class="card"><h3>Salvataggio</h3><div class="row" style="flex-wrap:wrap;gap:8px"><button id="mapsave">💾 ${cur?'Aggiorna «'+esc(cur.name)+'»':'Salva'}</button>${cur?'<button class="g" id="mapsaveas">💾 Salva come nuova</button>':''}<button class="g" id="mapblank">🆕 Nuova vuota</button><button class="g" id="mapdl">⬇ PNG</button><button class="g" id="mapcopy">📋 Codice</button><button class="g" id="mapload">📥 Carica</button></div></div>`+list;
 };
 function mapInit(){
   const cv=document.getElementById('mapcv');if(!cv)return;
-  const M=masterOK&&view.name==='master',q=id=>document.getElementById(id);
-  if(!M){ /* player: sola lettura + segnalino */
-    const m=S.maps[mapSel];
-    document.querySelectorAll('[data-mo]').forEach(b=>b.onclick=()=>{mapSel=b.dataset.mo;render()});
-    if(!m)return;
-    const cfg=mapNorm(m.cfg),n=cfg.size,data=mapData(cfg);
-    paintMap(cv,cfg,Math.max(4,Math.floor(520/n)),data,mapMarks(false));
-    cv.onclick=e=>{const t=tileAt(cv,n,e);if(data.codes[t.y*n+t.x]===255)return toast('Fuori dalla mappa');const p=me();if(p)guard(db.collection('players').doc(uid).update({mpos:{...(p.mpos||{}),[mapSel]:t}}))};
+  const M=masterOK&&view.name==='master',q=id=>document.getElementById(id),w=q('mapwrap'),mp=M?MP:PMP;
+  if(!mp)return;
+  /* zoom + scroll */
+  const zs=[1,1.5,2,3,4,6];
+  const zoomBy=d=>{const i=Math.max(0,Math.min(zs.length-1,zs.indexOf(mpZoom)+d));if(zs[i]===mpZoom)return;mpFocus={fx:(w.scrollLeft+w.clientWidth/2)/w.scrollWidth,fy:(w.scrollTop+w.clientHeight/2)/w.scrollHeight};mpZoom=zs[i];render()};
+  if(q('mpzo'))q('mpzo').onclick=()=>zoomBy(-1);if(q('mpzi'))q('mpzi').onclick=()=>zoomBy(1);
+  if(!zs.includes(mpZoom))mpZoom=1;
+  mpEnsure(mp);
+  if(mpFocus){w.scrollLeft=mpFocus.fx*w.scrollWidth-w.clientWidth/2;w.scrollTop=mpFocus.fy*w.scrollHeight-w.clientHeight/2;mpFocus=null;mpScroll={l:w.scrollLeft,t:w.scrollTop}}
+  else if(mpScroll){w.scrollLeft=mpScroll.l;w.scrollTop=mpScroll.t}
+  w.onscroll=()=>{mpScroll={l:w.scrollLeft,t:w.scrollTop}};
+  const pt=e=>{const r=cv.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*mp.n,y=(e.clientY-r.top)/r.height*mp.n,t=v=>Math.min(mp.n-1,Math.max(0,Math.floor(v)));return {x,y,tx:t(x),ty:t(y)}};
+  const list=()=>document.querySelectorAll('[data-mo]').forEach(b=>b.onclick=()=>{if(M){if(mpDirty&&b.dataset.mo!==mapSel&&!confirm('Hai modifiche non salvate: aprire un\'altra mappa le perde. Continuare?'))return;mpOpen(b.dataset.mo)}else{mapSel=b.dataset.mo;mpScroll=null;render()}});
+  list();
+  if(!M){
+    mpDraw(cv,mp,false,null,mapMarks(false));
+    cv.onclick=e=>{const p=pt(e);if(mp.ter[p.ty*mp.n+p.tx]===18)return toast('Fuori dalla mappa');const me_=me();if(me_)guard(db.collection('players').doc(uid).update({mpos:{...(me_.mpos||{}),[mapSel]:{x:p.tx,y:p.ty}}}))};
     const up=q('mapunpin');if(up)up.onclick=()=>{const p=me(),o={...((p&&p.mpos)||{})};delete o[mapSel];guard(db.collection('players').doc(uid).update({mpos:o}))};
-    const cl=q('mapclose');if(cl)cl.onclick=()=>{mapSel=null;render()};
+    const cl=q('mapclose');if(cl)cl.onclick=()=>{mapSel=null;mpScroll=null;render()};
     return;
   }
-  /* Master: editor completo */
-  const draw=()=>{MAPCFG=mapNorm(MAPCFG);paintMap(cv,MAPCFG,Math.max(4,Math.floor(520/MAPCFG.size)),mapData(MAPCFG),mapMarks(true));const an=q('mapaddn');if(an)an.textContent=MAPCFG.addons.length};
-  draw();
-  document.querySelectorAll('[data-mt]').forEach(b=>b.onclick=()=>{const c=MAPCFG;MAPCFG=mapNorm({type:b.dataset.mt,seed:c.seed,size:c.size,pal:c.pal,grid:c.grid,shade:c.shade,shape:c.shape,scale:c.scale,unit:c.unit});render()});
-  document.querySelectorAll('[data-mk]').forEach(i=>i.oninput=()=>{MAPCFG[i.dataset.mk]=+i.value;const l=q('mv-'+i.dataset.mk);if(l)l.textContent=i.value;draw()});
-  const sd=q('mapseed');if(sd)sd.oninput=()=>{MAPCFG.seed=sd.value||'0';draw()};
-  const dice=()=>{MAPCFG.seed=Math.random().toString(36).slice(2,8);if(sd)sd.value=MAPCFG.seed;draw()};
-  ['mapnew','mapdice'].forEach(id=>{const b=q(id);if(b)b.onclick=dice});
-  const sz=q('mapsize');if(sz)sz.onchange=()=>{MAPCFG.size=+sz.value;draw()};
-  const pl=q('mappal');if(pl)pl.onchange=()=>{MAPCFG.pal=pl.value;draw()};
-  const sp=q('mapshape');if(sp)sp.onchange=()=>{MAPCFG.shape=sp.value;draw()};
-  const sc=q('mapscale');if(sc)sc.oninput=()=>{MAPCFG.scale=+sc.value||0;draw()};
-  const un=q('mapunit');if(un)un.onchange=()=>{MAPCFG.unit=un.value;draw()};
-  const gr=q('mapgrid');if(gr)gr.onchange=()=>{MAPCFG.grid=gr.checked;draw()};
-  const sh=q('mapshade');if(sh)sh.onchange=()=>{MAPCFG.shade=sh.checked;draw()};
-  /* add-on */
-  document.querySelectorAll('[data-at]').forEach(b=>b.onclick=()=>{mapTool=mapTool===b.dataset.at?null:b.dataset.at;render()});
-  const as=q('mapaddsz');if(as)as.onchange=()=>{mapSz=+as.value};
-  const ac=q('mapaddclr');if(ac)ac.onclick=()=>{MAPCFG.addons=[];draw()};
-  cv.onclick=e=>{
-    if(!mapTool)return;
-    const t=tileAt(cv,MAPCFG.size,e);
-    if(mapTool==='gomma')MAPCFG.addons=MAPCFG.addons.filter(a=>!(t.x>=a.x&&t.x<a.x+a.s&&t.y>=a.y&&t.y<a.y+a.s));
-    else MAPCFG.addons=[...MAPCFG.addons,{t:mapTool,x:t.x,y:t.y,s:mapSz}];
-    draw();
+  /* ===== Master ===== */
+  let drag=null,raf=0;
+  const ov=()=>{
+    const hv=mpHover,o={sel:mpSelId,fog:mpTool==='fog'};
+    if(hv&&!drag){
+      if(['brush','line','fog'].includes(mpTool))o.hover={x:hv.tx,y:hv.ty,s:mpBr,sh:mpBrShape};
+      else if(mpTool==='stamp')o.hover={obj:{k:mpKind,x:mpAgg?hv.tx+.5:hv.x,y:mpAgg?hv.ty+.5:hv.y,s:mpSize??STM[mpKind][3],r:0,f:0}};
+    }
+    if(drag&&['line','rect','ellipse'].includes(drag.m))o.shape=drag;
+    return o;
   };
-  /* PNG, codice, salvataggio */
-  const dl=q('mapdl');if(dl)dl.onclick=()=>{const c=mapNorm(MAPCFG),big=document.createElement('canvas');paintMap(big,c,Math.max(8,Math.floor(1024/c.size)),mapData(c));big.toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='mappa-'+c.type+'-'+c.seed+'.png';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000)})};
-  const cp=q('mapcopy');if(cp)cp.onclick=()=>{const code='NXMAP:'+JSON.stringify(mapNorm(MAPCFG)),show=()=>ask('Codice mappa',[{l:'Copia questo codice',n:'c',t:'area'}],{c:code});if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(code).then(()=>toast('Codice copiato'),show);else show()};
-  const ld=q('mapload');if(ld)ld.onclick=async()=>{const r=await ask('Carica mappa',[{l:'Incolla il codice (NXMAP:…)',n:'c',t:'area'}]);if(r){try{MAPCFG=mapNorm(JSON.parse(r.c.trim().replace(/^NXMAP:/,'')));render()}catch(e){toast('Codice non valido')}}};
-  const sv=q('mapsave');if(sv)sv.onclick=async()=>{const r=await ask('Salva mappa',[{l:'Nome della mappa',n:'name'}],{name:''});if(r&&r.name){const id=uid8();await guard(db.collection('maps').doc(id).set({id,name:r.name.slice(0,60),cfg:mapNorm(MAPCFG),ts:Date.now()}));mapSel=id;toast('Mappa salvata: i player la vedono nella bacheca Mappa')}};
-  const up=q('mapupd');if(up)up.onclick=async()=>{if(!mapSel)return;await guard(db.collection('maps').doc(mapSel).update({cfg:mapNorm(MAPCFG)}));toast('Mappa aggiornata')};
-  document.querySelectorAll('[data-mo]').forEach(b=>b.onclick=()=>{const m=S.maps[b.dataset.mo];if(m){MAPCFG=mapNorm(m.cfg);mapSel=m.id;render()}});
+  const redraw=()=>mpDraw(cv,mp,true,ov(),mapMarks(true));
+  const rd=()=>{if(!raf)raf=requestAnimationFrame(()=>{raf=0;redraw()})};
+  const stat=()=>{const s=q('mpstat');if(s)s.textContent=mpStat()};
+  redraw();
+  const paint=(x,y,sz)=>{
+    let a=1e9,b=1e9,c2=-1,d2=-1;
+    mpDab(mp.n,x,y,sz||mpBr,mpBrShape,(i,j)=>{const k=j*mp.n+i;if(mpTool==='fog')mp.fog[k]=mpFogMode==='hide'?1:0;else mp.ter[k]=mpTer;if(i<a)a=i;if(i>c2)c2=i;if(j<b)b=j;if(j>d2)d2=j});
+    if(mpTool!=='fog'&&c2>=0)mpTiles(mp,a,b,c2,d2);
+  };
+  const eraseAt=p=>{const o=mpHit(mp,p.x,p.y);if(o){mp.objs=mp.objs.filter(x=>x.id!==o.id);if(mpSelId===o.id)mpSelId=null}};
+  cv.onpointerdown=e=>{
+    if(e.button>0)return;
+    const p=pt(e),T=mpTool;
+    if(T==='pan'){if(e.pointerType==='mouse'){drag={m:'pan',x:e.clientX,y:e.clientY,l:w.scrollLeft,t:w.scrollTop};cv.setPointerCapture(e.pointerId);cv.style.cursor='grabbing'}return}
+    e.preventDefault();try{cv.setPointerCapture(e.pointerId)}catch(x){}
+    mpBusy=true;
+    if(T==='brush'||T==='fog'){mpPush();drag={m:'b',lx:p.tx,ly:p.ty};paint(p.tx,p.ty)}
+    else if(T==='fill'){mpPush();if(mpFill(mp,p.tx,p.ty,mpTer)){mp.tcDirty=true}drag={m:'x'}}
+    else if(['line','rect','ellipse'].includes(T))drag={m:T,sx:p.tx,sy:p.ty,ex:p.tx,ey:p.ty};
+    else if(T==='stamp'){mpPush();const o=mpPlace(mp,p.x,p.y);drag={m:'st',lx:p.x,ly:p.y,n:o?1:0}}
+    else if(T==='text'){if(!mpTxt.trim()){toast('Scrivi prima il testo');drag={m:'x'}}else{mpPush();mp.objs.push({id:uid8(),k:'testo',x:+p.x.toFixed(2),y:+p.y.toFixed(2),s:mpTxtS,r:0,f:0,t:mpTxt.trim().slice(0,40)});drag={m:'x'}}}
+    else if(T==='sel'){const o=mpHit(mp,p.x,p.y),old=mpSelId;mpSelId=o?o.id:null;drag=o?{m:'mv',id:o.id,dx:p.x-o.x,dy:p.y-o.y,pushed:false,ch:old!==o.id}:{m:'x',ch:old!==null}}
+    else if(T==='erase'){mpPush();drag={m:'er'};eraseAt(p)}
+    else if(T==='token'){
+      drag={m:'x'};
+      if(!mapSel)toast('Salva prima la mappa');else if(!mpTokPl)toast('Scegli un player');else if(mp.ter[p.ty*mp.n+p.tx]===18)toast('Fuori dalla mappa');
+      else{const pl=S.players[mpTokPl];guard(db.collection('players').doc(mpTokPl).update({mpos:{...((pl&&pl.mpos)||{}),[mapSel]:{x:p.tx,y:p.ty}}}))}
+    }
+    stat();rd();
+  };
+  cv.onpointermove=e=>{
+    const p=pt(e);mpHover=p;
+    if(!drag){if(['brush','line','fog','stamp'].includes(mpTool))rd();return}
+    if(drag.m==='pan'){w.scrollLeft=drag.l-(e.clientX-drag.x);w.scrollTop=drag.t-(e.clientY-drag.y);return}
+    if(drag.m==='b'){mpStep(drag.lx,drag.ly,p.tx,p.ty,(x,y)=>paint(x,y));drag.lx=p.tx;drag.ly=p.ty}
+    else if(['line','rect','ellipse'].includes(drag.m)){drag.ex=p.tx;drag.ey=p.ty}
+    else if(drag.m==='st'&&mpScatter){const sp=Math.max(.35,(mpSize??STM[mpKind][3])*.7);if(Math.hypot(p.x-drag.lx,p.y-drag.ly)>=sp){if(mpPlace(mp,p.x,p.y)){drag.lx=p.x;drag.ly=p.y}}}
+    else if(drag.m==='mv'){const o=mp.objs.find(x=>x.id===drag.id);if(o){if(!drag.pushed){mpPush();drag.pushed=true;stat()}const nx=p.x-drag.dx,ny=p.y-drag.dy;o.x=+Math.min(mp.n,Math.max(0,mpAgg?Math.floor(nx)+.5:nx)).toFixed(2);o.y=+Math.min(mp.n,Math.max(0,mpAgg?Math.floor(ny)+.5:ny)).toFixed(2)}}
+    else if(drag.m==='er')eraseAt(p);
+    rd();
+  };
+  const end=()=>{
+    if(!drag){return}
+    const d=drag;drag=null;let rerender=false;
+    if(d.m==='pan'){cv.style.cursor='grab';return}
+    if(['line','rect','ellipse'].includes(d.m)){
+      mpPush();const x0=Math.min(d.sx,d.ex),x1=Math.max(d.sx,d.ex),y0=Math.min(d.sy,d.ey),y1=Math.max(d.sy,d.ey);
+      if(d.m==='rect'){for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++)mp.ter[y*mp.n+x]=mpTer}
+      else if(d.m==='ellipse'){const cx=(x0+x1)/2,cy=(y0+y1)/2,rx=(x1-x0+1)/2,ry=(y1-y0+1)/2;for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){const a=(x-cx)/rx,b=(y-cy)/ry;if(a*a+b*b<=1)mp.ter[y*mp.n+x]=mpTer}}
+      else mpStep(d.sx,d.sy,d.ex,d.ey,(x,y)=>mpDab(mp.n,x,y,mpBr,mpBrShape,(i,j)=>{mp.ter[j*mp.n+i]=mpTer}));
+      mp.tcDirty=true;
+    }
+    if(d.m==='mv'||d.m==='x'){if(d.ch)rerender=true}
+    if(d.m==='er')rerender=false;
+    mpBusy=false;mpPend=false;stat();redraw();
+    if(rerender||(d.m==='mv'&&d.pushed)){render()}
+    else if(d.m==='b'||d.m==='fill'||d.m==='st'||d.m==='er'||d.m==='text'||['line','rect','ellipse'].includes(d.m)){render()}
+  };
+  cv.onpointerup=end;cv.onpointercancel=end;
+  cv.onpointerleave=()=>{mpHover=null;if(!drag)rd()};
+  /* undo/redo, strumenti */
+  if(q('mpu'))q('mpu').onclick=mpUndo;if(q('mpr'))q('mpr').onclick=mpRedoA;
+  document.querySelectorAll('[data-mtl]').forEach(b=>b.onclick=()=>{mpTool=b.dataset.mtl;render()});
+  document.querySelectorAll('[data-ter]').forEach(b=>b.onclick=()=>{mpTer=+b.dataset.ter;render()});
+  const bindR=(id,fn,vid)=>{const i=q(id);if(i)i.oninput=()=>{fn(+i.value);const l=q((vid||id)+'v');if(l)l.textContent=i.value}};
+  bindR('mpbr',v=>mpBr=v);
+  const bs=q('mpbs');if(bs)bs.onchange=()=>mpBrShape=bs.value;
+  document.querySelectorAll('[data-cat]').forEach(b=>b.onclick=()=>{mpCat=b.dataset.cat;mpKind=(STAMPS.find(s=>s[2]===mpCat)||STAMPS[0])[0];mpSize=null;render()});
+  document.querySelectorAll('[data-st]').forEach(b=>b.onclick=()=>{mpKind=b.dataset.st;mpSize=null;render()});
+  bindR('mpsz',v=>mpSize=v);bindR('mpts',v=>mpTxtS=v);
+  [['mpsc',v=>mpScatter=v],['mpvar',v=>mpVar=v],['mpagg',v=>mpAgg=v],['mphid',v=>mpHid=v]].forEach(([id,fn])=>{const c=q(id);if(c)c.onchange=()=>fn(c.checked)});
+  const tx=q('mptxt');if(tx)tx.oninput=()=>mpTxt=tx.value;
+  /* selezione */
+  const so=()=>mp.objs.find(o=>o.id===mpSelId);
+  const sz=q('szo');if(sz){sz.onpointerdown=()=>{mpPush();stat()};sz.oninput=()=>{const o=so();if(o){o.s=+sz.value;q('szov').textContent=sz.value;rd()}}}
+  const rt=q('rot');if(rt){rt.onpointerdown=()=>{mpPush();stat()};rt.oninput=()=>{const o=so();if(o){o.r=+rt.value;q('rotv').textContent=rt.value;rd()}}}
+  if(q('sflip'))q('sflip').onclick=()=>{const o=so();if(o){mpPush();o.f=o.f?0:1;render()}};
+  if(q('shid'))q('shid').onclick=()=>{const o=so();if(o){mpPush();if(o.h)delete o.h;else o.h=1;render()}};
+  if(q('sdup'))q('sdup').onclick=()=>{const o=so();if(o&&mp.objs.length<1500){mpPush();const c=JSON.parse(JSON.stringify(o));c.id=uid8();c.x=+Math.min(mp.n,c.x+.6).toFixed(2);c.y=+Math.min(mp.n,c.y+.6).toFixed(2);mp.objs.push(c);mpSelId=c.id;render()}};
+  if(q('sdel'))q('sdel').onclick=()=>{const o=so();if(o){mpPush();mp.objs=mp.objs.filter(x=>x.id!==o.id);mpSelId=null;render()}};
+  if(q('stxt'))q('stxt').onclick=async()=>{const o=so();if(!o)return;const r=await ask('Testo',[{l:'Testo',n:'t'}],{t:o.t});if(r&&r.t){mpPush();o.t=r.t.slice(0,40);render()}};
+  /* nebbia e segnalini */
+  document.querySelectorAll('[data-fm]').forEach(b=>b.onclick=()=>{mpFogMode=b.dataset.fm;render()});
+  if(q('mpfall'))q('mpfall').onclick=()=>{mpPush();mp.fog.fill(1);render()};
+  if(q('mpfnone'))q('mpfnone').onclick=()=>{mpPush();mp.fog.fill(0);render()};
+  if(q('mpfon'))q('mpfon').onchange=()=>{mpPush();mp.fogOn=q('mpfon').checked;render()};
+  document.querySelectorAll('[data-tp]').forEach(b=>b.onclick=()=>{mpTokPl=b.dataset.tp;render()});
+  if(q('mptokclr'))q('mptokclr').onclick=()=>{if(!mapSel||!mpTokPl)return toast('Scegli un player');const pl=S.players[mpTokPl],o={...((pl&&pl.mpos)||{})};delete o[mapSel];guard(db.collection('players').doc(mpTokPl).update({mpos:o}))};
+  /* impostazioni */
+  const setd=(id,fn)=>{const e=q(id);if(e)e.onchange=()=>{mpPush();fn(e);mp.tcDirty=true;render()}};
+  setd('mppal',e=>mp.pal=e.value);setd('mpunit',e=>mp.unit=e.value);setd('mpgrid',e=>mp.grid=e.checked);setd('mppub',e=>mp.pub=e.checked);
+  const ms=q('mpscale');if(ms)ms.onchange=()=>{mpPush();mp.scale=Math.min(1000,Math.max(0,+ms.value||0));render()};
+  const mz=q('mpsize');if(mz)mz.onchange=()=>mpResize(+mz.value);
+  ['dset','dgen'].forEach(id=>{const d=q(id);if(d)d.ontoggle=()=>{mpOpenD[id==='dset'?'set':'gen']=d.open}});
+  /* generatore */
+  document.querySelectorAll('[data-mt]').forEach(b=>b.onclick=()=>{const c=MAPCFG;MAPCFG=mapNorm({type:b.dataset.mt,seed:c.seed,size:c.size,shape:c.shape});mpOpenD.gen=true;render()});
+  document.querySelectorAll('[data-mk]').forEach(i=>i.oninput=()=>{MAPCFG[i.dataset.mk]=+i.value;const l=q('mv-'+i.dataset.mk);if(l)l.textContent=i.value});
+  const sd=q('mapseed');if(sd)sd.oninput=()=>{MAPCFG.seed=sd.value||'0'};
+  const dice=()=>{MAPCFG.seed=Math.random().toString(36).slice(2,8);if(sd)sd.value=MAPCFG.seed};
+  if(q('mapdice'))q('mapdice').onclick=dice;
+  if(q('mapnew'))q('mapnew').onclick=()=>{dice();mpGenAct()};
+  if(q('mapgen'))q('mapgen').onclick=mpGenAct;
+  const gz=q('mapgsize');if(gz)gz.onchange=()=>{MAPCFG.size=+gz.value};
+  const gs=q('mapgshape');if(gs)gs.onchange=()=>{MAPCFG.shape=gs.value};
+  /* salvataggio, PNG, codice */
+  if(q('mapsave'))q('mapsave').onclick=()=>mpSave(false);
+  if(q('mapsaveas'))q('mapsaveas').onclick=()=>mpSave(true);
+  if(q('mapblank'))q('mapblank').onclick=mpNewBlank;
+  const dl=q('mapdl');if(dl)dl.onclick=()=>{const big=document.createElement('canvas');mpDraw(big,mp,true,{},null);big.toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='mappa-'+(mapSel&&S.maps[mapSel]?S.maps[mapSel].name.replace(/[^\w-]+/g,'_'):mp.gt)+'.png';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000)})};
+  const cp=q('mapcopy');if(cp)cp.onclick=()=>{const code='NXMAP2:'+JSON.stringify(mpToDoc(mp)),show=()=>ask('Codice mappa',[{l:'Copia questo codice',n:'c',t:'area'}],{c:code});if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(code).then(()=>toast('Codice copiato'),show);else show()};
+  const ld=q('mapload');if(ld)ld.onclick=async()=>{const r=await ask('Carica mappa',[{l:'Incolla il codice (NXMAP2:… oppure NXMAP:…)',n:'c',t:'area'}]);if(!r)return;try{const s=r.c.trim(),v2=s.startsWith('NXMAP2:'),j=JSON.parse(s.replace(/^NXMAP2?:/,''));mpPush();const g=mpFromDoc(v2?j:{cfg:j});Object.assign(MP,g);MP.tcDirty=true;mpSelId=null;render()}catch(e){toast('Codice non valido')}};
   document.querySelectorAll('[data-mdel]').forEach(b=>b.onclick=async()=>{if(await askYes('Eliminare questa mappa salvata?'))guard(db.collection('maps').doc(b.dataset.mdel).delete())});
 }
 $('#mbtn').onclick=async()=>{
