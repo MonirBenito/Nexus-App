@@ -545,7 +545,12 @@ function mkNoise(seed){
 function fbm(nz,x,y,oct){let v=0,a=.5,f=1,t=0;for(let i=0;i<oct;i++){v+=a*nz(x*f,y*f);t+=a;a/=2;f*=2}return v/t}
 function mapNorm(c){
   c=c||{};const type=MAP_DEF[c.type]?c.type:'terra';
-  const o={...MAP_DEF[type],type,seed:String(c.seed==null?'nexus':c.seed).slice(0,40)||'nexus',size:Math.min(128,Math.max(16,parseInt(c.size)||48)),pal:PAL[c.pal]?c.pal:'classica',grid:!!c.grid,shade:c.shade!==false};
+  const size=Math.min(128,Math.max(16,parseInt(c.size)||48));
+  const o={...MAP_DEF[type],type,seed:String(c.seed==null?'nexus':c.seed).slice(0,40)||'nexus',size,pal:PAL[c.pal]?c.pal:'classica',grid:!!c.grid,shade:c.shade!==false,
+    shape:SHAPES.some(s=>s[0]===c.shape)?c.shape:'quadrata',
+    scale:Math.min(1000,Math.max(0,+c.scale||0)),
+    unit:UNITS.includes(c.unit)?c.unit:'m',
+    addons:(Array.isArray(c.addons)?c.addons:[]).filter(a=>a&&ADDON_T.includes(a.t)&&Number.isInteger(a.x)&&Number.isInteger(a.y)&&a.x>=0&&a.y>=0&&a.x<size&&a.y<size).slice(0,500).map(a=>({t:a.t,x:a.x,y:a.y,s:Math.min(4,Math.max(1,parseInt(a.s)||1))}))};
   for(const [k,,a,b] of MAP_SL[type])if(c[k]!=null&&!isNaN(+c[k]))o[k]=Math.min(b,Math.max(a,+c[k]));
   return o;
 }
@@ -655,9 +660,12 @@ function genVillage(c){
   for(let y=0;y<n;y++)for(let x=0;x<n;x++){const i=at(x,y);if(codes[i]<=1&&nt(x*.2+9,y*.2+9)>.4&&rnd()<c.trees/100*.3)codes[i]=4}
   return {codes,el:null};
 }
-function genMap(c){return c.type==='terra'?genTerra(c,false):c.type==='isola'?genTerra(c,true):c.type==='dungeon'?genDungeon(c):c.type==='caverna'?genCave(c):genVillage(c)}
-let mapCache={key:'',data:null};
-function mapData(c){const key=JSON.stringify([c.type,c.size,c.seed,c.water,c.mount,c.forest,c.detail,c.rooms,c.rsize,c.corr,c.treasure,c.dens,c.smooth,c.houses,c.trees,c.pond]);if(mapCache.key!==key)mapCache={key,data:genMap(c)};return mapCache.data}
+function genMap(c){
+  const d=c.type==='terra'?genTerra(c,false):c.type==='isola'?genTerra(c,true):c.type==='dungeon'?genDungeon(c):c.type==='caverna'?genCave(c):genVillage(c);
+  if(c.shape!=='quadrata'){const n=c.size;for(let y=0;y<n;y++)for(let x=0;x<n;x++)if(!inShape(c.shape,x,y,n))d.codes[y*n+x]=255}
+  return d;
+}
+function mapData(c){const key=JSON.stringify([c.type,c.size,c.seed,c.water,c.mount,c.forest,c.detail,c.rooms,c.rsize,c.corr,c.treasure,c.dens,c.smooth,c.houses,c.trees,c.pond,c.shape]);if(mapCache.key!==key)mapCache={key,data:genMap(c)};return mapCache.data}
 /* colore di una tessera per le mappe "terre" e "isola" (le altre sono gestite in paintMap) */
 function tileColor(c,P,k,x,y,data,sh){
   const n=c.size,col=[P.deep,P.shallow,P.sand,P.grass,P.forest,P.hill,P.mount,P.snow][k];let f=1;
@@ -665,10 +673,49 @@ function tileColor(c,P,k,x,y,data,sh){
   return shadeC(col,f+(sh-.5)*(k<2?.05:.09));
 }
 function paintMap(cv,c,Z,data){
+  const ADDONS=[['casa','🏠 Casa'],['montagna','⛰️ Montagna'],['albero','🌲 Albero'],['torre','🗼 Torre'],['tenda','⛺ Tenda'],['tesoro','💰 Tesoro'],['bandiera','🚩 Bandiera']];
+const ADDON_T=ADDONS.map(a=>a[0]);
+const SHAPES=[['quadrata','⬜ Quadrata'],['tonda','⚪ Tonda'],['ovale','🥚 Ovale'],['diamante','🔶 Diamante']];
+const UNITS=['m','km','mi','passi'];
+function inShape(s,x,y,n){
+  const dx=(x+.5)/n*2-1,dy=(y+.5)/n*2-1;
+  if(s==='tonda')return dx*dx+dy*dy<=1;
+  if(s==='ovale')return dx*dx+dy*dy/.36<=1;
+  if(s==='diamante')return Math.abs(dx)+Math.abs(dy)<=1;
+  return true;
+}
+function drawAddon(ctx,P,a,Z){
+  const X=a.x*Z,Y=a.y*Z,W=a.s*Z,r=(fx,fy,fw,fh,col)=>{ctx.fillStyle=col;ctx.fillRect(X+fx*W,Y+fy*W,fw*W,fh*W)};
+  if(a.t==='casa'){r(.1,.45,.8,.5,P.house);r(.05,.2,.9,.28,P.roof);r(.42,.65,.16,.3,shadeC(P.roof,.55))}
+  else if(a.t==='montagna'){r(.05,.7,.9,.25,P.mount);r(.2,.45,.6,.27,P.mount);r(.35,.2,.3,.27,P.mount);r(.4,.2,.2,.14,P.snow)}
+  else if(a.t==='albero'){r(.43,.65,.14,.3,'#6b4a2b');r(.2,.4,.6,.3,P.tree);r(.3,.15,.4,.3,shadeC(P.tree,1.15))}
+  else if(a.t==='torre'){r(.3,.25,.4,.7,P.wall);r(.25,.12,.5,.15,shadeC(P.wall,.8));r(.43,.5,.14,.2,'#14121a')}
+  else if(a.t==='tenda'){r(.1,.7,.8,.25,P.roof);r(.25,.45,.5,.27,P.roof);r(.4,.2,.2,.27,P.roof);r(.44,.72,.12,.23,'#14121a')}
+  else if(a.t==='tesoro'){r(.2,.4,.6,.5,P.treasure);r(.2,.4,.6,.12,shadeC(P.treasure,.75));r(.45,.55,.1,.15,'#14121a')}
+  else if(a.t==='bandiera'){r(.28,.1,.07,.85,'#3a3340');r(.35,.12,.4,.28,'#d02f3a')}
+}
+function drawScale(ctx,c,Z){
+  const n=c.size,L=Math.max(1,Math.round(n/8)),W=L*Z,fs=Math.max(10,Math.round(Z*1.3)),pad=Math.round(fs*.5);
+  const label=(+(L*c.scale).toFixed(2))+' '+c.unit;
+  ctx.font='bold '+fs+'px sans-serif';
+  const bw=Math.max(W,ctx.measureText(label).width)+pad*2,bh=fs+pad*2+6,x0=Z,y0=n*Z-bh-Z;
+  ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(x0,y0,bw,bh);
+  ctx.fillStyle='#fff';ctx.fillRect(x0+pad,y0+bh-pad-3,W,3);ctx.fillRect(x0+pad,y0+bh-pad-7,2,8);ctx.fillRect(x0+pad+W-2,y0+bh-pad-7,2,8);
+  ctx.textAlign='start';ctx.textBaseline='top';ctx.fillText(label,x0+pad,y0+pad-2);
+}
+function drawToken(ctx,m,Z){
+  const r=Math.max(7,Z*.8),cx=m.x*Z+Z/2,cy=m.y*Z+Z/2;
+  ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fillStyle=m.color;ctx.fill();
+  ctx.lineWidth=m.me?3:2;ctx.strokeStyle='#fff';ctx.stroke();
+  ctx.fillStyle='#fff';ctx.font='bold '+Math.round(r*1.1)+'px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(m.label,cx,cy+1);ctx.textAlign='start';
+}
+function paintMap(cv,c,Z,data,marks){
   const n=c.size,P=PAL[c.pal]||PAL.classica,ctx=cv.getContext('2d'),seed=hashSeed(c.seed);
   cv.width=cv.height=n*Z;ctx.imageSmoothingEnabled=false;
   for(let y=0;y<n;y++)for(let x=0;x<n;x++){
-    const k=data.codes[y*n+x],sh=(((Math.imul(x,73856093)^Math.imul(y,19349663)^seed)>>>0)%1000)/1000;
+    const k=data.codes[y*n+x];
+    if(k===255){ctx.fillStyle='#14121a';ctx.fillRect(x*Z,y*Z,Z,Z);continue}
+    const sh=(((Math.imul(x,73856093)^Math.imul(y,19349663)^seed)>>>0)%1000)/1000;
     let col;
     if(c.type==='villaggio'){
       const base={0:P.grass,1:shadeC(P.grass,.92),2:P.road,3:P.water,4:P.tree,5:P.house,6:P.roof,7:shadeC(P.roof,.55)}[k];
@@ -682,36 +729,84 @@ function paintMap(cv,c,Z,data){
     if(k===4&&c.type==='villaggio'){ctx.fillStyle=shadeC(P.tree,.75);ctx.fillRect(x*Z+Z*.2,y*Z+Z*.2,Z*.6,Z*.6)}
   }
   if(c.grid&&Z>=5){ctx.fillStyle='rgba(0,0,0,.16)';for(let i=1;i<n;i++){ctx.fillRect(i*Z,0,1,n*Z);ctx.fillRect(0,i*Z,n*Z,1)}}
+  (c.addons||[]).forEach(a=>drawAddon(ctx,P,a,Z));
+  if(c.scale>0)drawScale(ctx,c,Z);
+  (marks||[]).forEach(m=>drawToken(ctx,m,Z));
 }
 //#MAPCORE-END
-let MAPCFG=mapNorm({type:'terra',seed:'nexus'});
+let MAPCFG=mapNorm({type:'terra',seed:'nexus'}),mapSel=null,mapTool=null,mapSz=1;
+const tileAt=(cv,n,e)=>{const r=cv.getBoundingClientRect(),f=v=>Math.min(n-1,Math.max(0,Math.floor(v*n)));return {x:f((e.clientX-r.left)/r.width),y:f((e.clientY-r.top)/r.height)}};
+/* segnalini sulla mappa aperta: il Master li vede tutti, il player solo il proprio */
+const mapMarks=M=>{
+  if(!mapSel)return [];
+  const out=[],add=(id,p)=>{const q=p.mpos&&p.mpos[mapSel];if(q)out.push({x:q.x,y:q.y,label:String(p.username||'?')[0].toUpperCase(),color:'hsl('+(hashSeed(id)%360)+' 75% 42%)',me:id===uid})};
+  if(M)Object.entries(S.players).forEach(([id,p])=>add(id,p));else{const p=me();if(p)add(uid,p)}
+  return out;
+};
+const mapList=(M,saved)=>`<div class="card"><h3>${M?'Mappe salvate':'Mappe del Master'}</h3>${saved.map(m=>`<div class="move"${m.id===mapSel?' style="border-left-color:var(--ok)"':''}><div class="grow"><b>${esc(m.name)}</b><div class="mut">${esc((MAP_TYPES.find(t=>t[0]===m.cfg.type)||[0,String(m.cfg.type)])[1])} · ${m.cfg.size}×${m.cfg.size}</div></div><button class="mini" data-mo="${m.id}">${m.id===mapSel?'Aperta':'Apri'}</button>${M?`<button class="d mini" data-mdel="${m.id}">🗑</button>`:''}</div>`).join('')||'<p class="mut">Nessuna mappa salvata.</p>'}</div>`;
 const mapBoard=M=>{
-  const c=mapNorm(MAPCFG),sl=MAP_SL[c.type]||[],saved=Object.values(S.maps||{}).sort((a,b)=>b.ts-a.ts);
+  if(mapSel&&!S.maps[mapSel])mapSel=null;
+  const saved=Object.values(S.maps||{}).sort((a,b)=>b.ts-a.ts),list=mapList(M,saved);
+  if(!M){ /* vista player: solo lista + segnalino */
+    const m=S.maps[mapSel],p=me();
+    if(!m)return hdr('🗺️ Mappa',1)+list;
+    const mine=p&&p.mpos&&p.mpos[mapSel];
+    return hdr('🗺️ '+esc(m.name),1)+`<div class="card"><canvas id="mapcv" class="mapcv" style="cursor:crosshair"></canvas><p class="mut" style="margin:8px 0">Tocca la mappa per segnare dove si trova il tuo personaggio.</p><div class="row" style="flex-wrap:wrap;gap:8px">${mine?'<button class="g" id="mapunpin">Rimuovi il mio segnalino</button>':''}<button class="g" id="mapclose">‹ Altre mappe</button></div></div>`+list;
+  }
+  const c=mapNorm(MAPCFG),sl=MAP_SL[c.type]||[],cur=mapSel&&S.maps[mapSel];
   return hdr('🗺️ Mappa',1)+
   `<div class="card"><h3>Tipo di mappa</h3><div class="chips">${MAP_TYPES.map(([k,l])=>`<button class="chipb ${c.type===k?'sel':''}" data-mt="${k}">${l}</button>`).join('')}</div></div>`+
-  `<div class="card"><canvas id="mapcv" class="mapcv"></canvas><div class="row" style="flex-wrap:wrap;gap:8px;margin-top:10px"><button id="mapnew">🎲 Nuova mappa casuale</button><button class="g" id="mapdl">⬇ PNG</button><button class="g" id="mapcopy">📋 Codice</button><button class="g" id="mapload">📥 Carica</button>${M?'<button class="g" id="mapsave">💾 Salva per i player</button>':''}</div></div>`+
-  `<div class="card"><h3>Personalizza</h3><label class="mut">Seme (stesso seme = stessa mappa)</label><div class="row"><input id="mapseed" value="${esc(c.seed)}" style="margin:0"><button class="g" id="mapdice" title="Seme casuale">🎲</button></div><div class="row" style="margin-top:10px"><div class="grow"><label class="mut">Dimensione</label><select id="mapsize">${[24,32,48,64,96].map(s=>`<option value="${s}" ${c.size===s?'selected':''}>${s}×${s}</option>`).join('')}</select></div><div class="grow"><label class="mut">Palette</label><select id="mappal">${Object.keys(PAL).map(k=>`<option value="${k}" ${c.pal===k?'selected':''}>${k[0].toUpperCase()+k.slice(1)}</option>`).join('')}</select></div></div>${sl.map(([k,l,a,b])=>`<div style="margin-top:6px"><div class="row sp"><span>${l}</span><b id="mv-${k}">${c[k]}</b></div><input type="range" data-mk="${k}" min="${a}" max="${b}" value="${c[k]}"></div>`).join('')}<div class="row" style="margin-top:10px;gap:18px"><label class="row" style="gap:6px"><input type="checkbox" id="mapgrid" ${c.grid?'checked':''}> Griglia</label><label class="row" style="gap:6px"><input type="checkbox" id="mapshade" ${c.shade?'checked':''}> Rilievo</label></div></div>`+
-  `<div class="card"><h3>${M?'Mappe salvate':'Mappe del Master'}</h3>${saved.map(m=>`<div class="move"><div class="grow"><b>${esc(m.name)}</b><div class="mut">${esc((MAP_TYPES.find(t=>t[0]===m.cfg.type)||[0,String(m.cfg.type)])[1])} · ${m.cfg.size}×${m.cfg.size}</div></div><button class="mini" data-mo="${m.id}">Apri</button>${M?`<button class="d mini" data-mdel="${m.id}">🗑</button>`:''}</div>`).join('')||'<p class="mut">Nessuna mappa salvata.</p>'}</div>`;
+  `<div class="card"><canvas id="mapcv" class="mapcv"${mapTool?' style="cursor:crosshair"':''}></canvas>${mapTool?`<p class="mut" style="margin:8px 0 0">${mapTool==='gomma'?'Tocca un add-on per cancellarlo.':'Tocca la mappa per piazzare: '+esc(ADDONS.find(a=>a[0]===mapTool)[1])}</p>`:''}<div class="row" style="flex-wrap:wrap;gap:8px;margin-top:10px"><button id="mapnew">🎲 Nuova mappa casuale</button><button class="g" id="mapdl">⬇ PNG</button><button class="g" id="mapcopy">📋 Codice</button><button class="g" id="mapload">📥 Carica</button><button class="g" id="mapsave">💾 Salva come nuova</button>${cur?`<button class="g" id="mapupd">💾 Aggiorna «${esc(cur.name)}»</button>`:''}</div></div>`+
+  `<div class="card"><h3>Personalizza</h3><label class="mut">Seme (stesso seme = stessa mappa)</label><div class="row"><input id="mapseed" value="${esc(c.seed)}" style="margin:0"><button class="g" id="mapdice" title="Seme casuale">🎲</button></div><div class="row" style="margin-top:10px"><div class="grow"><label class="mut">Dimensione</label><select id="mapsize">${[24,32,48,64,96,128].map(s=>`<option value="${s}" ${c.size===s?'selected':''}>${s}×${s}</option>`).join('')}</select></div><div class="grow"><label class="mut">Palette</label><select id="mappal">${Object.keys(PAL).map(k=>`<option value="${k}" ${c.pal===k?'selected':''}>${k[0].toUpperCase()+k.slice(1)}</option>`).join('')}</select></div></div><div class="row"><div class="grow"><label class="mut">Forma</label><select id="mapshape">${SHAPES.map(([k,l])=>`<option value="${k}" ${c.shape===k?'selected':''}>${l}</option>`).join('')}</select></div></div><div class="row" style="margin-top:6px"><div class="grow"><label class="mut">Scala: 1 quadretto = (0 = nascosta)</label><input id="mapscale" type="number" min="0" step="any" value="${c.scale}" style="margin:0"></div><div><label class="mut">Unità</label><select id="mapunit" style="margin:0">${UNITS.map(u=>`<option ${c.unit===u?'selected':''}>${u}</option>`).join('')}</select></div></div>${sl.map(([k,l,a,b])=>`<div style="margin-top:6px"><div class="row sp"><span>${l}</span><b id="mv-${k}">${c[k]}</b></div><input type="range" data-mk="${k}" min="${a}" max="${b}" value="${c[k]}"></div>`).join('')}<div class="row" style="margin-top:10px;gap:18px"><label class="row" style="gap:6px"><input type="checkbox" id="mapgrid" ${c.grid?'checked':''}> Griglia</label><label class="row" style="gap:6px"><input type="checkbox" id="mapshade" ${c.shade?'checked':''}> Rilievo</label></div></div>`+
+  `<div class="card"><h3>Add-on</h3><div class="chips">${ADDONS.map(([k,l])=>`<button class="chipb ${mapTool===k?'sel':''}" data-at="${k}">${l}</button>`).join('')}<button class="chipb ${mapTool==='gomma'?'sel':''}" data-at="gomma">🧽 Gomma</button></div><div class="row" style="margin-top:10px"><div class="grow"><label class="mut">Grandezza add-on</label><select id="mapaddsz" style="margin:0">${[1,2,3,4].map(s=>`<option value="${s}" ${mapSz===s?'selected':''}>${s}×${s} quadretti</option>`).join('')}</select></div><button class="g" id="mapaddclr">Svuota</button></div><p class="mut" style="margin:8px 0 0">Add-on piazzati: <b id="mapaddn">${c.addons.length}</b></p></div>`+list;
 };
 function mapInit(){
   const cv=document.getElementById('mapcv');if(!cv)return;
-  const draw=()=>{MAPCFG=mapNorm(MAPCFG);paintMap(cv,MAPCFG,Math.max(4,Math.floor(520/MAPCFG.size)),mapData(MAPCFG))};
+  const M=masterOK&&view.name==='master',q=id=>document.getElementById(id);
+  if(!M){ /* player: sola lettura + segnalino */
+    const m=S.maps[mapSel];
+    document.querySelectorAll('[data-mo]').forEach(b=>b.onclick=()=>{mapSel=b.dataset.mo;render()});
+    if(!m)return;
+    const cfg=mapNorm(m.cfg),n=cfg.size,data=mapData(cfg);
+    paintMap(cv,cfg,Math.max(4,Math.floor(520/n)),data,mapMarks(false));
+    cv.onclick=e=>{const t=tileAt(cv,n,e);if(data.codes[t.y*n+t.x]===255)return toast('Fuori dalla mappa');const p=me();if(p)guard(db.collection('players').doc(uid).update({mpos:{...(p.mpos||{}),[mapSel]:t}}))};
+    const up=q('mapunpin');if(up)up.onclick=()=>{const p=me(),o={...((p&&p.mpos)||{})};delete o[mapSel];guard(db.collection('players').doc(uid).update({mpos:o}))};
+    const cl=q('mapclose');if(cl)cl.onclick=()=>{mapSel=null;render()};
+    return;
+  }
+  /* Master: editor completo */
+  const draw=()=>{MAPCFG=mapNorm(MAPCFG);paintMap(cv,MAPCFG,Math.max(4,Math.floor(520/MAPCFG.size)),mapData(MAPCFG),mapMarks(true));const an=q('mapaddn');if(an)an.textContent=MAPCFG.addons.length};
   draw();
-  const q=id=>document.getElementById(id);
-  document.querySelectorAll('[data-mt]').forEach(b=>b.onclick=()=>{const c=MAPCFG;MAPCFG=mapNorm({type:b.dataset.mt,seed:c.seed,size:c.size,pal:c.pal,grid:c.grid,shade:c.shade});render()});
+  document.querySelectorAll('[data-mt]').forEach(b=>b.onclick=()=>{const c=MAPCFG;MAPCFG=mapNorm({type:b.dataset.mt,seed:c.seed,size:c.size,pal:c.pal,grid:c.grid,shade:c.shade,shape:c.shape,scale:c.scale,unit:c.unit});render()});
   document.querySelectorAll('[data-mk]').forEach(i=>i.oninput=()=>{MAPCFG[i.dataset.mk]=+i.value;const l=q('mv-'+i.dataset.mk);if(l)l.textContent=i.value;draw()});
   const sd=q('mapseed');if(sd)sd.oninput=()=>{MAPCFG.seed=sd.value||'0';draw()};
   const dice=()=>{MAPCFG.seed=Math.random().toString(36).slice(2,8);if(sd)sd.value=MAPCFG.seed;draw()};
   ['mapnew','mapdice'].forEach(id=>{const b=q(id);if(b)b.onclick=dice});
   const sz=q('mapsize');if(sz)sz.onchange=()=>{MAPCFG.size=+sz.value;draw()};
   const pl=q('mappal');if(pl)pl.onchange=()=>{MAPCFG.pal=pl.value;draw()};
+  const sp=q('mapshape');if(sp)sp.onchange=()=>{MAPCFG.shape=sp.value;draw()};
+  const sc=q('mapscale');if(sc)sc.oninput=()=>{MAPCFG.scale=+sc.value||0;draw()};
+  const un=q('mapunit');if(un)un.onchange=()=>{MAPCFG.unit=un.value;draw()};
   const gr=q('mapgrid');if(gr)gr.onchange=()=>{MAPCFG.grid=gr.checked;draw()};
   const sh=q('mapshade');if(sh)sh.onchange=()=>{MAPCFG.shade=sh.checked;draw()};
+  /* add-on */
+  document.querySelectorAll('[data-at]').forEach(b=>b.onclick=()=>{mapTool=mapTool===b.dataset.at?null:b.dataset.at;render()});
+  const as=q('mapaddsz');if(as)as.onchange=()=>{mapSz=+as.value};
+  const ac=q('mapaddclr');if(ac)ac.onclick=()=>{MAPCFG.addons=[];draw()};
+  cv.onclick=e=>{
+    if(!mapTool)return;
+    const t=tileAt(cv,MAPCFG.size,e);
+    if(mapTool==='gomma')MAPCFG.addons=MAPCFG.addons.filter(a=>!(t.x>=a.x&&t.x<a.x+a.s&&t.y>=a.y&&t.y<a.y+a.s));
+    else MAPCFG.addons=[...MAPCFG.addons,{t:mapTool,x:t.x,y:t.y,s:mapSz}];
+    draw();
+  };
+  /* PNG, codice, salvataggio */
   const dl=q('mapdl');if(dl)dl.onclick=()=>{const c=mapNorm(MAPCFG),big=document.createElement('canvas');paintMap(big,c,Math.max(8,Math.floor(1024/c.size)),mapData(c));big.toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='mappa-'+c.type+'-'+c.seed+'.png';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000)})};
   const cp=q('mapcopy');if(cp)cp.onclick=()=>{const code='NXMAP:'+JSON.stringify(mapNorm(MAPCFG)),show=()=>ask('Codice mappa',[{l:'Copia questo codice',n:'c',t:'area'}],{c:code});if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(code).then(()=>toast('Codice copiato'),show);else show()};
   const ld=q('mapload');if(ld)ld.onclick=async()=>{const r=await ask('Carica mappa',[{l:'Incolla il codice (NXMAP:…)',n:'c',t:'area'}]);if(r){try{MAPCFG=mapNorm(JSON.parse(r.c.trim().replace(/^NXMAP:/,'')));render()}catch(e){toast('Codice non valido')}}};
-  const sv=q('mapsave');if(sv)sv.onclick=async()=>{const r=await ask('Salva mappa',[{l:'Nome della mappa',n:'name'}],{name:''});if(r&&r.name){const id=uid8();await guard(db.collection('maps').doc(id).set({id,name:r.name.slice(0,60),cfg:mapNorm(MAPCFG),ts:Date.now()}));toast('Mappa salvata: i player la vedono nella bacheca Mappa')}};
-  document.querySelectorAll('[data-mo]').forEach(b=>b.onclick=()=>{const m=S.maps[b.dataset.mo];if(m){MAPCFG=mapNorm(m.cfg);render()}});
+  const sv=q('mapsave');if(sv)sv.onclick=async()=>{const r=await ask('Salva mappa',[{l:'Nome della mappa',n:'name'}],{name:''});if(r&&r.name){const id=uid8();await guard(db.collection('maps').doc(id).set({id,name:r.name.slice(0,60),cfg:mapNorm(MAPCFG),ts:Date.now()}));mapSel=id;toast('Mappa salvata: i player la vedono nella bacheca Mappa')}};
+  const up=q('mapupd');if(up)up.onclick=async()=>{if(!mapSel)return;await guard(db.collection('maps').doc(mapSel).update({cfg:mapNorm(MAPCFG)}));toast('Mappa aggiornata')};
+  document.querySelectorAll('[data-mo]').forEach(b=>b.onclick=()=>{const m=S.maps[b.dataset.mo];if(m){MAPCFG=mapNorm(m.cfg);mapSel=m.id;render()}});
   document.querySelectorAll('[data-mdel]').forEach(b=>b.onclick=async()=>{if(await askYes('Eliminare questa mappa salvata?'))guard(db.collection('maps').doc(b.dataset.mdel).delete())});
 }
 
