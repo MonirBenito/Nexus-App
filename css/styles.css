@@ -184,16 +184,17 @@ body.locked #mbtn:hover{opacity:1;background:var(--ink)}
 /* sfondo: griglia di punti che sfuma verso i bordi + onde radar concentriche */
 body.locked #desk{
   background:
-    radial-gradient(circle at 50% 46%,color-mix(in srgb,var(--acc) 26%,transparent) 0,transparent 42%),
-    repeating-radial-gradient(circle at 50% 46%,transparent 0 92px,color-mix(in srgb,var(--acc) 13%,transparent) 92px 93px),
+    radial-gradient(circle at 50% calc(50% - 40px),color-mix(in srgb,var(--acc) 26%,transparent) 0,transparent 42%),
+    repeating-radial-gradient(circle at 50% calc(50% - 40px),transparent 0 92px,color-mix(in srgb,var(--acc) 13%,transparent) 92px 93px),
     linear-gradient(180deg,hsl(var(--h) 60% 5%),hsl(var(--h) 55% 8%) 55%,#03010a);
 }
 body.locked #desk::before{
   left:0;right:0;top:0;bottom:0;height:auto;transform:none;animation:none;
   background:radial-gradient(circle,color-mix(in srgb,var(--acc) 38%,transparent) 1px,transparent 1.6px) 0 0/26px 26px;
-  -webkit-mask-image:radial-gradient(circle at 50% 46%,#000 0,transparent 72%);mask-image:radial-gradient(circle at 50% 46%,#000 0,transparent 72%);
+  -webkit-mask-image:radial-gradient(circle at 50% calc(50% - 40px),#000 0,transparent 72%);mask-image:radial-gradient(circle at 50% calc(50% - 40px),#000 0,transparent 72%);
 }
-.lock{position:relative;min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#fff;padding:4vh 0 8vh}
+body.locked #app{padding:0;display:flex}
+.lock{position:relative;flex:1;width:100%;min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#fff;padding:0}
 .lock .lk-clock,.lock .lk-hint,.lock .lk-foot{display:none}
 .lock::before{ /* cornice HUD con angoli */
   content:'';position:absolute;inset:8px;pointer-events:none;opacity:.8;
