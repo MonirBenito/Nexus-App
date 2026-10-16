@@ -5,6 +5,7 @@
    pulsanti fisici che si schiacciano. Schermata iniziale: solo la goccia.
    Colori derivati da variabili: i TEMI (in fondo) cambiano --h/--al/--as/--bs.
    ===================================================================== */
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap');
 
 :root{
   --h:262; --as:100%; --al:66%; --bs:50%;
@@ -168,7 +169,7 @@ body{color:var(--tx);overflow:hidden;background:#05030f;font:17px/1.4 var(--f-ui
   #scr{border-width:5px}
 }
 
-/* ---------- schermata iniziale: SOLO goccia animata + titolo ---------- */
+/* ---------- schermata iniziale: SOLO goccia + titolo (HUD tecnologico) ---------- */
 body.locked #win{background:none;border:0;box-shadow:none;border-radius:0;max-width:none;max-height:none;padding:0;--pad-x:0px;--pad-b:0px;--tb-h:0px}
 body.locked #win::before{border-radius:0}
 body.locked #win::after{display:none}
@@ -180,32 +181,65 @@ body.locked #tb-start,body.locked #tb-back,body.locked #tb-title,body.locked #tb
 body.locked #mbtn{opacity:.4;min-width:0;width:40px;height:36px;padding:0;background:transparent;border-color:transparent;box-shadow:none;font-size:16px}
 body.locked #mbtn .lbl{display:none}
 body.locked #mbtn:hover{opacity:1;background:var(--ink)}
-.lock{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;text-align:center;color:#fff;padding:4vh 0 8vh}
+/* sfondo: griglia di punti che sfuma verso i bordi + onde radar concentriche */
+body.locked #desk{
+  background:
+    radial-gradient(circle at 50% 46%,color-mix(in srgb,var(--acc) 26%,transparent) 0,transparent 42%),
+    repeating-radial-gradient(circle at 50% 46%,transparent 0 92px,color-mix(in srgb,var(--acc) 13%,transparent) 92px 93px),
+    linear-gradient(180deg,hsl(var(--h) 60% 5%),hsl(var(--h) 55% 8%) 55%,#03010a);
+}
+body.locked #desk::before{
+  left:0;right:0;top:0;bottom:0;height:auto;transform:none;animation:none;
+  background:radial-gradient(circle,color-mix(in srgb,var(--acc) 38%,transparent) 1px,transparent 1.6px) 0 0/26px 26px;
+  -webkit-mask-image:radial-gradient(circle at 50% 46%,#000 0,transparent 72%);mask-image:radial-gradient(circle at 50% 46%,#000 0,transparent 72%);
+}
+.lock{position:relative;min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#fff;padding:4vh 0 8vh}
 .lock .lk-clock,.lock .lk-hint,.lock .lk-foot{display:none}
-.lk-center{display:flex;flex-direction:column;align-items:center;gap:26px}
-.lk-avatar{position:relative;width:200px;height:210px;display:grid;place-items:center;background:none;border:0;box-shadow:none}
-.lk-avatar::before{ /* scintille pixel */
-  content:'';position:absolute;top:50%;left:50%;width:6px;height:6px;margin:-3px 0 0 -3px;background:#fff;
-  box-shadow:-84px -64px 0 #fff,78px -80px 0 var(--alt),96px -4px 0 #fff,-98px 12px 0 var(--acc-2),-66px 78px 0 #fff,70px 84px 0 var(--alt),0 -96px 0 var(--acc-2),-30px 96px 0 #fff;
-  animation:twinkle 1.2s steps(1) infinite;
+.lock::before{ /* cornice HUD con angoli */
+  content:'';position:absolute;inset:8px;pointer-events:none;opacity:.8;
+  background:
+    linear-gradient(var(--acc),var(--acc)) 0 0/30px 2px,linear-gradient(var(--acc),var(--acc)) 0 0/2px 30px,
+    linear-gradient(var(--acc),var(--acc)) 100% 0/30px 2px,linear-gradient(var(--acc),var(--acc)) 100% 0/2px 30px,
+    linear-gradient(var(--acc),var(--acc)) 0 100%/30px 2px,linear-gradient(var(--acc),var(--acc)) 0 100%/2px 30px,
+    linear-gradient(var(--acc),var(--acc)) 100% 100%/30px 2px,linear-gradient(var(--acc),var(--acc)) 100% 100%/2px 30px;
+  background-repeat:no-repeat;
 }
-.lk-avatar::after{ /* ombra sul pavimento */
-  content:'';position:absolute;left:50%;bottom:4px;width:84px;height:14px;margin-left:-42px;border-radius:50%;
-  background:rgba(0,0,0,.6);animation:shadow 1.6s steps(8) infinite;
+.lk-center{display:flex;flex-direction:column;align-items:center;gap:46px;width:100%}
+.lk-avatar{
+  position:relative;width:min(230px,62vw);aspect-ratio:1;display:grid;place-items:center;border-radius:50%;
+  background:radial-gradient(circle,color-mix(in srgb,var(--acc) 24%,transparent),transparent 70%);
+  border:1px solid color-mix(in srgb,var(--acc) 55%,transparent);
+  box-shadow:inset 0 0 40px color-mix(in srgb,var(--acc) 22%,transparent),0 0 40px color-mix(in srgb,var(--acc) 18%,transparent);
+  animation:pulse 3.4s ease-in-out infinite;
 }
-@keyframes twinkle{0%{opacity:1}50%{opacity:.15}}
-@keyframes shadow{50%{transform:scale(.72);opacity:.5}}
-.drop{width:112px;height:142px;background:none;padding:0;border:0;border-radius:0;box-shadow:none;position:relative;z-index:1;filter:drop-shadow(5px 5px 0 var(--ink)) drop-shadow(0 0 16px rgba(255,40,70,.8));transition:transform .15s}
-.drop svg{display:block;animation:bob 1.6s steps(8) infinite;transform-origin:50% 100%}
-@keyframes bob{0%,100%{transform:translateY(0) scale(1,1)}25%{transform:translateY(-8px) scale(.97,1.03)}50%{transform:translateY(-14px) scale(.95,1.06)}75%{transform:translateY(-6px) scale(.98,1.02)}}
-.drop:hover{transform:scale(1.08);filter:drop-shadow(5px 5px 0 var(--ink)) drop-shadow(0 0 24px rgba(255,70,100,1));box-shadow:none}
-.drop:active{transform:scale(.94);box-shadow:none}
+.lk-avatar::before{ /* quadrante a tacche che ruota piano */
+  content:'';position:absolute;inset:-24px;border-radius:50%;pointer-events:none;
+  background:repeating-conic-gradient(var(--acc) 0 .8deg,transparent .8deg 6deg);
+  -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 8px),#000 calc(100% - 7px));
+  mask:radial-gradient(farthest-side,transparent calc(100% - 8px),#000 calc(100% - 7px));
+  opacity:.55;animation:spin 48s linear infinite reverse;
+}
+.lk-avatar::after{ /* arco radar */
+  content:'';position:absolute;inset:-38px;border-radius:50%;pointer-events:none;
+  background:conic-gradient(from 0deg,transparent 0 70%,color-mix(in srgb,var(--acc) 45%,transparent) 94%,var(--acc-2) 100%);
+  -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 calc(100% - 2px));
+  mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 calc(100% - 2px));
+  animation:spin 5.5s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{50%{box-shadow:inset 0 0 56px color-mix(in srgb,var(--acc) 34%,transparent),0 0 58px color-mix(in srgb,var(--acc) 30%,transparent)}}
+.drop{width:104px;height:132px;background:none;padding:0;border:0;border-radius:0;box-shadow:none;position:relative;z-index:1;filter:drop-shadow(0 0 16px rgba(255,50,85,.7));transition:transform .2s}
+.drop svg{display:block;animation:float 4.2s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.drop:hover{transform:scale(1.07);filter:drop-shadow(0 0 26px rgba(255,70,100,.95));box-shadow:none}
+.drop:active{transform:scale(.95);box-shadow:none}
 .lock h1{
-  margin:0;padding:0 14px;max-width:100%;font:400 clamp(14px,4.8vw,22px)/1.55 var(--f-px);letter-spacing:2px;color:#fff;
-  text-shadow:3px 3px 0 var(--acc),6px 6px 0 var(--ink);animation:titlecol 2.4s steps(1) infinite;
+  display:flex;align-items:center;justify-content:center;gap:16px;width:min(94%,540px);margin:0;padding:0;
+  font:900 clamp(14px,4.2vw,25px)/1.3 "Orbitron",var(--f-px);letter-spacing:.2em;color:#fff;text-shadow:none;animation:none;
+  filter:drop-shadow(0 0 10px color-mix(in srgb,var(--acc) 85%,transparent));
 }
-@keyframes titlecol{50%{text-shadow:3px 3px 0 var(--alt),6px 6px 0 var(--ink)}}
-@keyframes ripple{from{transform:scale(.88);opacity:.6}to{transform:scale(1.35);opacity:0}}
+.lock h1::before,.lock h1::after{content:'';flex:1;min-width:14px;height:2px;background:linear-gradient(90deg,transparent,var(--acc))}
+.lock h1::after{transform:scaleX(-1)}
 
 /* ---------- testo ---------- */
 h1,h2,h3{margin:.2em 0;font-weight:400}
@@ -344,6 +378,7 @@ option{background:#120f26;color:var(--tx)}
 .pcard.me{border-color:var(--acc)}
 .quest{padding:14px;margin:14px 5px 16px 0;background:var(--card);border:3px solid var(--line);border-left:10px solid var(--acc);box-shadow:0 0 0 3px var(--ink),6px 6px 0 3px var(--ink),inset 3px 3px 0 rgba(255,255,255,.08)}
 .quest.main{border-color:var(--gold);border-left-color:var(--gold)}
+.quest.done{border-left-color:var(--ok);opacity:.8}
 .quest.exp{opacity:.5;filter:grayscale(.8)}
 .obj{padding:4px 0 4px 10px;border-left:4px solid var(--acc);margin:5px 0}
 
