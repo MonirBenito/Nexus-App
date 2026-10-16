@@ -70,7 +70,7 @@ function renderHome(){
   const p=me(), npcs=Object.values(S.npcs).filter(n=>n.active!==false);
   app.innerHTML=`<div class="bar"><h2>${esc(p.username)}</h2><div class="row"><button class="g" id="ren">✎</button><button class="g" id="out">⎋</button></div></div>
   <div class="card stats"><div><b>${lvl(p)}</b><span class="mut">Livello</span></div><div><b>${p.xp||0}</b><span class="mut">XP</span></div><div><b>${p.currency}</b><span class="mut">Monete</span></div></div>
-  <h3>NPC</h3>${npcs.map(n=>`<div class="card row" data-npc="${n.id}" style="cursor:pointer"><div class="avatar">${n.photo?`<img class="avatar" src="${esc(n.photo)}">`:'🩸'}</div><div class="grow"><b>${esc(n.name)}</b><div class="mut">${esc(n.desc)}</div></div>›</div>`).join('')||'<p class="mut">Nessun NPC disponibile.</p>'}
+  <h3>Incontri</h3>${npcs.map(n=>`<div class="card row" data-npc="${n.id}" style="cursor:pointer"><div class="avatar">${n.photo?`<img class="avatar" src="${esc(n.photo)}">`:'🩸'}</div><div class="grow"><b>${esc(n.name)}</b><div class="mut">${esc(n.desc)}</div></div>›</div>`).join('')||'<p class="mut">Nessun incontro disponibile.</p>'}
   <h3>Ultimi riscatti</h3>${(p.history||[]).slice(0,5).map(h=>`<div class="mut">${esc(h.n)} · −${h.p}</div>`).join('')||'<p class="mut">Nessun riscatto.</p>'}`;
   app.querySelectorAll('[data-npc]').forEach(e=>e.onclick=()=>{view={name:'npc',id:e.dataset.npc};render()});
   $('#ren').onclick=async()=>{const r=await ask('Il tuo nome',[{l:'Username',n:'username'}],p);if(r&&r.username.length>=3)guard(db.collection('players').doc(uid).update({username:r.username.slice(0,32)}))};
@@ -93,7 +93,7 @@ function renderMaster(){
   if(tab==='players')body=Object.entries(S.players).map(([id,p])=>`<div class="card"><div class="row sp"><b>${esc(p.username)}</b><span class="tag">Lv ${lvl(p)} · ${p.xp||0}xp · ${p.currency}🩸</span></div><div class="row" style="margin-top:8px"><button class="g grow" data-pe="${id}">Modifica</button><button class="d" data-pd="${id}">Elimina</button></div></div>`).join('')||'<p class="mut">Nessun player registrato.</p>';
   if(tab==='npcs')body=`<button id="addN" style="width:100%">+ Nuovo NPC</button>`+Object.values(S.npcs).map(n=>`<div class="card"><div class="row"><div class="avatar">${n.photo?`<img class="avatar" src="${esc(n.photo)}">`:'🩸'}</div><div class="grow"><b>${esc(n.name)}</b> ${n.active===false?'<span class="tag">nascosto</span>':''}<div class="mut">${esc(n.desc)}</div></div></div><div class="row" style="margin-top:8px"><button class="g grow" data-ne="${n.id}">Modifica</button><button class="g" data-np="${n.id}">📷</button><button class="d" data-nd="${n.id}">✕</button></div></div>`).join('');
   if(tab==='shop')body=Object.values(S.npcs).map(n=>`<div class="card"><div class="row sp"><b>${esc(n.name)}</b><button data-ia="${n.id}">+ Oggetto</button></div>${Object.values(S.items).filter(i=>i.npc===n.id).map(i=>`<div class="row sp" style="margin-top:8px"><div>${esc(i.name)} <span class="tag">${i.price}🩸 · ${esc(i.rtype)}${i.rtype!=='item'?' +'+i.amount:''} · ${i.stock!=null?i.stock:'∞'}</span></div><div class="row"><button class="g" data-ie="${i.id}">✎</button><button class="d" data-id="${i.id}">✕</button></div></div>`).join('')}</div>`).join('')||'<p class="mut">Crea prima un NPC.</p>';
-  app.innerHTML=`<div class="bar"><h2>Pannello Master</h2><button class="g" id="ex">Esci</button></div><div class="tabs">${['players','npcs','shop'].map(t=>`<button class="${tab===t?'on':''}" data-t="${t}">${{players:'Player',npcs:'NPC',shop:'Shop'}[t]}</button>`).join('')}</div>${body}`;
+  app.innerHTML=`<div class="bar"><h2>Pannello Master</h2><button class="g" id="ex">Esci</button></div><div class="tabs">${['players','npcs','shop'].map(t=>`<button class="${tab===t?'on':''}" data-t="${t}">${{players:'Player',npcs:'Incontri',shop:'Shop'}[t]}</button>`).join('')}</div>${body}`;
   $('#ex').onclick=()=>{masterOK=false;view={name:'home'};render()};
   app.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{tab=b.dataset.t;render()});
   const on=(a,fn)=>app.querySelectorAll(`[data-${a}]`).forEach(b=>b.onclick=()=>fn(b.dataset[a]));
@@ -128,7 +128,7 @@ async function boot(){
 }
 /* ===== v2: bacheche ===== */
 tab=null;
-const TILES=[['profile','👤','Profilo'],['ego','⚡','EGO'],['npcs','🧙','NPC'],['quests','📜','Quest'],['party','🏕️','Party'],['inv','🎒','Inventario'],['msgs','✉️','Messaggi'],['map','🗺️','Mappa']];
+const TILES=[['profile','👤','Profilo'],['ego','⚡','EGO'],['npcs','🧙','Incontri'],['quests','📜','Quest'],['party','🏕️','Party'],['inv','🎒','Inventario'],['msgs','✉️','Messaggi'],['map','🗺️','Mappa']];
 const KIND={mercante:'🛒 Mercante',combattente:'⚔️ Combattente'},kindOf=n=>n.kind||'mercante';
 const tiles=()=>{const M=masterOK&&view.name==='master';return `<div class="tiles">${TILES.filter(t=>!(M&&t[0]==='inv')).map(([k,i,l])=>{if(M&&k==='profile'){i='👥';l='Player'}return `<button class="tile" data-go="${k}"><span>${i}</span>${l}${badge(k,M)}</button>`}).join('')}</div>`};
 const BLOODS=['Non indicato','A+','A-','B+','B-','AB+','AB-','0+','0-'];
@@ -171,7 +171,7 @@ function renderHome(){const p=me();app.innerHTML=hdr('🏠 Home')+homeCard(p)+ti
 function renderBoard(){
   const p=me(),v=view.name;let b='';
   if(v==='profile')b=profileHtml(p);else if(0)b=hdr('👤 Profilo',1)+`<div class="card"><div class="row sp"><b>${esc(p.username)}</b><button class="g" id="ren">✎</button></div></div>`+statsCard(p)+`<div class="card"><label class="mut">🩸 Gruppo sanguigno</label><select id="bld" style="margin-bottom:0">${BLOODS.map(o=>`<option ${p.blood===o?'selected':''}>${o}</option>`).join('')}</select></div><div class="card" style="border:2px solid var(--acc2)"><div class="row sp"><h3 style="color:var(--acc2)">⚡ EGO</h3><button class="g" id="egoE">✎</button></div>${egoHtml(p)}</div>${traitsHtml(p)}${abHtml(p)}<div class="card" style="border-color:var(--acc)"><div class="row sp"><h3 style="color:var(--acc)">🗡️ SKILL</h3><button id="skA">+ Mossa</button></div>${(p.skills||[]).map((s,i)=>`<div class="row sp" style="margin-top:10px"><div><b>${esc(s.n)}</b><div class="mut" style="white-space:pre-wrap">${esc(s.d)}</div></div><button class="d" data-sk="${i}">✕</button></div>`).join('')||'<p class="mut">Nessuna mossa per ora.</p>'}</div><h3>Ultimi riscatti</h3>`+((p.history||[]).slice(0,5).map(h=>`<div class="mut">${esc(h.n)} · −${h.p}</div>`).join('')||'<p class="mut">Nessun riscatto.</p>');
-  if(v==='npcs')b=hdr('🧙 NPC',1)+(Object.values(S.npcs).filter(visN).map(n=>`<div class="card row" data-npc="${n.id}" style="cursor:pointer">${av(n)}<div class="grow"><b>${esc(n.name)}</b> <span class="tag">${KIND[kindOf(n)]}</span> <span class="tag" style="color:${attOf(n).c}">${attOf(n).i} ${attOf(n).l}</span><div class="mut">${esc(n.desc)}</div></div>›</div>`).join('')||'<p class="mut">Nessun NPC disponibile.</p>');
+  if(v==='npcs')b=hdr('🧙 Incontri',1)+(Object.values(S.npcs).filter(visN).map(n=>`<div class="card row" data-npc="${n.id}" style="cursor:pointer">${av(n)}<div class="grow"><b>${esc(n.name)}</b> <span class="tag">${KIND[kindOf(n)]}</span> <span class="tag" style="color:${attOf(n).c}">${attOf(n).i} ${attOf(n).l}</span><div class="mut">${esc(n.desc)}</div></div>›</div>`).join('')||'<p class="mut">Nessun incontro disponibile.</p>');
   if(v==='ego')b=egoBoard(p);if(v==='map')b=mapBoard(false);if(v==='inv')b=invBoard(p);if(v==='msgs')b=msgBoard(p);if(v==='party')b=partyBoard2(p);if(v==='quests')b=questBoard();else if(0)b=hdr('📜 Quest',1)+(Object.values(S.quests).filter(q=>!(q.to&&q.to.length)||q.to.includes(uid)).map(q=>`<div class="card"><b>${esc(q.title)}</b><div class="row" style="margin-top:6px"><span class="tag">+${q.coins||0} 💶</span></div></div>`).join('')||'<p class="mut">Nessuna quest per te al momento.</p>');
   app.innerHTML=b;bind();
   app.querySelectorAll('[data-npc]').forEach(e=>e.onclick=()=>{view={name:'npc',id:e.dataset.npc};render()});
@@ -206,7 +206,7 @@ function renderMaster(){
   const C=n=>db.collection(n);let b='';
   if(!tab)b=hdr('Pannello Master')+tiles();
   if(tab==='profile')b=(editing&&selP&&S.players[selP])?editScreen():masterPlayers();else if(0)b=hdr('👥 Player',1)+(Object.entries(S.players).map(([id,p])=>`<div class="card"><div class="row sp"><b>${esc(p.username)}</b><span class="tag">💶 ${p.currency} · ${esc(p.blood||'—')} · ${p.points||0} PT · ${p.pointsAb||0} PA · ❤️${vit(p).h}/${vit(p).hm} 🔷${vit(p).n}/${vit(p).nm}</span></div><div class="row" style="margin-top:8px"><button class="g grow" data-pe="${id}">Modifica</button><button class="g" data-pa="${id}">Abilità</button><button class="d" data-pd="${id}">Elimina</button></div></div>`).join('')||'<p class="mut">Nessun player registrato.</p>');
-  if(tab==='npcs')b=hdr('🧙 NPC',1)+`<button id="addN" style="width:100%">+ Nuovo NPC</button>`+Object.values(S.npcs).map(n=>`<div class="card"><div class="row">${av(n)}<div class="grow"><b>${esc(n.name)}</b> <span class="tag">${KIND[kindOf(n)]}</span> <span class="tag" style="color:${attOf(n).c}">${attOf(n).i} ${attOf(n).l}</span> ${n.active===false?'<span class="tag">nascosto</span>':''}<div class="mut">${esc(n.desc)}</div><div class="mut">👁 ${n.to&&n.to.length?n.to.map(i=>esc(S.players[i]?.username||'?')).join(', '):'Tutti i player'}</div></div></div><div class="row" style="margin-top:8px"><button class="g grow" data-ne="${n.id}">Modifica</button><button class="g" data-np="${n.id}">📷</button><button class="d" data-nd="${n.id}">✕</button></div>${kindOf(n)==='mercante'?`<div class="row sp" style="margin-top:12px"><b>Shop</b><button data-ia="${n.id}">+ Oggetto</button></div>`+Object.values(S.items).filter(i=>i.npc===n.id).map(i=>`<div class="row sp" style="margin-top:8px"><div>${esc(i.name)} <span class="tag">💶${i.price} · ${esc(i.rtype)}${i.rtype!=='item'?' +'+i.amount:''} · ${i.stock!=null?i.stock:'∞'}</span></div><div class="row"><button class="g" data-ie="${i.id}">✎</button><button class="d" data-id="${i.id}">✕</button></div></div>`).join(''):''}</div>`).join('');
+  if(tab==='npcs')b=hdr('🧙 Incontri',1)+`<button id="addN" style="width:100%">+ Nuovo NPC</button>`+Object.values(S.npcs).map(n=>`<div class="card"><div class="row">${av(n)}<div class="grow"><b>${esc(n.name)}</b> <span class="tag">${KIND[kindOf(n)]}</span> <span class="tag" style="color:${attOf(n).c}">${attOf(n).i} ${attOf(n).l}</span> ${n.active===false?'<span class="tag">nascosto</span>':''}<div class="mut">${esc(n.desc)}</div><div class="mut">👁 ${n.to&&n.to.length?n.to.map(i=>esc(S.players[i]?.username||'?')).join(', '):'Tutti i player'}</div></div></div><div class="row" style="margin-top:8px"><button class="g grow" data-ne="${n.id}">Modifica</button><button class="g" data-np="${n.id}">📷</button><button class="d" data-nd="${n.id}">✕</button></div>${kindOf(n)==='mercante'?`<div class="row sp" style="margin-top:12px"><b>Shop</b><button data-ia="${n.id}">+ Oggetto</button></div>`+Object.values(S.items).filter(i=>i.npc===n.id).map(i=>`<div class="row sp" style="margin-top:8px"><div>${esc(i.name)} <span class="tag">💶${i.price} · ${esc(i.rtype)}${i.rtype!=='item'?' +'+i.amount:''} · ${i.stock!=null?i.stock:'∞'}</span></div><div class="row"><button class="g" data-ie="${i.id}">✎</button><button class="d" data-id="${i.id}">✕</button></div></div>`).join(''):''}</div>`).join('');
   if(tab==='quests')b=hdr('📜 Quest',1)+`<button id="addQ" style="width:100%">+ Nuova quest</button>`+Object.values(S.quests).map(q=>`<div class="card">${questCard(q)}<div class="mut">Per: ${q.to&&q.to.length?q.to.map(i=>esc(S.players[i]?.username||'?')).join(', '):'tutti i player'}</div><div class="row" style="margin-top:8px;flex-wrap:wrap">${qAllDone(q)?'':`<button class="grow" data-qc="${q.id}">✅ Completata</button>`}${(q.doneBy||[]).length?`<button class="g grow" data-qo="${q.id}">↩ Riapri</button>`:''}<button class="g" data-qe="${q.id}">Modifica</button><button class="d" data-qd="${q.id}">✕</button></div></div>`).join('');
   if(tab==='party')b=masterParty();else if(0){const ids=(S.party.main&&S.party.main.members)||[];b=hdr('🏕️ Party',1)+`<button id="pmem" style="width:100%">Gestisci membri</button>`+(ids.filter(i=>S.players[i]).map(i=>memCard(S.players[i],false)).join('')||'<p class="mut">Nessun membro nel party.</p>')}
   if(tab==='msgs')b=masterMsgs();
@@ -620,10 +620,10 @@ function tick(){
   const n=document.getElementById('tb-net');if(n){const on=navigator.onLine!==false;n.textContent=on?'Online':'Offline';n.classList.toggle('off',!on)}
 }
 function screenName(){
-  if(masterOK&&view.name==='master'){const T={profile:'Player',ego:'EGO',npcs:'NPC',quests:'Quest',party:'Party',msgs:'Messaggi',map:'Mappa'};return 'Pannello Master'+(tab&&T[tab]?' — '+T[tab]:'')}
+  if(masterOK&&view.name==='master'){const T={profile:'Player',ego:'EGO',npcs:'Incontri',quests:'Quest',party:'Party',msgs:'Messaggi',map:'Mappa'};return 'Pannello Master'+(tab&&T[tab]?' — '+T[tab]:'')}
   if(!authed||!me())return 'Nexus Connection';
-  if(view.name==='npc'){const n=S.npcs[view.id];return 'NPC'+(n?' — '+n.name:'')}
-  const N={home:'Home',profile:'Profilo',ego:'EGO',npcs:'NPC',quests:'Quest',party:'Party',inv:'Inventario',msgs:'Messaggi',map:'Mappa'};
+  if(view.name==='npc'){const n=S.npcs[view.id];return 'Incontro'+(n?' — '+n.name:'')}
+  const N={home:'Home',profile:'Profilo',ego:'EGO',npcs:'Incontri',quests:'Quest',party:'Party',inv:'Inventario',msgs:'Messaggi',map:'Mappa'};
   return 'Nexus Connection'+(N[view.name]?' — '+N[view.name]:'');
 }
 function updateStatus(){
@@ -664,9 +664,10 @@ tbOn('tb-start',()=>{
 });
 
 //#MAPCORE-START
-const MAP_TYPES=[['terra','🌍 Terre'],['isola','🏝️ Isola'],['dungeon','🏰 Dungeon'],['caverna','🕳️ Caverna'],['villaggio','🏘️ Villaggio']];
-const MAP_DEF={terra:{water:45,mount:35,forest:50,detail:4},isola:{water:50,mount:35,forest:50,detail:4},dungeon:{rooms:14,rsize:9,corr:1,treasure:4},caverna:{dens:46,smooth:5,treasure:4},villaggio:{houses:16,trees:45,pond:50}};
+const MAP_TYPES=[['mondo','⛏️ Mondo'],['terra','🌍 Terre'],['isola','🏝️ Isola'],['dungeon','🏰 Dungeon'],['caverna','🕳️ Caverna'],['villaggio','🏘️ Villaggio']];
+const MAP_DEF={mondo:{water:42,mount:40,forest:55,river:50,cave:55,village:6,city:2,struct:5,detail:4},terra:{water:45,mount:35,forest:50,detail:4},isola:{water:50,mount:35,forest:50,detail:4},dungeon:{rooms:14,rsize:9,corr:1,treasure:4},caverna:{dens:46,smooth:5,treasure:4},villaggio:{houses:16,trees:45,pond:50}};
 const MAP_SL={
+  mondo:[['water','Oceani',0,90],['mount','Montagne',0,100],['forest','Foreste',0,100],['river','Fiumi',0,100],['cave','Caverne',0,100],['village','Villaggi',0,20],['city','Città',0,6],['struct','Strutture (templi, rovine…)',0,14],['detail','Dettaglio',1,10]],
   terra:[['water','Acqua',0,90],['mount','Montagne',0,100],['forest','Foreste',0,100],['detail','Dettaglio',1,10]],
   dungeon:[['rooms','Stanze',3,40],['rsize','Dimensione stanze',4,16],['corr','Larghezza corridoi',1,2],['treasure','Tesori',0,12]],
   caverna:[['dens','Densità roccia',35,60],['smooth','Smussatura',0,8],['treasure','Tesori',0,12]],
@@ -678,6 +679,7 @@ const PAL={
   neve:{deep:'#3b6aa6',shallow:'#6aa0d6',sand:'#dfe8f0',grass:'#cfe0e8',forest:'#7fa6a4',hill:'#aab8c4',mount:'#8d9aa8',snow:'#ffffff',rock:'#1f2733',floor:'#d7e1ea',corr:'#bccad6',wall:'#55657a',road:'#b7c5d1',house:'#e9eef3',roof:'#6b87a8',tree:'#6f9a98',water:'#6aa0d6',treasure:'#f0c419',stairs:'#ffffff'},
   deserto:{deep:'#2a6d8c',shallow:'#4aa0b4',sand:'#ead29a',grass:'#d7b868',forest:'#8a9a4a',hill:'#c49a5a',mount:'#a5754a',snow:'#f2e7d0',rock:'#2b1f17',floor:'#dcc08a',corr:'#c2a470',wall:'#6a4a30',road:'#e8cf94',house:'#e8d6ac',roof:'#b8643a',tree:'#7e9140',water:'#4aa0b4',treasure:'#f0c419',stairs:'#fff0cc'},
   vulcano:{deep:'#3a1c2a',shallow:'#e0521e',sand:'#4a3a38',grass:'#5a4a44',forest:'#3a2a28',hill:'#6a4a40',mount:'#3d3335',snow:'#a8a0a0',rock:'#150f10',floor:'#6b5550',corr:'#574541',wall:'#2e2224',road:'#7a6258',house:'#8a6c60',roof:'#5a2a22',tree:'#3a2a28',water:'#e0521e',treasure:'#f0c419',stairs:'#ffcf99'}};
+PAL.autunno.tint=['#d9822b',.3];PAL.neve.tint=['#e9f2fa',.45];PAL.deserto.tint=['#e8c36e',.38];PAL.vulcano.tint=['#3d2a26',.6];
 const hexRGB=h=>[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];
 const shadeC=(h,f)=>'rgb('+hexRGB(h).map(v=>Math.max(0,Math.min(255,Math.round(v*f)))).join(',')+')';
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
@@ -725,10 +727,11 @@ function drawToken(ctx,m,Z){
   ctx.fillStyle='#fff';ctx.font='bold '+Math.round(r*1.1)+'px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(m.label,cx,cy+1);ctx.textAlign='start';
 }
 function mapNorm(c){
-  c=c||{};const type=MAP_DEF[c.type]?c.type:'terra';
+  c=c||{};const type=MAP_DEF[c.type]?c.type:'mondo';
   const size=Math.min(128,Math.max(16,parseInt(c.size)||48));
   const o={...MAP_DEF[type],type,seed:String(c.seed==null?'nexus':c.seed).slice(0,40)||'nexus',size,pal:PAL[c.pal]?c.pal:'classica',grid:!!c.grid,shade:c.shade!==false,
     shape:SHAPES.some(s=>s[0]===c.shape)?c.shape:'quadrata',
+    layer:type==='mondo'&&['c1','c2','c3'].includes(c.layer)?c.layer:'sup',under:c.under!==false,labels:c.labels!==false,chunks:!!c.chunks,
     scale:Math.min(1000,Math.max(0,+c.scale||0)),
     unit:UNITS.includes(c.unit)?c.unit:'m',
     addons:(Array.isArray(c.addons)?c.addons:[]).filter(a=>a&&ADDON_T.includes(a.t)&&Number.isInteger(a.x)&&Number.isInteger(a.y)&&a.x>=0&&a.y>=0&&a.x<size&&a.y<size).slice(0,500).map(a=>({t:a.t,x:a.x,y:a.y,s:Math.min(4,Math.max(1,parseInt(a.s)||1))}))};
@@ -841,13 +844,223 @@ function genVillage(c){
   for(let y=0;y<n;y++)for(let x=0;x<n;x++){const i=at(x,y);if(codes[i]<=1&&nt(x*.2+9,y*.2+9)>.4&&rnd()<c.trees/100*.3)codes[i]=4}
   return {codes,el:null};
 }
+/* ===== MONDO · generazione in stile Minecraft =====
+   Terreno: continentalità + erosione + picchi (rumore a ottave), temperatura/umidità -> biomi, fiumi a isolinea.
+   Sottosuolo: 3 livelli (Y 40 / -20 / -54) con tunnel "spaghetti", caverne "cheese", laghi, lava, minerali, miniere, dungeon.
+   Strutture: villaggi, città murate, templi, rovine ecc. piazzati su terreno piano e collegati da sentieri/ponti.
+   Ogni luogo ha un nome generato dal seme: stesso seme = stesso mondo. */
+const MC={3:'#e0d391',4:'#79b34f',5:'#4a8a38',6:'#3f6b55',7:'#eef4f7',8:'#dccb82',9:'#b8b05a',10:'#2f9e2e',11:'#4f6b3a',12:'#8b9a67',13:'#8a8a8a',14:'#f4f7fa',15:'#15121a',17:'#b79a62',18:'#8a5a2b',19:'#d3b84a',20:'#c9a66b',21:'#a8432f',22:'#4a2f1b',23:'#8a8a8a',24:'#9a9aa3',25:'#5b5b66',26:'#cfc6b8',27:'#6a5a78',28:'#c9a227',29:'#7d7d70',30:'#d9bf6f',31:'#6b4a2b',32:'#4fbfb3',33:'#6f8a5a',35:'#e6f0f5',36:'#6a6a72',39:'#5a4426'};
+const toHex=a=>'#'+a.map(v=>Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,'0')).join('');
+const shH=(h,f)=>toHex(hexRGB(h).map(v=>v*f));
+const mixC=(h,t,a)=>{const A=hexRGB(h),B=hexRGB(t);return toHex(A.map((v,i)=>v+(B[i]-v)*a))};
+const POI_I={citta:['🏙️','Città'],villaggio:['🏘️','Villaggi'],caverna:['🕳️','Caverne'],tempio:['🛕','Templi'],capanna:['🛖','Capanne'],igloo:['🧊','Igloo'],rovine:['🏚️','Rovine'],avamposto:['🗼','Avamposti'],monumento:['🔱','Monumenti']};
+const POI_P={caverna:'Grotta di ',tempio:'Tempio di ',capanna:'Capanna di ',igloo:'Igloo di ',rovine:'Rovine di ',avamposto:'Avamposto di ',monumento:'Monumento di '};
+const STAMPS={
+  tempio:['aaaaa','aaaaa','aaAaa','aaaaa','aaaaa'],
+  tempiogiu:['jjjjj','jjjjj','jjAjj','jjjjj','jjjjj'],
+  capanna:['hhh','hhh','hAh'],
+  igloo:['.i.','iAi','.i.'],
+  rovine:['rr.r','r..r','.rrr'],
+  avamposto:['oo','oo'],
+  monumento:['.mmm.','mmAmm','mAAAm','mmAmm','.mmm.']};
+const STAMP_C={a:30,A:39,j:33,h:31,i:35,r:29,o:36,m:32};
+function mkName(r){
+  const A=['Al','Ber','Cor','Dra','El','Fen','Gal','Hor','Iv','Kar','Lum','Mor','Nar','Or','Pel','Rav','Sol','Tor','Ul','Val','Zan','Bra','Cas','Do','Gri','Mar','Ser'],
+        B=['dor','mont','ia','ora','ven','grad','mar','tea','rin','dale','ford','sta','nia','lon','gard','bera'];
+  return A[Math.floor(r()*A.length)]+B[Math.floor(r()*B.length)];
+}
+function genMondo(c){
+  const n=c.size,N=n*n,sd=c.seed,at=(x,y)=>y*n+x,inb=(x,y)=>x>=0&&y>=0&&x<n&&y<n,
+    ins=(x,y)=>inb(x,y)&&(c.shape==='quadrata'||inShape(c.shape,x,y,n)),
+    mk=s=>mkNoise(hashSeed(sd+s)),nC=mk('#c'),nE=mk('#e'),nP=mk('#p'),nT=mk('#t'),nH=mk('#h'),nF=mk('#f'),nV=mk('#v'),
+    rnd=mulberry32(hashSeed(sd+'#s')),sc=1.2+c.detail*.45,RI=(a,b)=>a+Math.floor(rnd()*(b-a+1)),pick=a=>a[Math.floor(rnd()*a.length)],
+    el=new Float32Array(N),codes=new Uint8Array(N),occ=new Uint8Array(N),poi=[],mf=c.mount/100;
+  /* 1) quota del terreno */
+  let lo=9,hi=-9;
+  for(let y=0;y<n;y++)for(let x=0;x<n;x++){
+    const u=x/n*sc,v=y/n*sc,C=fbm(nC,u*.8,v*.8,4),E=fbm(nE,u*1.4+7,v*1.4+3,3),Pk=1-Math.abs(fbm(nP,u*2.2,v*2.2,4)*2-1),
+      m=Math.min(1,Math.max(0,(C-.4)*4)),e=C*.64+.36*Math.pow(Pk,1.5)*(1-E)*(.2+mf*1.2)*m;
+    el[at(x,y)]=e;if(e<lo)lo=e;if(e>hi)hi=e;
+  }
+  for(let i=0;i<N;i++)el[i]=(el[i]-lo)/(hi-lo+1e-9);
+  const sorted=Float32Array.from(el).sort(),seaT=c.water<=0?-1:sorted[Math.min(N-1,Math.floor(N*c.water/100))],
+    land=Float32Array.from(el.filter(v=>v>seaT)).sort(),
+    q=f=>land.length?land[Math.min(land.length-1,Math.max(0,Math.floor((1-f)*land.length)))]:2,
+    mT=mf>0?q(mf*.3):9,snT=mf>0?q(mf*.3*.45):9,hT=mf>0?q(mf*.55):9,ft=1-c.forest/100*.7,
+    rw=(.006+c.river/100*.02)*(48/n)*1.6;
+  /* 2) biomi */
+  for(let y=0;y<n;y++)for(let x=0;x<n;x++){
+    const i=at(x,y),e=el[i];let k;
+    if(e<=seaT)k=e<seaT-.06?0:1;
+    else{
+      const u=x/n*sc,v=y/n*sc,
+        tp=Math.min(1,Math.max(0,(fbm(nT,u*.6,v*.6,3)-.5)*2.4+.5-(e>hT?.12:0))),
+        hm=Math.min(1,Math.max(0,(fbm(nH,u*.7+5,v*.7+9,3)-.5)*2.4+.5));
+      if(e<seaT+.022)k=3;
+      else if(mf>0&&e>=snT)k=14;
+      else if(mf>0&&e>=mT)k=tp<.4?14:13;
+      else if(mf>0&&e>=hT)k=12;
+      else if(c.river>0&&Math.abs(fbm(nV,u*1.2,v*1.2,3)-.5)<rw)k=2;
+      else if(tp<.32)k=fbm(nF,u*2.2,v*2.2,3)>ft?6:7;
+      else if(tp>.64)k=hm<.42?8:hm<.62?9:10;
+      else if(hm>.68&&e<seaT+.15)k=11;
+      else k=fbm(nF,u*2.2,v*2.2,3)>ft?5:4;
+    }
+    codes[i]=k;
+  }
+  /* 3) sottosuolo (a richiesta, per livello) */
+  const U={},under=lay=>{
+    if(U[lay])return U[lay];
+    const d={c1:0,c2:1,c3:2}[lay]||0,g=new Uint8Array(N),r2=mulberry32(hashSeed(sd+'#u'+d)),R2=(a,b)=>a+Math.floor(r2()*(b-a+1)),
+      nA=mk('#ua'),nB=mk('#ub'),nW=mk('#uw'),K=.1,sx=d*5.3,sy=-d*3.7;
+    if(c.cave>0){
+      const A=new Float32Array(N),B=new Float32Array(N);
+      for(let y=0;y<n;y++)for(let x=0;x<n;x++){const i=at(x,y);A[i]=Math.abs(fbm(nA,x*K+sx,y*K+sy,2)-.5);B[i]=fbm(nB,x*.09+sx*.7,y*.09+sy*.7,3)}
+      const thr=(arr,f)=>Float32Array.from(arr).sort()[Math.min(N-1,Math.max(0,Math.floor(N*f)))],
+        tf=.07+c.cave/100*.1+d*.015,cf=.01+c.cave/100*.05+d*.01,tA=thr(A,tf),tB=thr(B,1-cf);
+      for(let i=0;i<N;i++)g[i]=B[i]>=tB?2:(A[i]<=tA?1:0);
+      for(let i=0;i<N;i++)if(g[i]===2){
+        const w=fbm(nW,(i%n)*.2+sx,Math.floor(i/n)*.2+sy,2);
+        if(d===0&&w>.6)g[i]=4;else if(d===1)g[i]=w>.66?4:w<.34?3:2;else if(d===2&&w>.45)g[i]=3;
+      }
+      const OR=[[6,.025,.014,.007],[7,.016,.014,.01],[8,0,.006,.009],[9,0,.006,.011],[10,0,.002,.008]];
+      for(let i=0;i<N;i++){
+        if(g[i]!==0)continue;let v=r2(),acc=0;
+        for(const [k,...p] of OR){acc+=p[d];if(v<acc){g[i]=k;const x=i%n,y=(i-x)/n;
+          for(const [dx,dy] of [[1,0],[0,1],[-1,0],[0,-1]])if(r2()<.4&&inb(x+dx,y+dy)&&g[at(x+dx,y+dy)]===0)g[at(x+dx,y+dy)]=k;break}}
+      }
+      const cnt=d<2?Math.round(c.cave/100*N/1000)+1:0,DX=[1,0,-1,0],DY=[0,1,0,-1];
+      for(let m=0;m<cnt;m++){ /* miniere abbandonate */
+        let x=R2(2,n-3),y=R2(2,n-3),dir=R2(0,3);const segs=R2(3,6);
+        for(let sg=0;sg<segs;sg++){const len=R2(6,14);for(let s=0;s<len;s++){x+=DX[dir];y+=DY[dir];if(x<1||y<1||x>=n-1||y>=n-1)break;const i=at(x,y);if(g[i]!==3&&g[i]!==4)g[i]=11}dir=(dir+(r2()<.5?1:3))%4}
+      }
+      for(let m=0;m<cnt;m++){ /* stanze dungeon con spawner */
+        for(let t=0;t<12;t++){
+          const x=R2(2,Math.max(2,n-8)),y=R2(2,Math.max(2,n-8));let ok=x+5<n&&y+5<n;
+          for(let yy=0;ok&&yy<5;yy++)for(let xx=0;xx<5;xx++){const v=g[at(x+xx,y+yy)];if(v===1||v===2||v===3||v===4||v===11||v===12){ok=false;break}}
+          if(!ok)continue;
+          for(let yy=0;yy<5;yy++)for(let xx=0;xx<5;xx++)g[at(x+xx,y+yy)]=12;
+          g[at(x+2,y+2)]=13;break;
+        }
+      }
+    }
+    return U[lay]=g;
+  };
+  /* 4) strutture: villaggi, città, templi... */
+  const towns=[],spots=[],names=new Set(),
+    nm=()=>{let s,t=0;do s=mkName(rnd);while(names.has(s)&&t++<30);names.add(s);return s},
+    put=(x,y,k)=>{if(inb(x,y)&&codes[at(x,y)]>2&&!occ[at(x,y)]){codes[at(x,y)]=k;occ[at(x,y)]=1}},
+    setT=(x,y,k)=>{if(inb(x,y)&&codes[at(x,y)]>2){codes[at(x,y)]=k;occ[at(x,y)]=1}},
+    flat=(cx,cy,r)=>{let a=9,b=-9,bad=0,tot=0;
+      for(let y=cy-r;y<=cy+r;y++)for(let x=cx-r;x<=cx+r;x++){
+        if(!ins(x,y))return 9;tot++;const i=at(x,y),k=codes[i];
+        if(k<=2||k>=12||occ[i])bad++;if(el[i]<a)a=el[i];if(el[i]>b)b=el[i]}
+      return bad<=tot*.15?b-a:9},
+    free=(x,y,r,gap)=>towns.every(t=>Math.hypot(t.x-x,t.y-y)>t.r+r+gap)&&spots.every(s=>Math.hypot(s.x-x,s.y-y)>r+gap+2),
+    site=(r,rmin)=>{
+      for(let rr=r;rr>=rmin;rr--){
+        if(n-rr-2<rr+1)continue;
+        let best=null,bv=.3;
+        for(let t=0;t<200;t++){const x=RI(rr+1,n-rr-2),y=RI(rr+1,n-rr-2);if(!free(x,y,rr,3))continue;const v=flat(x,y,rr);if(v<bv){bv=v;best={x,y,r:rr}}}
+        if(best)return best;
+      }
+      return null};
+  function village(s){
+    const cx=s.x,cy=s.y,r=s.r;
+    for(let d=-r;d<=r;d++){put(cx+d,cy,17);put(cx,cy+d,17)}
+    if(codes[at(cx,cy)]>2)codes[at(cx,cy)]=23;
+    const want=Math.round(r*1.5)+2;let placed=0,tries=0;
+    while(placed<want&&tries++<want*30){
+      const w=RI(3,4),h=RI(2,3),x=RI(cx-r,cx+r-w+1),y=RI(cy-r,cy+r-h+1);
+      if(!(cx>=x-2&&cx<=x+w+1)&&!(cy>=y-2&&cy<=y+h+1))continue;
+      let ok=true;
+      for(let yy=y-1;ok&&yy<=y+h;yy++)for(let xx=x-1;xx<=x+w;xx++){
+        if(!ins(xx,yy)){ok=false;break}const i=at(xx,yy),k=codes[i],inside=yy>=y&&yy<y+h&&xx>=x&&xx<x+w;
+        if(inside&&(k<=2||k>=12||occ[i])){ok=false;break}if(!inside&&(k===20||k===21||k===22)){ok=false;break}}
+      if(!ok)continue;
+      for(let yy=0;yy<h;yy++)for(let xx=0;xx<w;xx++)setT(x+xx,y+yy,yy<h-1?21:20);
+      setT(x+Math.floor(w/2),y+h-1,22);placed++;
+    }
+    for(let f=RI(1,2);f>0;f--)for(let t=0;t<25;t++){
+      const x=RI(cx-r-1,cx+r-3),y=RI(cy-r-1,cy+r-2);let ok=true;
+      for(let yy=0;ok&&yy<3;yy++)for(let xx=0;xx<4;xx++){if(!ins(x+xx,y+yy)){ok=false;break}const i=at(x+xx,y+yy);if(codes[i]<=2||codes[i]>=12||occ[i]){ok=false;break}}
+      if(!ok)continue;for(let yy=0;yy<3;yy++)for(let xx=0;xx<4;xx++)setT(x+xx,y+yy,19);break;
+    }
+  }
+  const sd2=hashSeed(sd+'#blk');
+  function city(s){
+    const cx=s.x,cy=s.y,r=s.r;
+    for(let d=-r;d<=r;d++)[[cx+d,cy-r],[cx+d,cy+r],[cx-r,cy+d],[cx+r,cy+d]].forEach(([x,y])=>put(x,y,25));
+    [[cx,cy-r],[cx,cy+r],[cx-r,cy],[cx+r,cy]].forEach(([x,y])=>setT(x,y,24));
+    for(let y=cy-r+1;y<=cy+r-1;y++)for(let x=cx-r+1;x<=cx+r-1;x++){
+      if(!inb(x,y))continue;const dx=x-cx,dy=y-cy;let k;
+      if(Math.abs(dx)<=2&&Math.abs(dy)<=2)k=28;
+      else if(dx%5===0||dy%5===0)k=24;
+      else{
+        const bx=Math.floor((dx+500)/5),by=Math.floor((dy+500)/5),ly=((dy%5)+5)%5;
+        if(((Math.imul(bx,73856093)^Math.imul(by,19349663)^sd2)>>>0)%7===0)continue;
+        k=ly<=3?27:26;
+      }
+      setT(x,y,k);
+    }
+    for(const sx of [-1,1])for(const sy of [-1,1])for(let a=0;a<2;a++)for(let b=0;b<2;b++){
+      const x=cx+sx*(r-a),y=cy+sy*(r-b);if(inb(x,y)&&codes[at(x,y)]>2){codes[at(x,y)]=28;occ[at(x,y)]=1}}
+  }
+  const cR=Math.max(6,Math.min(14,Math.round(n/7))),vR=Math.max(4,Math.min(8,Math.round(n/12)));
+  for(let i=0;i<c.city;i++){const s=site(cR,5);if(!s)continue;towns.push(s);city(s);poi.push({k:'citta',x:s.x,y:s.y,r:s.r,name:nm()})}
+  for(let i=0;i<c.village;i++){const s=site(vR,3);if(!s)continue;towns.push(s);village(s);poi.push({k:'villaggio',x:s.x,y:s.y,r:s.r,name:nm()})}
+  /* strutture isolate in base al bioma */
+  const SK={8:['tempio'],10:['tempiogiu'],11:['capanna'],7:['igloo'],4:['rovine','avamposto'],5:['rovine','avamposto'],6:['rovine'],9:['rovine','avamposto'],0:['monumento']};
+  for(let a=0,placed=0;placed<c.struct&&a<c.struct*80;a++){
+    const x=RI(2,n-3),y=RI(2,n-3),opts=SK[codes[at(x,y)]];if(!opts||occ[at(x,y)])continue;
+    const kind=pick(opts),pat=STAMPS[kind],h=pat.length,w=pat[0].length,x0=x-Math.floor(w/2),y0=y-Math.floor(h/2);
+    if(!free(x,y,Math.max(w,h)/2,3)||!spots.every(s=>Math.hypot(s.x-x,s.y-y)>6))continue;
+    let ok=true;
+    for(let yy=-1;ok&&yy<=h;yy++)for(let xx=-1;xx<=w;xx++){
+      const X=x0+xx,Y=y0+yy;if(!ins(X,Y)){ok=false;break}const k=codes[at(X,Y)],inside=yy>=0&&yy<h&&xx>=0&&xx<w;
+      if(occ[at(X,Y)]){ok=false;break}
+      if(inside&&(kind==='monumento'?k!==0:(k<=2||k>=12))){ok=false;break}}
+    if(!ok)continue;
+    pat.forEach((row,yy)=>[...row].forEach((ch,xx)=>{const k=STAMP_C[ch];if(!k)return;const X=x0+xx,Y=y0+yy,i=at(X,Y);codes[i]=k;occ[i]=1}));
+    const pk=kind==='tempiogiu'?'tempio':kind;spots.push({x,y});poi.push({k:pk,x,y,r:Math.max(w,h)/2,name:POI_P[pk]+nm()});placed++;
+  }
+  /* sentieri (e ponti) tra gli insediamenti */
+  function link(a,b){
+    const L=Math.hypot(a.x-b.x,a.y-b.y);if(L<2)return;
+    const pts=[],ph=rnd()*50,amp=Math.min(5,L*.18),steps=Math.ceil(L*2);let px=-1,py=-1;
+    for(let s=0;s<=steps;s++){
+      const t=s/steps,off=(fbm(nV,t*3+ph,ph,2)-.5)*2*amp*Math.sin(t*Math.PI),
+        x=Math.round(a.x+(b.x-a.x)*t-(b.y-a.y)/L*off),y=Math.round(a.y+(b.y-a.y)*t+(b.x-a.x)/L*off);
+      if(!ins(x,y))return;if(x===px&&y===py)continue;
+      if(px>=0&&x!==px&&y!==py)pts.push([x,py]);
+      pts.push([x,y]);px=x;py=y;
+    }
+    if(pts.filter(([x,y])=>codes[at(x,y)]<=2&&!occ[at(x,y)]).length>9)return;
+    pts.forEach(([x,y])=>{const i=at(x,y);if(occ[i])return;codes[i]=codes[i]<=2?18:17;occ[i]=1});
+  }
+  for(let i=1;i<towns.length;i++){let best=null,bd=1e9;for(let j=0;j<i;j++){const d=Math.hypot(towns[i].x-towns[j].x,towns[i].y-towns[j].y);if(d<bd){bd=d;best=towns[j]}}if(best)link(towns[i],best)}
+  /* 5) ingressi delle caverne (dove il livello Y 40 è aperto) */
+  if(c.cave>0){
+    const g1=under('c1'),CR=Math.max(8,Math.round(n/5));
+    for(let cy=0;cy<n;cy+=CR)for(let cx=0;cx<n;cx+=CR){
+      const rocky=[],other=[];
+      for(let y=cy;y<Math.min(n,cy+CR);y++)for(let x=cx;x<Math.min(n,cx+CR);x++){
+        const i=at(x,y),k=codes[i];if((g1[i]!==1&&g1[i]!==2)||occ[i]||k<4||k>14||!ins(x,y))continue;(k>=12?rocky:other).push(i)}
+      const pool=rocky.length?rocky:other;if(!pool.length)continue;
+      if(rnd()>=c.cave/100*(rocky.length?.9:.35))continue;
+      const i=pool[Math.floor(rnd()*pool.length)],x=i%n,y=(i-x)/n;
+      codes[i]=15;occ[i]=1;poi.push({k:'caverna',x,y,r:0,name:POI_P.caverna+nm()});
+    }
+  }
+  return {codes,el,poi,under,n};
+}
 function genMap(c){
-  const d=c.type==='terra'?genTerra(c,false):c.type==='isola'?genTerra(c,true):c.type==='dungeon'?genDungeon(c):c.type==='caverna'?genCave(c):genVillage(c);
+  const d=c.type==='mondo'?genMondo(c):c.type==='terra'?genTerra(c,false):c.type==='isola'?genTerra(c,true):c.type==='dungeon'?genDungeon(c):c.type==='caverna'?genCave(c):genVillage(c);
   if(c.shape!=='quadrata'){const n=c.size;for(let y=0;y<n;y++)for(let x=0;x<n;x++)if(!inShape(c.shape,x,y,n))d.codes[y*n+x]=255}
   return d;
 }
 let mapCache={key:'',data:null};
-function mapData(c){const key=JSON.stringify([c.type,c.size,c.seed,c.water,c.mount,c.forest,c.detail,c.rooms,c.rsize,c.corr,c.treasure,c.dens,c.smooth,c.houses,c.trees,c.pond,c.shape]);if(mapCache.key!==key)mapCache={key,data:genMap(c)};return mapCache.data}
+function mapData(c){const key=JSON.stringify([c.type,c.size,c.seed,c.water,c.mount,c.forest,c.detail,c.rooms,c.rsize,c.corr,c.treasure,c.dens,c.smooth,c.houses,c.trees,c.pond,c.river,c.cave,c.village,c.city,c.struct,c.shape]);if(mapCache.key!==key)mapCache={key,data:genMap(c)};return mapCache.data}
 function tileColor(c,P,k,x,y,data,sh){
   const n=c.size,t=c.type;
   if(t==='terra'||t==='isola'){
@@ -861,15 +1074,79 @@ function tileColor(c,P,k,x,y,data,sh){
   }
   return [P.rock,P.floor,P.corr,P.floor,P.floor,P.floor,P.floor,P.wall,P.stairs,shadeC(P.stairs,.75)][k];
 }
+const mcCol={};
+function mcBase(P,pal,k){
+  const key=pal+'|'+k;if(mcCol[key])return mcCol[key];
+  let h=k===0?P.deep:k===1?P.shallow:k===2?shH(P.shallow,1.18):(MC[k]||P.grass);
+  if(k>=3&&k<=14&&P.tint)h=mixC(h,P.tint[0],P.tint[1]);
+  return mcCol[key]=h;
+}
+function mcColor(c,P,k,x,y,data,sh){
+  const n=c.size;let f=.97+sh*.06;
+  if(c.shade&&k>=3&&k<=14&&data.el){const d=data.el[y*n+x]-data.el[(y>0?y-1:0)*n+x];f*=d>.006?1.12:d<-.006?.88:1}
+  return shH(mcBase(P,c.pal,k),f);
+}
+function mcUnder(P,u,d,sh){
+  if(u===1)return shH(P.corr,.9+sh*.12);
+  if(u===2)return shH(P.floor,.95+sh*.1);
+  if(u===3)return shH('#f26a1b',.85+sh*.3);
+  if(u===4)return shH(P.shallow,.8+sh*.2);
+  if(u===11)return '#8a5a2b';
+  if(u===12||u===13)return '#6f7a6f';
+  return shH(shH(P.wall,.8-.2*d),.92+sh*.16);
+}
+function mcDetail(ctx,k,x,y,Z,under){
+  const X=x*Z,Y=y*Z,r=(a,b,w,h,col)=>{ctx.fillStyle=col;ctx.fillRect(X+a*Z,Y+b*Z,w*Z,h*Z)};
+  if(under){
+    const O={6:'#050507',7:'#d8af93',8:'#fcee4b',9:'#d62f2f',10:'#4aedd9',13:'#2fd1ff'}[k];
+    if(O)r(.25,.25,.5,.5,O);
+    if(k===11)r(.1,.1,.8,.8,'#a06f3a');
+    return;
+  }
+  if(k===15){ctx.strokeStyle='#f0c419';ctx.lineWidth=Math.max(1,Z*.14);ctx.strokeRect(X+Z*.1,Y+Z*.1,Z*.8,Z*.8)}
+  else if(k===19)r(0,.5,1,.25,'#a8902f');
+  else if(k===23)r(.2,.2,.6,.6,'#3d82c4');
+  else if(k===28)r(.2,.2,.6,.6,'#8a6a10');
+  else if(k===27)r(0,.42,1,.14,'#4c3f5a');
+  else if(k===21)r(0,.42,1,.12,'#7e2f22');
+  else if(k===25)r(0,0,1,.3,'#74747f');
+  else if(k===32)r(.25,.25,.5,.5,'#2a8f86');
+}
+function mcPoi(ctx,c,Z,data,under){
+  if(!data.poi)return;
+  if(under){
+    ctx.globalAlpha=.6;
+    data.poi.forEach(p=>{
+      if(p.k==='caverna'){ctx.fillStyle='#f0c419';ctx.fillRect(p.x*Z+Z*.15,p.y*Z+Z*.15,Z*.7,Z*.7)}
+      else if(p.k==='citta'||p.k==='villaggio'){ctx.strokeStyle='#fff';ctx.lineWidth=Math.max(1,Z*.2);ctx.strokeRect((p.x-p.r)*Z,(p.y-p.r)*Z,(2*p.r+1)*Z,(2*p.r+1)*Z)}
+    });
+    ctx.globalAlpha=1;
+  }
+  if(!c.labels)return;
+  ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineJoin='round';
+  data.poi.forEach(p=>{
+    const town=p.k==='citta'||p.k==='villaggio';
+    if(!town&&Z<9)return;if(p.k==='caverna'&&!under)return;
+    const fs=Math.max(8,Math.round(Z*(p.k==='citta'?1.6:town?1.25:.95)));
+    ctx.font='bold '+fs+'px sans-serif';
+    const tw=ctx.measureText(p.name).width,tx=Math.min(c.size*Z-tw/2-2,Math.max(tw/2+2,(p.x+.5)*Z));
+    let ty=(p.y-(town?p.r+1:1.2))*Z;if(ty<fs)ty=(p.y+(town?p.r+2:1.8))*Z;
+    ctx.lineWidth=Math.max(2,fs*.28);ctx.strokeStyle='rgba(0,0,0,.85)';ctx.strokeText(p.name,tx,ty);
+    ctx.fillStyle=p.k==='citta'?'#ffe27a':p.k==='caverna'?'#f0c419':'#fff';ctx.fillText(p.name,tx,ty);
+  });
+  ctx.textAlign='start';ctx.textBaseline='alphabetic';
+}
 function paintMap(cv,c,Z,data,marks){
-  const n=c.size,P=PAL[c.pal]||PAL.classica,ctx=cv.getContext('2d'),seed=hashSeed(c.seed);
+  const n=c.size,P=PAL[c.pal]||PAL.classica,ctx=cv.getContext('2d'),seed=hashSeed(c.seed),W=c.type==='mondo',
+    lay=W?c.layer:'sup',D={c1:0,c2:1,c3:2}[lay],UG=W&&lay!=='sup'?data.under(lay):null;
   cv.width=cv.height=n*Z;ctx.imageSmoothingEnabled=false;
   for(let y=0;y<n;y++)for(let x=0;x<n;x++){
     const k=data.codes[y*n+x];
     if(k===255){ctx.fillStyle='#14121a';ctx.fillRect(x*Z,y*Z,Z,Z);continue}
     const sh=(((Math.imul(x,73856093)^Math.imul(y,19349663)^seed)>>>0)%1000)/1000;
     let col;
-    if(c.type==='villaggio'){
+    if(W)col=UG?mcUnder(P,UG[y*n+x],D,sh):mcColor(c,P,k,x,y,data,sh);
+    else if(c.type==='villaggio'){
       const base={0:P.grass,1:shadeC(P.grass,.92),2:P.road,3:P.water,4:P.tree,5:P.house,6:P.roof,7:shadeC(P.roof,.55)}[k];
       col=base[0]==='#'?shadeC(base,.96+sh*.08):base;
     }else if(c.type==='dungeon'||c.type==='caverna'){
@@ -877,16 +1154,29 @@ function paintMap(cv,c,Z,data,marks){
       col=shadeC(base,k===0?1:.94+sh*.1);
     }else col=tileColor(c,P,k,x,y,data,sh);
     ctx.fillStyle=col;ctx.fillRect(x*Z,y*Z,Z,Z);
-    if(k===6&&(c.type==='dungeon'||c.type==='caverna')){ctx.fillStyle=P.treasure;ctx.fillRect(x*Z+Z*.25,y*Z+Z*.25,Z*.5,Z*.5)}
-    if(k===4&&c.type==='villaggio'){ctx.fillStyle=shadeC(P.tree,.75);ctx.fillRect(x*Z+Z*.2,y*Z+Z*.2,Z*.6,Z*.6)}
+    if(W)mcDetail(ctx,UG?UG[y*n+x]:k,x,y,Z,!!UG);
+    else{
+      if(k===6&&(c.type==='dungeon'||c.type==='caverna')){ctx.fillStyle=P.treasure;ctx.fillRect(x*Z+Z*.25,y*Z+Z*.25,Z*.5,Z*.5)}
+      if(k===4&&c.type==='villaggio'){ctx.fillStyle=shadeC(P.tree,.75);ctx.fillRect(x*Z+Z*.2,y*Z+Z*.2,Z*.6,Z*.6)}
+    }
   }
   if(c.grid&&Z>=5){ctx.fillStyle='rgba(0,0,0,.16)';for(let i=1;i<n;i++){ctx.fillRect(i*Z,0,1,n*Z);ctx.fillRect(0,i*Z,n*Z,1)}}
+  if(W&&c.chunks&&Z>=3){ctx.fillStyle='rgba(255,255,255,.4)';const w=Math.max(1,Math.round(Z*.18));for(let i=16;i<n;i+=16){ctx.fillRect(i*Z-w/2,0,w,n*Z);ctx.fillRect(0,i*Z-w/2,n*Z,w)}}
   (c.addons||[]).forEach(a=>drawAddon(ctx,P,a,Z));
+  if(W)mcPoi(ctx,c,Z,data,!!UG);
   if(c.scale>0)drawScale(ctx,c,Z);
   (marks||[]).forEach(m=>drawToken(ctx,m,Z));
 }
 //#MAPCORE-END
-let MAPCFG=mapNorm({type:'terra',seed:'nexus'}),mapSel=null,mapTool=null,mapSz=1;
+let MAPCFG=mapNorm({type:'mondo',seed:'nexus'}),mapSel=null,mapTool=null,mapSz=1,plLayer={};
+const MAP_LAY=[['sup','🌤️ Superficie'],['c1','⛏️ Caverne · Y 40'],['c2','💎 Profondità · Y −20'],['c3','🌋 Abisso · Y −54']];
+/* livello mostrato al player: scelto da lui (se il Master lo permette), altrimenti quello salvato */
+const plEff=c=>c.type!=='mondo'||!c.under?'sup':(plLayer[mapSel]||c.layer);
+const mapLegend=data=>{
+  const g={};(data.poi||[]).forEach(p=>(g[p.k]=g[p.k]||[]).push(p));
+  const ks=Object.keys(POI_I).filter(k=>g[k]);if(!ks.length)return '';
+  return '<div class="card"><h3>📍 Luoghi</h3>'+ks.map(k=>`<div class="mut" style="margin-top:8px;letter-spacing:1px">${POI_I[k][0]} ${POI_I[k][1].toUpperCase()}</div><div class="row" style="flex-wrap:wrap;gap:6px;margin-top:4px">${g[k].map(p=>`<span class="pill">${esc(p.name)} · ${p.x},${p.y}</span>`).join('')}</div>`).join('')+'<p class="mut" style="margin:10px 0 0">Coordinate: colonna, riga (si contano da 0, in alto a sinistra).</p></div>';
+};
 const tileAt=(cv,n,e)=>{const r=cv.getBoundingClientRect(),f=v=>Math.min(n-1,Math.max(0,Math.floor(v*n)));return {x:f((e.clientX-r.left)/r.width),y:f((e.clientY-r.top)/r.height)}};
 /* segnalini sulla mappa aperta: il Master li vede tutti, il player solo il proprio */
 const mapMarks=M=>{
@@ -902,34 +1192,38 @@ const mapBoard=M=>{
   if(!M){ /* vista player: solo lista + segnalino */
     const m=S.maps[mapSel],p=me();
     if(!m)return hdr('🗺️ Mappa',1)+list;
-    const mine=p&&p.mpos&&p.mpos[mapSel];
-    return hdr('🗺️ '+esc(m.name),1)+`<div class="card"><canvas id="mapcv" class="mapcv" style="cursor:crosshair"></canvas><p class="mut" style="margin:8px 0">Tocca la mappa per segnare dove si trova il tuo personaggio.</p><div class="row" style="flex-wrap:wrap;gap:8px">${mine?'<button class="g" id="mapunpin">Rimuovi il mio segnalino</button>':''}<button class="g" id="mapclose">‹ Altre mappe</button></div></div>`+list;
+    const mine=p&&p.mpos&&p.mpos[mapSel],c0=mapNorm(m.cfg),eff=plEff(c0);
+    return hdr('🗺️ '+esc(m.name),1)+`<div class="card">${c0.type==='mondo'&&c0.under?`<div class="chips" style="margin-bottom:10px">${MAP_LAY.map(([k,l])=>`<button class="chipb ${eff===k?'sel':''}" data-pl="${k}">${l}</button>`).join('')}</div>`:''}<canvas id="mapcv" class="mapcv" style="cursor:crosshair"></canvas><p class="mut" style="margin:8px 0">Tocca la mappa per segnare dove si trova il tuo personaggio.</p><div class="row" style="flex-wrap:wrap;gap:8px">${mine?'<button class="g" id="mapunpin">Rimuovi il mio segnalino</button>':''}<button class="g" id="mapclose">‹ Altre mappe</button></div></div><div id="maplg"></div>`+list;
   }
   const c=mapNorm(MAPCFG),sl=MAP_SL[c.type]||[],cur=mapSel&&S.maps[mapSel];
   return hdr('🗺️ Mappa',1)+
   `<div class="card"><h3>Tipo di mappa</h3><div class="chips">${MAP_TYPES.map(([k,l])=>`<button class="chipb ${c.type===k?'sel':''}" data-mt="${k}">${l}</button>`).join('')}</div></div>`+
+  (c.type==='mondo'?`<div class="card"><h3>Livello</h3><div class="chips">${MAP_LAY.map(([k,l])=>`<button class="chipb ${c.layer===k?'sel':''}" data-ml="${k}">${l}</button>`).join('')}</div></div>`:'')+
   `<div class="card"><canvas id="mapcv" class="mapcv"${mapTool?' style="cursor:crosshair"':''}></canvas>${mapTool?`<p class="mut" style="margin:8px 0 0">${mapTool==='gomma'?'Tocca un add-on per cancellarlo.':'Tocca la mappa per piazzare: '+esc(ADDONS.find(a=>a[0]===mapTool)[1])}</p>`:''}<div class="row" style="flex-wrap:wrap;gap:8px;margin-top:10px"><button id="mapnew">🎲 Nuova mappa casuale</button><button class="g" id="mapdl">⬇ PNG</button><button class="g" id="mapcopy">📋 Codice</button><button class="g" id="mapload">📥 Carica</button><button class="g" id="mapsave">💾 Salva come nuova</button>${cur?`<button class="g" id="mapupd">💾 Aggiorna «${esc(cur.name)}»</button>`:''}</div></div>`+
-  `<div class="card"><h3>Personalizza</h3><label class="mut">Seme (stesso seme = stessa mappa)</label><div class="row"><input id="mapseed" value="${esc(c.seed)}" style="margin:0"><button class="g" id="mapdice" title="Seme casuale">🎲</button></div><div class="row" style="margin-top:10px"><div class="grow"><label class="mut">Dimensione</label><select id="mapsize">${[24,32,48,64,96,128].map(s=>`<option value="${s}" ${c.size===s?'selected':''}>${s}×${s}</option>`).join('')}</select></div><div class="grow"><label class="mut">Palette</label><select id="mappal">${Object.keys(PAL).map(k=>`<option value="${k}" ${c.pal===k?'selected':''}>${k[0].toUpperCase()+k.slice(1)}</option>`).join('')}</select></div></div><div class="row"><div class="grow"><label class="mut">Forma</label><select id="mapshape">${SHAPES.map(([k,l])=>`<option value="${k}" ${c.shape===k?'selected':''}>${l}</option>`).join('')}</select></div></div><div class="row" style="margin-top:6px"><div class="grow"><label class="mut">Scala: 1 quadretto = (0 = nascosta)</label><input id="mapscale" type="number" min="0" step="any" value="${c.scale}" style="margin:0"></div><div><label class="mut">Unità</label><select id="mapunit" style="margin:0">${UNITS.map(u=>`<option ${c.unit===u?'selected':''}>${u}</option>`).join('')}</select></div></div>${sl.map(([k,l,a,b])=>`<div style="margin-top:6px"><div class="row sp"><span>${l}</span><b id="mv-${k}">${c[k]}</b></div><input type="range" data-mk="${k}" min="${a}" max="${b}" value="${c[k]}"></div>`).join('')}<div class="row" style="margin-top:10px;gap:18px"><label class="row" style="gap:6px"><input type="checkbox" id="mapgrid" ${c.grid?'checked':''}> Griglia</label><label class="row" style="gap:6px"><input type="checkbox" id="mapshade" ${c.shade?'checked':''}> Rilievo</label></div></div>`+
+  `<div id="maplg"></div>`+
+  `<div class="card"><h3>Personalizza</h3><label class="mut">Seme (stesso seme = stessa mappa)</label><div class="row"><input id="mapseed" value="${esc(c.seed)}" style="margin:0"><button class="g" id="mapdice" title="Seme casuale">🎲</button></div><div class="row" style="margin-top:10px"><div class="grow"><label class="mut">Dimensione</label><select id="mapsize">${[24,32,48,64,96,128].map(s=>`<option value="${s}" ${c.size===s?'selected':''}>${s}×${s}</option>`).join('')}</select></div><div class="grow"><label class="mut">Palette</label><select id="mappal">${Object.keys(PAL).map(k=>`<option value="${k}" ${c.pal===k?'selected':''}>${k[0].toUpperCase()+k.slice(1)}</option>`).join('')}</select></div></div><div class="row"><div class="grow"><label class="mut">Forma</label><select id="mapshape">${SHAPES.map(([k,l])=>`<option value="${k}" ${c.shape===k?'selected':''}>${l}</option>`).join('')}</select></div></div><div class="row" style="margin-top:6px"><div class="grow"><label class="mut">Scala: 1 quadretto = (0 = nascosta)</label><input id="mapscale" type="number" min="0" step="any" value="${c.scale}" style="margin:0"></div><div><label class="mut">Unità</label><select id="mapunit" style="margin:0">${UNITS.map(u=>`<option ${c.unit===u?'selected':''}>${u}</option>`).join('')}</select></div></div>${sl.map(([k,l,a,b])=>`<div style="margin-top:6px"><div class="row sp"><span>${l}</span><b id="mv-${k}">${c[k]}</b></div><input type="range" data-mk="${k}" min="${a}" max="${b}" value="${c[k]}"></div>`).join('')}<div class="row" style="margin-top:10px;gap:10px 18px;flex-wrap:wrap"><label class="row" style="gap:6px"><input type="checkbox" id="mapgrid" ${c.grid?'checked':''}> Griglia</label><label class="row" style="gap:6px"><input type="checkbox" id="mapshade" ${c.shade?'checked':''}> Rilievo</label>${c.type==='mondo'?`<label class="row" style="gap:6px"><input type="checkbox" id="mapchunks" ${c.chunks?'checked':''}> Chunk 16×16</label><label class="row" style="gap:6px"><input type="checkbox" id="maplabels" ${c.labels?'checked':''}> Nomi dei luoghi (visibili anche ai player)</label><label class="row" style="gap:6px"><input type="checkbox" id="mapunder" ${c.under?'checked':''}> Sottosuolo visibile ai player</label>`:''}</div></div>`+
   `<div class="card"><h3>Add-on</h3><div class="chips">${ADDONS.map(([k,l])=>`<button class="chipb ${mapTool===k?'sel':''}" data-at="${k}">${l}</button>`).join('')}<button class="chipb ${mapTool==='gomma'?'sel':''}" data-at="gomma">🧽 Gomma</button></div><div class="row" style="margin-top:10px"><div class="grow"><label class="mut">Grandezza add-on</label><select id="mapaddsz" style="margin:0">${[1,2,3,4].map(s=>`<option value="${s}" ${mapSz===s?'selected':''}>${s}×${s} quadretti</option>`).join('')}</select></div><button class="g" id="mapaddclr">Svuota</button></div><p class="mut" style="margin:8px 0 0">Add-on piazzati: <b id="mapaddn">${c.addons.length}</b></p></div>`+list;
 };
 function mapInit(){
-  const cv=document.getElementById('mapcv');if(!cv)return;
   const M=masterOK&&view.name==='master',q=id=>document.getElementById(id);
+  if(!M)document.querySelectorAll('[data-mo]').forEach(b=>b.onclick=()=>{mapSel=b.dataset.mo;render()}); /* serve anche nella lista (senza canvas) */
+  const cv=document.getElementById('mapcv');if(!cv)return;
   if(!M){ /* player: sola lettura + segnalino */
     const m=S.maps[mapSel];
-    document.querySelectorAll('[data-mo]').forEach(b=>b.onclick=()=>{mapSel=b.dataset.mo;render()});
     if(!m)return;
-    const cfg=mapNorm(m.cfg),n=cfg.size,data=mapData(cfg);
+    const c0=mapNorm(m.cfg),cfg={...c0,layer:plEff(c0)},n=cfg.size,data=mapData(cfg);
     paintMap(cv,cfg,Math.max(4,Math.floor(520/n)),data,mapMarks(false));
+    const lg=q('maplg');if(lg&&cfg.labels)lg.innerHTML=mapLegend(data);
+    document.querySelectorAll('[data-pl]').forEach(b=>b.onclick=()=>{plLayer[mapSel]=b.dataset.pl;render()});
     cv.onclick=e=>{const t=tileAt(cv,n,e);if(data.codes[t.y*n+t.x]===255)return toast('Fuori dalla mappa');const p=me();if(p)guard(db.collection('players').doc(uid).update({mpos:{...(p.mpos||{}),[mapSel]:t}}))};
     const up=q('mapunpin');if(up)up.onclick=()=>{const p=me(),o={...((p&&p.mpos)||{})};delete o[mapSel];guard(db.collection('players').doc(uid).update({mpos:o}))};
     const cl=q('mapclose');if(cl)cl.onclick=()=>{mapSel=null;render()};
     return;
   }
   /* Master: editor completo */
-  const draw=()=>{MAPCFG=mapNorm(MAPCFG);paintMap(cv,MAPCFG,Math.max(4,Math.floor(520/MAPCFG.size)),mapData(MAPCFG),mapMarks(true));const an=q('mapaddn');if(an)an.textContent=MAPCFG.addons.length};
+  const draw=()=>{MAPCFG=mapNorm(MAPCFG);const data=mapData(MAPCFG);paintMap(cv,MAPCFG,Math.max(4,Math.floor(520/MAPCFG.size)),data,mapMarks(true));const an=q('mapaddn');if(an)an.textContent=MAPCFG.addons.length;const lg=q('maplg');if(lg)lg.innerHTML=mapLegend(data)};
   draw();
-  document.querySelectorAll('[data-mt]').forEach(b=>b.onclick=()=>{const c=MAPCFG;MAPCFG=mapNorm({type:b.dataset.mt,seed:c.seed,size:c.size,pal:c.pal,grid:c.grid,shade:c.shade,shape:c.shape,scale:c.scale,unit:c.unit});render()});
+  document.querySelectorAll('[data-mt]').forEach(b=>b.onclick=()=>{const c=MAPCFG;MAPCFG=mapNorm({type:b.dataset.mt,seed:c.seed,size:c.size,pal:c.pal,grid:c.grid,shade:c.shade,shape:c.shape,scale:c.scale,unit:c.unit,labels:c.labels,chunks:c.chunks,under:c.under});render()});
   document.querySelectorAll('[data-mk]').forEach(i=>i.oninput=()=>{MAPCFG[i.dataset.mk]=+i.value;const l=q('mv-'+i.dataset.mk);if(l)l.textContent=i.value;draw()});
   const sd=q('mapseed');if(sd)sd.oninput=()=>{MAPCFG.seed=sd.value||'0';draw()};
   const dice=()=>{MAPCFG.seed=Math.random().toString(36).slice(2,8);if(sd)sd.value=MAPCFG.seed;draw()};
@@ -941,6 +1235,8 @@ function mapInit(){
   const un=q('mapunit');if(un)un.onchange=()=>{MAPCFG.unit=un.value;draw()};
   const gr=q('mapgrid');if(gr)gr.onchange=()=>{MAPCFG.grid=gr.checked;draw()};
   const sh=q('mapshade');if(sh)sh.onchange=()=>{MAPCFG.shade=sh.checked;draw()};
+  document.querySelectorAll('[data-ml]').forEach(b=>b.onclick=()=>{MAPCFG.layer=b.dataset.ml;render()});
+  [['mapchunks','chunks'],['maplabels','labels'],['mapunder','under']].forEach(([id,k])=>{const e=q(id);if(e)e.onchange=()=>{MAPCFG[k]=e.checked;draw()}});
   /* add-on */
   document.querySelectorAll('[data-at]').forEach(b=>b.onclick=()=>{mapTool=mapTool===b.dataset.at?null:b.dataset.at;render()});
   const as=q('mapaddsz');if(as)as.onchange=()=>{mapSz=+as.value};
@@ -953,7 +1249,7 @@ function mapInit(){
     draw();
   };
   /* PNG, codice, salvataggio */
-  const dl=q('mapdl');if(dl)dl.onclick=()=>{const c=mapNorm(MAPCFG),big=document.createElement('canvas');paintMap(big,c,Math.max(8,Math.floor(1024/c.size)),mapData(c));big.toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='mappa-'+c.type+'-'+c.seed+'.png';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000)})};
+  const dl=q('mapdl');if(dl)dl.onclick=()=>{const c=mapNorm(MAPCFG),big=document.createElement('canvas');paintMap(big,c,Math.max(8,Math.floor(1024/c.size)),mapData(c));big.toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='mappa-'+c.type+'-'+c.seed+(c.layer&&c.layer!=='sup'?'-'+c.layer:'')+'.png';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000)})};
   const cp=q('mapcopy');if(cp)cp.onclick=()=>{const code='NXMAP:'+JSON.stringify(mapNorm(MAPCFG)),show=()=>ask('Codice mappa',[{l:'Copia questo codice',n:'c',t:'area'}],{c:code});if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(code).then(()=>toast('Codice copiato'),show);else show()};
   const ld=q('mapload');if(ld)ld.onclick=async()=>{const r=await ask('Carica mappa',[{l:'Incolla il codice (NXMAP:…)',n:'c',t:'area'}]);if(r){try{MAPCFG=mapNorm(JSON.parse(r.c.trim().replace(/^NXMAP:/,'')));render()}catch(e){toast('Codice non valido')}}};
   const sv=q('mapsave');if(sv)sv.onclick=async()=>{const r=await ask('Salva mappa',[{l:'Nome della mappa',n:'name'}],{name:''});if(r&&r.name){const id=uid8();await guard(db.collection('maps').doc(id).set({id,name:r.name.slice(0,60),cfg:mapNorm(MAPCFG),ts:Date.now()}));mapSel=id;toast('Mappa salvata: i player la vedono nella bacheca Mappa')}};
