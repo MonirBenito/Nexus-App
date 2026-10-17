@@ -569,3 +569,7 @@ body.mapfull #taskbar,body.mapfull #hud{display:none}
 @keyframes itfloat{from{transform:translateY(0)}to{transform:translateY(-4px)}}
 @keyframes itblink{50%{opacity:0}}
 @media (prefers-reduced-motion:reduce){.itdlg .itph,.itdlg .itsay{animation:none}}
+
+
+/* incontro K.O. */
+.ko{filter:grayscale(1);opacity:.72}
