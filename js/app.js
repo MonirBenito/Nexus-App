@@ -367,7 +367,7 @@ function checkQ(){
 let selP=null;
 const bl=p=>p.blood&&p.blood!=='Non indicato'?esc(p.blood):'—';
 const badge=(k,M)=>{let n=0;if(k==='npcs')n=Object.values(S.npcs).filter(x=>M||visN(x)).length;if(k==='quests')n=Object.values(S.quests).filter(x=>M||visQ(x)).length;if(k==='profile'&&M)n=Object.keys(S.players).length;if(k==='msgs')n=Object.values(S.msgs).filter(m=>M||!(m.to&&m.to.length)||m.to.includes(uid)).length;if(k==='map')n=Object.keys(S.maps||{}).length;return n?`<em class="bdg">${n}</em>`:''};
-const homeCard=p=>{const v=vit(p);return `<div class="hero"><div class="grow"><div style="opacity:.85">Bentornato</div><h2 style="margin:0">${esc(p.username)}</h2><div class="row" style="margin-top:8px;flex-wrap:wrap"><span class="pill eu">💶 ${p.currency}</span><span class="pill bl">🩸 ${bl(p)}</span></div></div></div><div class="card"><div class="mut">❤️ HP</div>${bar(v.h,v.hm,'hp')}<div class="mut">🔷 NEXUS</div>${bar(v.n,v.nm,'nx')}</div>`};
+const homeCard=p=>{const v=vit(p),pc=(a,b)=>b?Math.max(0,Math.min(100,a/b*100)):0;return `<div class="hero"><div class="grow"><div class="hi">Bentornato</div><h2 class="hname">${esc(p.username)}</h2><div class="row" style="margin-top:10px;flex-wrap:wrap"><span class="pill eu">💶 ${p.currency}</span><span class="pill bl">🩸 ${bl(p)}</span></div></div></div><div class="vitals"><div class="vt hp"><div class="vl"><b>❤️ HP</b><span>${v.h}<small> / ${v.hm}</small></span></div><div class="vbar hp"><i style="width:${pc(v.h,v.hm)}%"></i></div></div><div class="vt nx"><div class="vl"><b>🔷 NEXUS</b><span>${v.n}<small> / ${v.nm}</small></span></div><div class="vbar nx"><i style="width:${pc(v.n,v.nm)}%"></i></div></div></div>`};
 const invRO=p=>`<div class="card"><h3>🎒 INVENTARIO</h3>${(p.inv||[]).map(e=>`<div class="move" style="border-left-color:var(--acc2)"><div style="font-size:1.6em">${e.photo?`<img src="${esc(e.photo)}" style="width:44px;height:44px;object-fit:cover;border-radius:8px">`:(CATI[e.cat]||'🎁')}</div><div class="grow"><b>${esc(e.name)}</b><div class="mut">${CATL[e.cat]||'Oggetto'} · ${e.uses==null?'♾ Infinito':e.uses+(e.uses===1?' uso':' usi')}${e.bonus?` · <span style="color:var(--ok)">+${e.bonus.v} ${esc(bonusLabel(e.bonus))}</span>`:''}</div></div></div>`).join('')||'<p class="mut">Inventario vuoto.</p>'}</div>`;
 const masterPlayers=()=>{
   if(selP&&!S.players[selP])selP=null;
@@ -633,8 +633,15 @@ function updateStatus(){
   if(w&&w.textContent!==t)w.textContent=t;if(tt&&tt.textContent!==t)tt.textContent=t;
   const tr=document.getElementById('tb-tray');
   if(tr){
-    let h='';if(p){const v=vit(p);h=`<span class="tchip hp">❤ ${v.h}/${v.hm}</span><span class="tchip nx">◆ ${v.n}/${v.nm}</span>`}
-    if(tr.dataset.h!==h){tr.dataset.h=h;tr.innerHTML=h}
+    if(tr.dataset.h!==''){tr.dataset.h='';tr.innerHTML=''}
+  }
+  const hd=document.getElementById('hud');
+  if(hd){
+    let h='';
+    if(p){const v=vit(p),pc=(a,b)=>b?Math.max(0,Math.min(100,a/b*100)):0;
+      h=`<div class="hud-i hp"><div class="hl"><b>❤ HP</b><span>${v.h}/${v.hm}</span></div><div class="hb"><i style="width:${pc(v.h,v.hm)}%"></i></div></div><div class="hud-i nx"><div class="hl"><b>◆ NEXUS</b><span>${v.n}/${v.nm}</span></div><div class="hb"><i style="width:${pc(v.n,v.nm)}%"></i></div></div>`}
+    if(hd.dataset.h!==h){hd.dataset.h=h;hd.innerHTML=h}
+    hd.classList.toggle('on',!!h);
   }
 }
 function renderSplash(){
@@ -664,13 +671,13 @@ tbOn('tb-start',()=>{
 });
 
 //#MAPCORE-START
-const MAP_TYPES=[['terra','🌍 Terre'],['isola','🏝️ Isola'],['dungeon','🏰 Dungeon'],['caverna','🕳️ Caverna'],['villaggio','🏘️ Villaggio']];
+const MAP_TYPES=[['terra','🌍 Terre e mari'],['isola','🏝️ Isola'],['dungeon','🏰 Dungeon'],['caverna','🕳️ Caverna'],['villaggio','🏘️ Villaggio']];
 const MAP_DEF={terra:{water:45,mount:35,forest:50,detail:4},isola:{water:50,mount:35,forest:50,detail:4},dungeon:{rooms:14,rsize:9,corr:1,treasure:4},caverna:{dens:46,smooth:5,treasure:4},villaggio:{houses:16,trees:45,pond:50}};
 const MAP_SL={
   terra:[['water','Acqua',0,90],['mount','Montagne',0,100],['forest','Foreste',0,100],['detail','Dettaglio',1,10]],
-  dungeon:[['rooms','Stanze',3,40],['rsize','Dimensione stanze',4,16],['corr','Larghezza corridoi',1,2],['treasure','Tesori',0,12]],
+  dungeon:[['rooms','Stanze',3,80],['rsize','Dimensione stanze',4,16],['corr','Larghezza corridoi',1,2],['treasure','Tesori',0,12]],
   caverna:[['dens','Densità roccia',35,60],['smooth','Smussatura',0,8],['treasure','Tesori',0,12]],
-  villaggio:[['houses','Case',2,40],['trees','Alberi',0,100],['pond','Laghetto',0,100]]};
+  villaggio:[['houses','Case',2,80],['trees','Alberi',0,100],['pond','Laghetto',0,100]]};
 MAP_SL.isola=MAP_SL.terra;
 const PAL={
   classica:{deep:'#27598f',shallow:'#3d82c4',sand:'#e2d39a',grass:'#5aa84a',forest:'#2e7438',hill:'#8d9157',mount:'#8a847e',snow:'#f1f4f7',rock:'#25222c',floor:'#c2b08c',corr:'#a89a7b',wall:'#4b4559',road:'#cdb27a',house:'#dbc7a3',roof:'#b3473a',tree:'#2e7438',water:'#3d82c4',treasure:'#f0c419',stairs:'#e8e8f0'},
@@ -692,6 +699,34 @@ const ADDONS=[['casa','🏠 Casa'],['montagna','⛰️ Montagna'],['albero','�
 const ADDON_T=ADDONS.map(a=>a[0]);
 const SHAPES=[['quadrata','⬜ Quadrata'],['tonda','⚪ Tonda'],['ovale','🥚 Ovale'],['diamante','🔶 Diamante']];
 const UNITS=['m','km','mi','passi'];
+const LANDS=[
+ ['libera','🌍 Libera','Terre e mari sparsi, forma casuale'],
+ ['isola','🏝️ Isola','Un\'unica isola al centro, circondata dal mare'],
+ ['arcipelago','🌴 Arcipelago','Tante isole di varie dimensioni'],
+ ['penisola','🦶 Penisola','Una grande terra che si allunga nel mare'],
+ ['continente','🗺️ Continente','Un\'enorme massa di terra con coste frastagliate'],
+ ['atollo','🪸 Atollo','Un anello di terra con una laguna al centro'],
+ ['golfo','🌊 Golfo / baia','Una terra con una grande baia che entra dal mare'],
+ ['istmo','🌉 Istmo','Due terre unite da una stretta lingua di terra'],
+ ['lago','🏞️ Lago interno','Una terra con un grande lago al centro']];
+const LAND_W={libera:45,isola:55,arcipelago:62,penisola:45,continente:28,atollo:65,golfo:28,istmo:55,lago:20};
+const SIZES=[[16,'Minuscola'],[24,'Piccola'],[32,'Piccola+'],[40,'Medio-piccola'],[48,'Media'],[64,'Grande'],[80,'Molto grande'],[96,'Enorme'],[128,'Gigante'],[160,'Colossale'],[192,'Immensa']];
+const sizeLbl=s=>{const e=SIZES.find(x=>x[0]===s);return s+' — '+(e?e[1]:'personalizzata')};
+const sizeOpts=sel=>SIZES.map(([s])=>`<option value="${s}" ${+sel===s?'selected':''}>${s}×${s} · ${SIZES.find(x=>x[0]===s)[1]}</option>`).join('');
+function landMask(land,seed){
+  const r=mulberry32(hashSeed(seed+'#L')),th=r()*6.2832,ux=Math.cos(th),uy=Math.sin(th),asp=.85+r()*.3;
+  const sm=t=>t<=0?0:t>=1?1:t*t*(3-2*t),q=t=>1-Math.min(1,t*t);
+  const seg=(px,py,ax,ay,bx,by)=>{const dx=bx-ax,dy=by-ay,t=Math.max(0,Math.min(1,((px-ax)*dx+(py-ay)*dy)/(dx*dx+dy*dy||1)));return Math.hypot(px-ax-dx*t,py-ay-dy*t)};
+  if(land==='isola')return (u,v)=>q(Math.hypot(u*asp,v/asp));
+  if(land==='continente')return (u,v)=>{const d=Math.hypot(u*asp,v/asp);return 1-Math.pow(Math.min(1,d/1.05),3)};
+  if(land==='arcipelago'){const B=[],k=6+Math.floor(r()*4);for(let i=0;i<k;i++)B.push([(r()*2-1)*.72,(r()*2-1)*.72,.2+r()*.3]);return (u,v)=>{let m=0;for(const [x,y,rad] of B)m=Math.max(m,q(Math.hypot(u-x,v-y)/rad));return m}}
+  if(land==='penisola'){const w=.17+r()*.1;return (u,v)=>{const t=u*ux+v*uy,s=-u*uy+v*ux,main=(1-sm((t+.1)/.45))*(1-sm((Math.abs(s)-.75)/.3)),pen=q(seg(u,v,-.1*ux,-.1*uy,.8*ux,.8*uy)/w);return Math.max(main*.95,pen)}}
+  if(land==='atollo')return (u,v)=>Math.pow(Math.max(0,1-Math.abs(Math.hypot(u,v)-.62)/.22),.8);
+  if(land==='golfo'){const rad=.28+r()*.1;return (u,v)=>{const d=Math.hypot(u,v),bay=q(seg(u,v,1.4*ux,1.4*uy,-.05*ux,-.05*uy)/rad);return .9*(1-bay)*(1-sm((d-1)/.35))}}
+  if(land==='istmo')return (u,v)=>{const a=q(Math.hypot(u-.52*ux,v-.52*uy)/.46),b=q(Math.hypot(u+.52*ux,v+.52*uy)/.46),neck=q(seg(u,v,-.45*ux,-.45*uy,.45*ux,.45*uy)/.13);return Math.max(a,b,neck*.9)};
+  if(land==='lago'){const cx=(r()*2-1)*.2,cy=(r()*2-1)*.2;return (u,v)=>{const d=Math.hypot(u,v),lake=q(Math.hypot(u-cx,v-cy)/.42);return Math.max(0,(1-Math.pow(Math.min(1,d/1.05),3))*.95-lake*.9)}}
+  return null;
+}
 function inShape(s,x,y,n){
   const dx=(x+.5)/n*2-1,dy=(y+.5)/n*2-1;
   if(s==='tonda')return dx*dx+dy*dy<=1;
@@ -720,27 +755,35 @@ function drawScale(ctx,c,Z){
 }
 function drawToken(ctx,m,Z){
   const r=Math.max(7,Z*.8),cx=m.x*Z+Z/2,cy=m.y*Z+Z/2;
+  if(m.npc){
+    ctx.save();if(m.hid)ctx.globalAlpha=.75;
+    ctx.beginPath();ctx.moveTo(cx,cy-r*1.25);ctx.lineTo(cx+r*1.25,cy);ctx.lineTo(cx,cy+r*1.25);ctx.lineTo(cx-r*1.25,cy);ctx.closePath();
+    ctx.fillStyle=m.color;ctx.fill();ctx.lineWidth=3;ctx.strokeStyle=m.hid?'#ffcb3d':'#fff';if(m.hid)ctx.setLineDash([4,3]);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle='#fff';ctx.font='bold '+Math.round(r*1.05)+'px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(m.label,cx,cy+1);ctx.textAlign='start';
+    ctx.restore();return;
+  }
   ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fillStyle=m.color;ctx.fill();
   ctx.lineWidth=m.me?3:2;ctx.strokeStyle='#fff';ctx.stroke();
   ctx.fillStyle='#fff';ctx.font='bold '+Math.round(r*1.1)+'px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(m.label,cx,cy+1);ctx.textAlign='start';
 }
 function mapNorm(c){
   c=c||{};const type=MAP_DEF[c.type]?c.type:'terra';
-  const size=Math.min(128,Math.max(16,parseInt(c.size)||48));
+  const size=Math.min(192,Math.max(16,parseInt(c.size)||48));
   const o={...MAP_DEF[type],type,seed:String(c.seed==null?'nexus':c.seed).slice(0,40)||'nexus',size,pal:PAL[c.pal]?c.pal:'classica',grid:!!c.grid,shade:c.shade!==false,
     shape:SHAPES.some(s=>s[0]===c.shape)?c.shape:'quadrata',
+    land:LANDS.some(l=>l[0]===c.land)?c.land:(type==='isola'?'isola':'libera'),
     scale:Math.min(1000,Math.max(0,+c.scale||0)),
     unit:UNITS.includes(c.unit)?c.unit:'m',
     addons:(Array.isArray(c.addons)?c.addons:[]).filter(a=>a&&ADDON_T.includes(a.t)&&Number.isInteger(a.x)&&Number.isInteger(a.y)&&a.x>=0&&a.y>=0&&a.x<size&&a.y<size).slice(0,500).map(a=>({t:a.t,x:a.x,y:a.y,s:Math.min(4,Math.max(1,parseInt(a.s)||1))}))};
   for(const [k,,a,b] of MAP_SL[type])if(c[k]!=null&&!isNaN(+c[k]))o[k]=Math.min(b,Math.max(a,+c[k]));
   return o;
 }
-function genTerra(c,island){
-  const n=c.size,ns=mkNoise(hashSeed(c.seed+'#e')),nf=mkNoise(hashSeed(c.seed+'#f')),sc=1.5+c.detail*.55;
+function genTerra(c){
+  const n=c.size,ns=mkNoise(hashSeed(c.seed+'#e')),nf=mkNoise(hashSeed(c.seed+'#f')),sc=1.5+c.detail*.55,land=c.land||(c.type==='isola'?'isola':'libera'),mk=land==='libera'?null:landMask(land,c.seed);
   const el=new Float32Array(n*n),codes=new Uint8Array(n*n);
   for(let y=0;y<n;y++)for(let x=0;x<n;x++){
     let e=fbm(ns,x/n*sc,y/n*sc,5);
-    if(island){const dx=x/n-.5,dy=y/n-.5,d=Math.sqrt(dx*dx+dy*dy)*2;e=e*.7+(1-Math.min(1,d*d))*.4-.05}
+    if(mk)e=e*.6+mk((x+.5)/n*2-1,(y+.5)/n*2-1)*.7;
     el[y*n+x]=e;
   }
   const sorted=Float32Array.from(el).sort(),seaT=sorted[Math.min(n*n-1,Math.floor(n*n*c.water/100))];
@@ -842,7 +885,7 @@ function genVillage(c){
   return {codes,el:null};
 }
 function genMap(c){
-  const d=c.type==='terra'?genTerra(c,false):c.type==='isola'?genTerra(c,true):c.type==='dungeon'?genDungeon(c):c.type==='caverna'?genCave(c):genVillage(c);
+  const d=(c.type==='terra'||c.type==='isola')?genTerra(c):c.type==='dungeon'?genDungeon(c):c.type==='caverna'?genCave(c):genVillage(c);
   if(c.shape!=='quadrata'){const n=c.size;for(let y=0;y<n;y++)for(let x=0;x<n;x++)if(!inShape(c.shape,x,y,n))d.codes[y*n+x]=255}
   return d;
 }
@@ -1012,7 +1055,7 @@ function mpToDoc(mp){
 }
 function mpFromDoc(m){
   if(m&&m.v===2){
-    const n=Math.min(128,Math.max(8,parseInt(m.n)||48));
+    const n=Math.min(192,Math.max(8,parseInt(m.n)||48));
     return {n,ter:rleDec(m.ter,n*n,3),fog:rleDec(m.fog,n*n,0),fogOn:!!m.fogOn,objs:(m.objs||[]).filter(o=>o&&(o.k==='testo'||STM[o.k])).map(o=>({...o,id:o.id||uid8()})),pal:PAL[m.pal]?m.pal:'classica',grid:!!m.grid,scale:+m.scale||0,unit:UNITS.includes(m.unit)?m.unit:'m',gt:m.gt||'terra',hs:m.hs||1,pub:m.pub!==false};
   }
   const c=mapNorm((m&&m.cfg)||{}),mp=mpGenerate(c);
@@ -1041,7 +1084,14 @@ function mpDraw(cv,mp,M,ov,marks){
   if(!M)return;
   c.save();c.lineWidth=2;c.strokeStyle='#ffffff';c.setLineDash([5,4]);
   const so=ov.sel&&mp.objs.find(o=>o.id===ov.sel);
-  if(so){const w=so.k==='testo'?Math.max(1,(so.t||'').length*so.s*.6):so.s,h=so.s;c.strokeRect((so.x-w/2)*Z,(so.y-h/2)*Z,w*Z,h*Z)}
+  if(so){
+    const w=so.k==='testo'?Math.max(1,(so.t||'').length*so.s*.6):so.s,h=so.s,hr=ov.hr||.5,hd=rotHandle(so,hr);
+    c.save();c.translate(so.x*Z,so.y*Z);c.rotate((so.r||0)*Math.PI/180);c.strokeRect(-w/2*Z,-h/2*Z,w*Z,h*Z);
+    c.setLineDash([]);c.beginPath();c.moveTo(0,-h/2*Z);c.lineTo(0,-(h/2+hr*1.9)*Z);c.stroke();c.restore();
+    c.beginPath();c.arc(hd.x*Z,hd.y*Z,hr*Z,0,6.2832);c.fillStyle='#ffcb3d';c.fill();c.lineWidth=2;c.strokeStyle='#14121a';c.stroke();
+    c.fillStyle='#14121a';c.font='bold '+Math.max(8,Math.round(hr*Z*1.4))+'px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('↻',hd.x*Z,hd.y*Z+1);c.textAlign='start';
+    c.lineWidth=2;c.strokeStyle='#ffffff';c.setLineDash([5,4]);
+  }
   c.setLineDash([]);
   const hv=ov.hover;
   if(hv&&hv.obj){c.globalAlpha=.55;drawObj(c,P,hv.obj,Z,.55);c.globalAlpha=1}
@@ -1067,6 +1117,8 @@ function mpHit(mp,x,y){
   for(let i=l.length-1;i>=0;i--){const o=l[i],w=o.k==='testo'?Math.max(.6,(o.t||'').length*o.s*.3):o.s/2,h=o.k==='testo'?o.s/2:o.s/2;if(Math.abs(x-o.x)<=w&&Math.abs(y-o.y)<=h)return o}
   return null;
 }
+const normA=a=>((a+180)%360+360)%360-180;
+function rotHandle(o,hr){const d=o.s/2+hr*1.9,a=(o.r||0)*Math.PI/180;return {x:o.x+Math.sin(a)*d,y:o.y-Math.cos(a)*d}}
 //#MAPCORE-END2
 
 /* ---- stato dell'editor ---- */
@@ -1074,11 +1126,13 @@ const mapMarks=M=>{
   if(!mapSel)return [];
   const out=[],add=(id,p)=>{const q=p.mpos&&p.mpos[mapSel];if(q)out.push({x:q.x,y:q.y,label:String(p.username||'?')[0].toUpperCase(),color:'hsl('+(hashSeed(id)%360)+' 75% 42%)',me:id===uid})};
   if(M)Object.entries(S.players).forEach(([id,p])=>add(id,p));else{const p=me();if(p)add(uid,p)}
+  const KC={ostile:'#d02f3a',buono:'#2fa86a',neutrale:'#7d84a6'};
+  Object.entries(S.npcs).forEach(([id,n])=>{const q=n.mpos&&n.mpos[mapSel];if(!q)return;if(!M&&!(q.v&&visN(n)))return;out.push({x:q.x,y:q.y,label:String(n.name||'?')[0].toUpperCase(),color:KC[n.att]||KC.neutrale,npc:true,hid:!q.v})});
   return out;
 };
 let MAPCFG=mapNorm({type:'terra',seed:'nexus',size:48}),mapSel=null,MP=null,PMP=null,mpPKey='';
-let mpTool='brush',mpTer=3,mpBr=3,mpBrShape='round',mpKind='pino',mpCat='Natura',mpSize=null,mpScatter=true,mpVar=true,mpAgg=false,mpHid=false,mpTxt='',mpTxtS=1.2;
-let mpFogMode='hide',mpTokPl=null,mpSelId=null,mpZoom=1,mpScroll=null,mpFocus=null,mpDirty=false,mpHist=[],mpRedo=[],mpHover=null,mpOpenD={gen:false,set:false};
+let mpTool='brush',mpTer=3,mpBr=3,mpBrShape='round',mpKind='pino',mpCat='Natura',mpSize=null,mpScatter=true,mpVar=true,mpAgg=false,mpHid=false,mpTxt='',mpTxtS=1.2,mpRot=0,mpTokN=null,mpTokVis=false;
+let mpFogMode='hide',mpTokPl=null,mpSelId=null,mpZoom=1,mpScroll=null,mpFocus=null,mpDirty=false,mpHist=[],mpRedo=[],mpHover=null,mpOpenD={gen:true,set:false};
 let mpBusy=false,mpPend=false;
 const _render0=render;
 render=function(){if(mpBusy){mpPend=true;return}_render0()};
@@ -1088,7 +1142,7 @@ function mpRestore(s){Object.assign(MP,{n:s.n,ter:s.ter,fog:s.fog,objs:s.objs,fo
 function mpUndo(){if(!mpHist.length)return;mpRedo.push(mpSnapshot());mpRestore(mpHist.pop());render()}
 function mpRedoA(){if(!mpRedo.length)return;mpHist.push(mpSnapshot());mpRestore(mpRedo.pop());render()}
 function mpOpen(id){const m=S.maps[id];if(!m)return;MP=mpFromDoc(m);mapSel=id;mpHist=[];mpRedo=[];mpDirty=false;mpSelId=null;mpScroll=null;render()}
-function mpNewBlank(){ask('🆕 Nuova mappa vuota',[{l:'Terreno di base',n:'base',t:'select',o:['erba','mare','neve','pavimento']},{l:'Dimensione (quadretti)',n:'sz',t:'select',o:[24,32,48,64,96,128]}],{base:'erba',sz:48}).then(r=>{if(!r)return;MP=mpBlank(+r.sz,r.base);mapSel=null;mpHist=[];mpRedo=[];mpDirty=true;mpSelId=null;mpScroll=null;render()})}
+function mpNewBlank(){ask('🆕 Nuova mappa vuota',[{l:'Terreno di base',n:'base',t:'select',o:['erba','mare','neve','pavimento']},{l:'Dimensione (quadretti)',n:'sz',t:'select',o:SIZES.map(x=>sizeLbl(x[0]))}],{base:'erba',sz:sizeLbl(48)}).then(r=>{if(!r)return;MP=mpBlank(parseInt(r.sz)||48,r.base);mapSel=null;mpHist=[];mpRedo=[];mpDirty=true;mpSelId=null;mpScroll=null;render()})}
 function mpGenAct(){
   if(MP.objs.length&&!confirm('Il generatore sostituisce terreno e oggetti della mappa aperta (puoi annullare con ↶). Continuare?'))return;
   mpPush();const g=mpGenerate({...mapNorm(MAPCFG),pal:MP.pal,grid:MP.grid,scale:MP.scale,unit:MP.unit});
@@ -1109,7 +1163,7 @@ function mpResize(nn){
 function mpPlace(mp,x,y){
   if(mp.objs.length>=1500){toast('Limite di 1500 oggetti');return null}
   const st=STM[mpKind],base=mpSize??st[3],n=mp.n,px=mpAgg?Math.floor(x)+.5:x,py=mpAgg?Math.floor(y)+.5:y;
-  const o={id:uid8(),k:mpKind,x:+Math.min(n,Math.max(0,px)).toFixed(2),y:+Math.min(n,Math.max(0,py)).toFixed(2),s:+(base*(mpVar?0.85+Math.random()*0.3:1)).toFixed(2),r:mpVar&&st[2]!=='Edifici'?Math.round((Math.random()-.5)*16):0,f:mpVar&&Math.random()<.5?1:0};
+  const o={id:uid8(),k:mpKind,x:+Math.min(n,Math.max(0,px)).toFixed(2),y:+Math.min(n,Math.max(0,py)).toFixed(2),s:+(base*(mpVar?0.85+Math.random()*0.3:1)).toFixed(2),r:normA(Math.round(mpRot+(mpVar&&st[2]!=='Edifici'?(Math.random()-.5)*16:0))),f:mpVar&&Math.random()<.5?1:0};
   if(mpHid)o.h=1;mp.objs.push(o);return o;
 }
 const mpStat=()=>mpDirty?'● Modifiche non salvate':(mapSel?'✔ Salvata':'Mappa non salvata');
@@ -1125,19 +1179,19 @@ function mpOptions(){
   if(['fill','rect','ellipse'].includes(T))return `<div class="card"><h3>${T==='fill'?'Riempi':T==='rect'?'Rettangolo':'Ellisse'}</h3>${terPal()}<p class="mut">${T==='fill'?'Tocca un\'area: tutto il terreno uguale collegato diventa quello scelto.':'Trascina per disegnare la forma piena.'}</p></div>`;
   if(T==='stamp'){
     const cat=STAMPS.filter(s=>s[2]===mpCat),defS=STM[mpKind][3];
-    return `<div class="card"><h3>Oggetti</h3><div class="chips">${MCATS.map(c=>`<button class="chipb ${mpCat===c?'sel':''}" data-cat="${c}">${c}</button>`).join('')}</div><div class="stgrid">${cat.map(s=>`<button class="stb ${mpKind===s[0]?'sel':''}" data-st="${s[0]}"><img src="${stThumb(s[0],MP.pal)}" alt=""><span>${esc(s[1])}</span></button>`).join('')}</div>${slider('mpsz','Grandezza (quadretti)',mpSize??defS,.3,10,.1)}${chk('mpsc','Spargi trascinando (foreste, folle…)',mpScatter)}${chk('mpvar','Variazione casuale (dimensione, specchio, inclinazione)',mpVar)}${chk('mpagg','Aggancia al centro dei quadretti',mpAgg)}${chk('mphid','Nascosto ai player (trappole, segreti)',mpHid)}<p class="mut">Tocca la mappa per piazzare. Per spostare/ruotare/ridimensionare usa 🔎 Seleziona.</p></div>`;
+    return `<div class="card"><h3>Oggetti</h3><div class="chips">${MCATS.map(c=>`<button class="chipb ${mpCat===c?'sel':''}" data-cat="${c}">${c}</button>`).join('')}</div><div class="stgrid">${cat.map(s=>`<button class="stb ${mpKind===s[0]?'sel':''}" data-st="${s[0]}"><img src="${stThumb(s[0],MP.pal)}" alt=""><span>${esc(s[1])}</span></button>`).join('')}</div>${slider('mpsz','Grandezza (quadretti)',mpSize??defS,.3,10,.1)}${slider('mprot','Rotazione degli oggetti che piazzi (°)',mpRot,-180,180,5)}<div class="chips" style="margin-top:6px">${[[-90,'⟲ 90°'],[-45,'⟲ 45°'],[0,'Azzera'],[45,'⟳ 45°'],[90,'⟳ 90°']].map(([a,l])=>`<button class="chipb mini" data-rn="${a}">${l}</button>`).join('')}</div>${chk('mpsc','Spargi trascinando (foreste, folle…)',mpScatter)}${chk('mpvar','Variazione casuale (dimensione, specchio, inclinazione)',mpVar)}${chk('mpagg','Aggancia al centro dei quadretti',mpAgg)}${chk('mphid','Nascosto ai player (trappole, segreti)',mpHid)}<p class="mut">Tocca la mappa per piazzare. Per spostare/ruotare/ridimensionare usa 🔎 Seleziona.</p></div>`;
   }
   if(T==='sel'){
     const o=MP.objs.find(x=>x.id===mpSelId);
-    if(!o)return `<div class="card"><h3>Seleziona</h3><p class="mut">Tocca un oggetto sulla mappa per selezionarlo, poi trascinalo per spostarlo.</p></div>`;
-    return `<div class="card"><h3>${o.k==='testo'?'Testo':esc(STM[o.k][1])}</h3>${slider('szo','Grandezza',o.s,.3,12,.1)}${slider('rot','Rotazione (°)',o.r||0,-180,180,1)}<div class="row" style="flex-wrap:wrap;gap:8px;margin-top:10px">${o.k==='testo'?'<button class="g" id="stxt">✎ Testo</button>':'<button class="g" id="sflip">↔ Specchia</button>'}<button class="g" id="sdup">⧉ Duplica</button><button class="g" id="shid">${o.h?'👁 Mostra ai player':'🙈 Nascondi ai player'}</button><button class="d" id="sdel">🗑 Elimina</button></div></div>`;
+    if(!o)return `<div class="card"><h3>Seleziona</h3><p class="mut">Tocca un oggetto sulla mappa per selezionarlo, poi trascinalo per spostarlo. Per ruotarlo trascina il pallino giallo ↻ che compare sopra di lui.</p></div>`;
+    return `<div class="card"><h3>${o.k==='testo'?'Testo':esc(STM[o.k][1])}</h3>${slider('szo','Grandezza',o.s,.3,12,.1)}${slider('rot','Rotazione (°)',o.r||0,-180,180,1)}<div class="chips" style="margin-top:6px">${[[-90,'⟲ 90°'],[-15,'⟲ 15°'],[15,'⟳ 15°'],[90,'⟳ 90°'],[0,'Azzera']].map(([a,l])=>`<button class="chipb mini" data-ro="${a}">${l}</button>`).join('')}</div><div class="row" style="flex-wrap:wrap;gap:8px;margin-top:10px">${o.k==='testo'?'<button class="g" id="stxt">✎ Testo</button>':'<button class="g" id="sflip">↔ Specchia</button>'}<button class="g" id="sdup">⧉ Duplica</button><button class="g" id="shid">${o.h?'👁 Mostra ai player':'🙈 Nascondi ai player'}</button><button class="d" id="sdel">🗑 Elimina</button></div><p class="mut">Trascina il pallino giallo ↻ sulla mappa per ruotare a mano (Maiusc = a scatti di 15°).</p></div>`;
   }
   if(T==='text')return `<div class="card"><h3>Testo</h3><label class="mut">Scritta (nomi di regni, città, luoghi)</label><input id="mptxt" value="${esc(mpTxt)}" maxlength="40">${slider('mpts','Grandezza',mpTxtS,.5,6,.1)}<p class="mut">Tocca la mappa per piazzare la scritta; poi 🔎 per spostarla.</p></div>`;
   if(T==='erase')return `<div class="card"><h3>Gomma oggetti</h3><p class="mut">Tocca o trascina sugli oggetti per cancellarli (il terreno non viene toccato).</p></div>`;
   if(T==='fog')return `<div class="card"><h3>Nebbia di guerra</h3><div class="chips"><button class="chipb ${mpFogMode==='hide'?'sel':''}" data-fm="hide">🌫️ Nascondi</button><button class="chipb ${mpFogMode==='show'?'sel':''}" data-fm="show">☀️ Rivela</button></div>${slider('mpbr','Dimensione',mpBr,1,20)}<div class="row" style="flex-wrap:wrap;gap:8px;margin-top:10px"><button class="g" id="mpfall">Nascondi tutto</button><button class="g" id="mpfnone">Rivela tutto</button></div>${chk('mpfon','Nebbia attiva per i player',MP.fogOn)}<p class="mut">Con la nebbia attiva i player vedono nero dove hai nascosto (oggetti compresi). Salva per aggiornare la loro vista.</p></div>`;
   if(T==='token'){
-    const pl=Object.entries(S.players);
-    return `<div class="card"><h3>Segnalini player</h3>${mapSel?'':'<p class="mut">Salva prima la mappa per usare i segnalini.</p>'}<div class="chips">${pl.map(([i,p])=>`<button class="chipb ${mpTokPl===i?'sel':''}" data-tp="${i}">${esc(p.username)}</button>`).join('')||'<p class="mut">Nessun player.</p>'}</div><div class="row" style="margin-top:10px;gap:8px"><button class="g" id="mptokclr">Rimuovi segnalino selezionato</button></div><p class="mut">Scegli un player e tocca la mappa per posizionarlo. I player possono anche muoversi da soli.</p></div>`;
+    const pl=Object.entries(S.players),np=Object.entries(S.npcs);
+    return `<div class="card"><h3>Segnalini</h3>${mapSel?'':'<p class="mut">Salva prima la mappa per usare i segnalini.</p>'}<div class="mut">Player (cerchio)</div><div class="chips">${pl.map(([i,p])=>`<button class="chipb ${mpTokPl===i?'sel':''}" data-tp="${i}">${esc(p.username)}</button>`).join('')||'<p class="mut">Nessun player.</p>'}</div><div class="mut" style="margin-top:12px">NPC (rombo: rosso ostile, verde buono, grigio neutrale)</div><div class="chips">${np.map(([i,n])=>`<button class="chipb ${mpTokN===i?'sel':''}" data-tn="${i}">◆ ${esc(n.name)}</button>`).join('')||'<p class="mut">Nessun NPC.</p>'}</div>${chk('mptv','Mostra il segnalino dell\'NPC ai player (spento = lo vedi solo tu, con il bordo tratteggiato)',mpTokVis)}<div class="row" style="margin-top:10px;gap:8px"><button class="g" id="mptokclr">Rimuovi segnalino selezionato</button></div><p class="mut">Scegli un player o un NPC e tocca la mappa per posizionarlo (toccando di nuovo lo sposti). I player possono anche muoversi da soli.</p></div>`;
   }
   return `<div class="card"><h3>Muovi</h3><p class="mut">Con questo strumento scorri/trascini la mappa (utile con lo zoom, soprattutto da telefono). Gli altri strumenti disegnano.</p></div>`;
 }
@@ -1152,13 +1206,14 @@ const mapBoard=M=>{
     return hdr('🗺️ '+esc(m.name),1)+`<div class="card">${zoomBar()}<div class="mapwrap" id="mapwrap"><canvas id="mapcv" class="mapcv" style="width:${mpZoom*100}%;cursor:crosshair"></canvas></div><p class="mut" style="margin:8px 0">Tocca la mappa per segnare dove si trova il tuo personaggio.</p><div class="row" style="flex-wrap:wrap;gap:8px">${mine?'<button class="g" id="mapunpin">Rimuovi il mio segnalino</button>':''}<button class="g" id="mapclose">‹ Altre mappe</button></div></div>`+list;
   }
   if(!MP)MP=mpGenerate({...mapNorm(MAPCFG),pal:'classica'});
-  const c=mapNorm(MAPCFG),sl=MAP_SL[c.type]||[],cur=mapSel&&S.maps[mapSel];
+  const c=mapNorm(MAPCFG),sl=MAP_SL[c.type]||[],cur=mapSel&&S.maps[mapSel],
+  landUI=(c.type==='terra'||c.type==='isola')?`<label class="mut" style="margin-top:10px">Forma della terra</label><div class="chips">${LANDS.map(([k,l])=>`<button class="chipb ${c.land===k?'sel':''}" data-ld="${k}">${l}</button>`).join('')}</div><p class="mut" style="margin:6px 0 0">${esc((LANDS.find(l=>l[0]===c.land)||LANDS[0])[2])}. Regola poi la quantità di acqua qui sotto.</p>`:'';
   return hdr('🗺️ '+(cur?esc(cur.name):'Editor mappe'),1)+
-  `<div class="card"><div class="chips">${MTOOLS.map(([k,i,l])=>`<button class="chipb ${mpTool===k?'sel':''}" data-mtl="${k}">${i} ${l}</button>`).join('')}</div><div class="row" style="flex-wrap:wrap;gap:6px;margin-top:10px"><button class="g mini" id="mpu" ${mpHist.length?'':'disabled'}>↶ Annulla</button><button class="g mini" id="mpr" ${mpRedo.length?'':'disabled'}>↷ Ripeti</button><span class="grow"></span><span class="mut" id="mpstat">${mpStat()}</span></div></div>`+
+  `<div class="card"><div class="chips">${MTOOLS.map(([k,i,l])=>`<button class="chipb ${mpTool===k?'sel':''}" data-mtl="${k}">${i} ${l}</button>`).join('')}</div><div class="row" style="flex-wrap:wrap;gap:6px;margin-top:10px"><button class="g mini" id="mpu" ${mpHist.length?'':'disabled'}>↶ Annulla</button><button class="g mini" id="mpr" ${mpRedo.length?'':'disabled'}>↷ Ripeti</button><button class="mini" id="mpquick">🎲 Mappa casuale</button><span class="grow"></span><span class="mut" id="mpstat">${mpStat()}</span></div></div>`+
   `<div class="card">${zoomBar()}<div class="mapwrap" id="mapwrap"><canvas id="mapcv" class="mapcv" style="width:${mpZoom*100}%;touch-action:${mpTool==='pan'?'auto':'none'};cursor:${mpTool==='pan'?'grab':'crosshair'}"></canvas></div></div>`+
   mpOptions()+
-  `<details class="card" id="dset" ${mpOpenD.set?'open':''}><summary>⚙️ Impostazioni mappa</summary><label class="mut">Palette</label><select id="mppal">${Object.keys(PAL).map(k=>`<option value="${k}" ${MP.pal===k?'selected':''}>${k[0].toUpperCase()+k.slice(1)}</option>`).join('')}</select><label class="mut">Dimensione (quadretti)</label><select id="mpsize">${[24,32,48,64,96,128].map(s=>`<option value="${s}" ${MP.n===s?'selected':''}>${s}×${s}</option>`).join('')}</select><div class="row"><div class="grow"><label class="mut">Scala: 1 quadretto = (0 = nascosta)</label><input id="mpscale" type="number" min="0" step="any" value="${MP.scale}" style="margin:0"></div><div><label class="mut">Unità</label><select id="mpunit" style="margin:0">${UNITS.map(u=>`<option ${MP.unit===u?'selected':''}>${u}</option>`).join('')}</select></div></div>${chk('mpgrid','Griglia',MP.grid)}${chk('mppub','Visibile ai player',MP.pub!==false)}</details>`+
-  `<details class="card" id="dgen" ${mpOpenD.gen?'open':''}><summary>🎲 Generatore casuale</summary><p class="mut">Crea una base da cui partire: poi ritoccala con pennello e oggetti.</p><div class="chips">${MAP_TYPES.map(([k,l])=>`<button class="chipb ${c.type===k?'sel':''}" data-mt="${k}">${l}</button>`).join('')}</div><label class="mut" style="margin-top:8px">Seme (stesso seme = stessa mappa)</label><div class="row"><input id="mapseed" value="${esc(c.seed)}" style="margin:0"><button class="g" id="mapdice" title="Seme casuale">🎲</button></div><div class="row" style="margin-top:10px"><div class="grow"><label class="mut">Dimensione</label><select id="mapgsize">${[24,32,48,64,96,128].map(s=>`<option value="${s}" ${c.size===s?'selected':''}>${s}×${s}</option>`).join('')}</select></div><div class="grow"><label class="mut">Forma</label><select id="mapgshape">${SHAPES.map(([k,l])=>`<option value="${k}" ${c.shape===k?'selected':''}>${l}</option>`).join('')}</select></div></div>${sl.map(([k,l,a,b])=>`<div style="margin-top:6px"><div class="row sp"><span>${l}</span><b id="mv-${k}">${c[k]}</b></div><input type="range" data-mk="${k}" min="${a}" max="${b}" value="${c[k]}"></div>`).join('')}<div class="row" style="margin-top:12px;flex-wrap:wrap;gap:8px"><button id="mapgen">⚡ Genera</button><button class="g" id="mapnew">🎲 Nuova casuale</button></div></details>`+
+  `<details class="card" id="dset" ${mpOpenD.set?'open':''}><summary>⚙️ Impostazioni mappa</summary><label class="mut">Palette</label><select id="mppal">${Object.keys(PAL).map(k=>`<option value="${k}" ${MP.pal===k?'selected':''}>${k[0].toUpperCase()+k.slice(1)}</option>`).join('')}</select><label class="mut">Dimensione (quadretti)</label><select id="mpsize">${sizeOpts(MP.n)}</select><div class="row"><div class="grow"><label class="mut">Scala: 1 quadretto = (0 = nascosta)</label><input id="mpscale" type="number" min="0" step="any" value="${MP.scale}" style="margin:0"></div><div><label class="mut">Unità</label><select id="mpunit" style="margin:0">${UNITS.map(u=>`<option ${MP.unit===u?'selected':''}>${u}</option>`).join('')}</select></div></div>${chk('mpgrid','Griglia',MP.grid)}${chk('mppub','Visibile ai player',MP.pub!==false)}</details>`+
+  `<details class="card" id="dgen" ${mpOpenD.gen?'open':''}><summary>🎲 Generatore casuale</summary><p class="mut">Crea una base da cui partire: poi ritoccala con pennello e oggetti.</p><div class="chips">${MAP_TYPES.filter(t=>t[0]!=='isola').map(([k,l])=>`<button class="chipb ${(c.type===k||(k==='terra'&&c.type==='isola'))?'sel':''}" data-mt="${k}">${l}</button>`).join('')}</div><label class="mut" style="margin-top:8px">Seme (stesso seme = stessa mappa)</label><div class="row"><input id="mapseed" value="${esc(c.seed)}" style="margin:0"><button class="g" id="mapdice" title="Seme casuale">🎲</button></div>${landUI}<div class="row" style="margin-top:10px"><div class="grow"><label class="mut">Dimensione</label><select id="mapgsize">${sizeOpts(c.size)}</select></div><div class="grow"><label class="mut">Forma del riquadro</label><select id="mapgshape">${SHAPES.map(([k,l])=>`<option value="${k}" ${c.shape===k?'selected':''}>${l}</option>`).join('')}</select></div></div>${sl.map(([k,l,a,b])=>`<div style="margin-top:6px"><div class="row sp"><span>${l}</span><b id="mv-${k}">${c[k]}</b></div><input type="range" data-mk="${k}" min="${a}" max="${b}" value="${c[k]}"></div>`).join('')}<div class="row" style="margin-top:12px;flex-wrap:wrap;gap:8px"><button id="mapgen">⚡ Genera</button><button class="g" id="mapnew">🎲 Nuova casuale</button></div></details>`+
   `<div class="card"><h3>Salvataggio</h3><div class="row" style="flex-wrap:wrap;gap:8px"><button id="mapsave">💾 ${cur?'Aggiorna «'+esc(cur.name)+'»':'Salva'}</button>${cur?'<button class="g" id="mapsaveas">💾 Salva come nuova</button>':''}<button class="g" id="mapblank">🆕 Nuova vuota</button><button class="g" id="mapdl">⬇ PNG</button><button class="g" id="mapcopy">📋 Codice</button><button class="g" id="mapload">📥 Carica</button></div></div>`+list;
 };
 function mapInit(){
@@ -1187,10 +1242,10 @@ function mapInit(){
   /* ===== Master ===== */
   let drag=null,raf=0;
   const ov=()=>{
-    const hv=mpHover,o={sel:mpSelId,fog:mpTool==='fog'};
+    const hv=mpHover,o={sel:mpSelId,fog:mpTool==='fog',hr:Math.max(.3,13/(cv.getBoundingClientRect().width/mp.n))};
     if(hv&&!drag){
       if(['brush','line','fog'].includes(mpTool))o.hover={x:hv.tx,y:hv.ty,s:mpBr,sh:mpBrShape};
-      else if(mpTool==='stamp')o.hover={obj:{k:mpKind,x:mpAgg?hv.tx+.5:hv.x,y:mpAgg?hv.ty+.5:hv.y,s:mpSize??STM[mpKind][3],r:0,f:0}};
+      else if(mpTool==='stamp')o.hover={obj:{k:mpKind,x:mpAgg?hv.tx+.5:hv.x,y:mpAgg?hv.ty+.5:hv.y,s:mpSize??STM[mpKind][3],r:mpRot,f:0}};
     }
     if(drag&&['line','rect','ellipse'].includes(drag.m))o.shape=drag;
     return o;
@@ -1216,11 +1271,16 @@ function mapInit(){
     else if(['line','rect','ellipse'].includes(T))drag={m:T,sx:p.tx,sy:p.ty,ex:p.tx,ey:p.ty};
     else if(T==='stamp'){mpPush();const o=mpPlace(mp,p.x,p.y);drag={m:'st',lx:p.x,ly:p.y,n:o?1:0}}
     else if(T==='text'){if(!mpTxt.trim()){toast('Scrivi prima il testo');drag={m:'x'}}else{mpPush();mp.objs.push({id:uid8(),k:'testo',x:+p.x.toFixed(2),y:+p.y.toFixed(2),s:mpTxtS,r:0,f:0,t:mpTxt.trim().slice(0,40)});drag={m:'x'}}}
-    else if(T==='sel'){const o=mpHit(mp,p.x,p.y),old=mpSelId;mpSelId=o?o.id:null;drag=o?{m:'mv',id:o.id,dx:p.x-o.x,dy:p.y-o.y,pushed:false,ch:old!==o.id}:{m:'x',ch:old!==null}}
+    else if(T==='sel'){
+      const cur=so(),hr=Math.max(.3,13/(cv.getBoundingClientRect().width/mp.n)),hd=cur&&rotHandle(cur,hr);
+      if(cur&&Math.hypot(p.x-hd.x,p.y-hd.y)<=hr*1.4)drag={m:'rot',id:cur.id,pushed:false,ch:false};
+      else{const o=mpHit(mp,p.x,p.y),old=mpSelId;mpSelId=o?o.id:null;drag=o?{m:'mv',id:o.id,dx:p.x-o.x,dy:p.y-o.y,pushed:false,ch:old!==o.id}:{m:'x',ch:old!==null}}
+    }
     else if(T==='erase'){mpPush();drag={m:'er'};eraseAt(p)}
     else if(T==='token'){
       drag={m:'x'};
-      if(!mapSel)toast('Salva prima la mappa');else if(!mpTokPl)toast('Scegli un player');else if(mp.ter[p.ty*mp.n+p.tx]===18)toast('Fuori dalla mappa');
+      if(!mapSel)toast('Salva prima la mappa');else if(!mpTokPl&&!mpTokN)toast('Scegli un player o un NPC');else if(mp.ter[p.ty*mp.n+p.tx]===18)toast('Fuori dalla mappa');
+      else if(mpTokN){const nn=S.npcs[mpTokN];guard(db.collection('npcs').doc(mpTokN).update({mpos:{...((nn&&nn.mpos)||{}),[mapSel]:{x:p.tx,y:p.ty,v:mpTokVis?1:0}}}))}
       else{const pl=S.players[mpTokPl];guard(db.collection('players').doc(mpTokPl).update({mpos:{...((pl&&pl.mpos)||{}),[mapSel]:{x:p.tx,y:p.ty}}}))}
     }
     stat();rd();
@@ -1233,6 +1293,7 @@ function mapInit(){
     else if(['line','rect','ellipse'].includes(drag.m)){drag.ex=p.tx;drag.ey=p.ty}
     else if(drag.m==='st'&&mpScatter){const sp=Math.max(.35,(mpSize??STM[mpKind][3])*.7);if(Math.hypot(p.x-drag.lx,p.y-drag.ly)>=sp){if(mpPlace(mp,p.x,p.y)){drag.lx=p.x;drag.ly=p.y}}}
     else if(drag.m==='mv'){const o=mp.objs.find(x=>x.id===drag.id);if(o){if(!drag.pushed){mpPush();drag.pushed=true;stat()}const nx=p.x-drag.dx,ny=p.y-drag.dy;o.x=+Math.min(mp.n,Math.max(0,mpAgg?Math.floor(nx)+.5:nx)).toFixed(2);o.y=+Math.min(mp.n,Math.max(0,mpAgg?Math.floor(ny)+.5:ny)).toFixed(2)}}
+    else if(drag.m==='rot'){const o=mp.objs.find(x=>x.id===drag.id);if(o){if(!drag.pushed){mpPush();drag.pushed=true;stat()}const st=e.shiftKey?15:5;let a=Math.atan2(p.x-o.x,-(p.y-o.y))*180/Math.PI;a=Math.round(a/st)*st;o.r=normA(a);const rr=q('rot');if(rr){rr.value=o.r;const l=q('rotv');if(l)l.textContent=o.r}}}
     else if(drag.m==='er')eraseAt(p);
     rd();
   };
@@ -1250,7 +1311,7 @@ function mapInit(){
     if(d.m==='mv'||d.m==='x'){if(d.ch)rerender=true}
     if(d.m==='er')rerender=false;
     mpBusy=false;mpPend=false;stat();redraw();
-    if(rerender||(d.m==='mv'&&d.pushed)){render()}
+    if(rerender||((d.m==='mv'||d.m==='rot')&&d.pushed)){render()}
     else if(d.m==='b'||d.m==='fill'||d.m==='st'||d.m==='er'||d.m==='text'||['line','rect','ellipse'].includes(d.m)){render()}
   };
   cv.onpointerup=end;cv.onpointercancel=end;
@@ -1264,13 +1325,15 @@ function mapInit(){
   const bs=q('mpbs');if(bs)bs.onchange=()=>mpBrShape=bs.value;
   document.querySelectorAll('[data-cat]').forEach(b=>b.onclick=()=>{mpCat=b.dataset.cat;mpKind=(STAMPS.find(s=>s[2]===mpCat)||STAMPS[0])[0];mpSize=null;render()});
   document.querySelectorAll('[data-st]').forEach(b=>b.onclick=()=>{mpKind=b.dataset.st;mpSize=null;render()});
-  bindR('mpsz',v=>mpSize=v);bindR('mpts',v=>mpTxtS=v);
+  bindR('mpsz',v=>mpSize=v);bindR('mpts',v=>mpTxtS=v);bindR('mprot',v=>mpRot=v);
+  document.querySelectorAll('[data-rn]').forEach(b=>b.onclick=()=>{const a=+b.dataset.rn;mpRot=a===0?0:normA(mpRot+a);render()});
   [['mpsc',v=>mpScatter=v],['mpvar',v=>mpVar=v],['mpagg',v=>mpAgg=v],['mphid',v=>mpHid=v]].forEach(([id,fn])=>{const c=q(id);if(c)c.onchange=()=>fn(c.checked)});
   const tx=q('mptxt');if(tx)tx.oninput=()=>mpTxt=tx.value;
   /* selezione */
   const so=()=>mp.objs.find(o=>o.id===mpSelId);
   const sz=q('szo');if(sz){sz.onpointerdown=()=>{mpPush();stat()};sz.oninput=()=>{const o=so();if(o){o.s=+sz.value;q('szov').textContent=sz.value;rd()}}}
   const rt=q('rot');if(rt){rt.onpointerdown=()=>{mpPush();stat()};rt.oninput=()=>{const o=so();if(o){o.r=+rt.value;q('rotv').textContent=rt.value;rd()}}}
+  document.querySelectorAll('[data-ro]').forEach(b=>b.onclick=()=>{const o=so();if(!o)return;mpPush();const a=+b.dataset.ro;o.r=a===0?0:normA((o.r||0)+a);render()});
   if(q('sflip'))q('sflip').onclick=()=>{const o=so();if(o){mpPush();o.f=o.f?0:1;render()}};
   if(q('shid'))q('shid').onclick=()=>{const o=so();if(o){mpPush();if(o.h)delete o.h;else o.h=1;render()}};
   if(q('sdup'))q('sdup').onclick=()=>{const o=so();if(o&&mp.objs.length<1500){mpPush();const c=JSON.parse(JSON.stringify(o));c.id=uid8();c.x=+Math.min(mp.n,c.x+.6).toFixed(2);c.y=+Math.min(mp.n,c.y+.6).toFixed(2);mp.objs.push(c);mpSelId=c.id;render()}};
@@ -1281,8 +1344,14 @@ function mapInit(){
   if(q('mpfall'))q('mpfall').onclick=()=>{mpPush();mp.fog.fill(1);render()};
   if(q('mpfnone'))q('mpfnone').onclick=()=>{mpPush();mp.fog.fill(0);render()};
   if(q('mpfon'))q('mpfon').onchange=()=>{mpPush();mp.fogOn=q('mpfon').checked;render()};
-  document.querySelectorAll('[data-tp]').forEach(b=>b.onclick=()=>{mpTokPl=b.dataset.tp;render()});
-  if(q('mptokclr'))q('mptokclr').onclick=()=>{if(!mapSel||!mpTokPl)return toast('Scegli un player');const pl=S.players[mpTokPl],o={...((pl&&pl.mpos)||{})};delete o[mapSel];guard(db.collection('players').doc(mpTokPl).update({mpos:o}))};
+  document.querySelectorAll('[data-tp]').forEach(b=>b.onclick=()=>{mpTokPl=b.dataset.tp;mpTokN=null;render()});
+  document.querySelectorAll('[data-tn]').forEach(b=>b.onclick=()=>{mpTokN=b.dataset.tn;mpTokPl=null;const n=S.npcs[mpTokN],t=n&&n.mpos&&mapSel&&n.mpos[mapSel];mpTokVis=!!(t&&t.v);render()});
+  const tv=q('mptv');if(tv)tv.onchange=()=>{mpTokVis=tv.checked;const n=S.npcs[mpTokN];if(mapSel&&n&&n.mpos&&n.mpos[mapSel])guard(db.collection('npcs').doc(mpTokN).update({mpos:{...n.mpos,[mapSel]:{...n.mpos[mapSel],v:mpTokVis?1:0}}}))};
+  if(q('mptokclr'))q('mptokclr').onclick=()=>{
+    if(!mapSel||(!mpTokPl&&!mpTokN))return toast('Scegli un player o un NPC');
+    if(mpTokN){const n=S.npcs[mpTokN],o={...((n&&n.mpos)||{})};delete o[mapSel];guard(db.collection('npcs').doc(mpTokN).update({mpos:o}))}
+    else{const pl=S.players[mpTokPl],o={...((pl&&pl.mpos)||{})};delete o[mapSel];guard(db.collection('players').doc(mpTokPl).update({mpos:o}))}
+  };
   /* impostazioni */
   const setd=(id,fn)=>{const e=q(id);if(e)e.onchange=()=>{mpPush();fn(e);mp.tcDirty=true;render()}};
   setd('mppal',e=>mp.pal=e.value);setd('mpunit',e=>mp.unit=e.value);setd('mpgrid',e=>mp.grid=e.checked);setd('mppub',e=>mp.pub=e.checked);
@@ -1290,12 +1359,14 @@ function mapInit(){
   const mz=q('mpsize');if(mz)mz.onchange=()=>mpResize(+mz.value);
   ['dset','dgen'].forEach(id=>{const d=q(id);if(d)d.ontoggle=()=>{mpOpenD[id==='dset'?'set':'gen']=d.open}});
   /* generatore */
-  document.querySelectorAll('[data-mt]').forEach(b=>b.onclick=()=>{const c=MAPCFG;MAPCFG=mapNorm({type:b.dataset.mt,seed:c.seed,size:c.size,shape:c.shape});mpOpenD.gen=true;render()});
+  document.querySelectorAll('[data-mt]').forEach(b=>b.onclick=()=>{const c=MAPCFG;MAPCFG=mapNorm({type:b.dataset.mt,seed:c.seed,size:c.size,shape:c.shape,land:c.land});mpOpenD.gen=true;render()});
+  document.querySelectorAll('[data-ld]').forEach(b=>b.onclick=()=>{const c=mapNorm(MAPCFG),k=b.dataset.ld;MAPCFG=mapNorm({...c,type:'terra',land:k,water:LAND_W[k]});mpOpenD.gen=true;render()});
   document.querySelectorAll('[data-mk]').forEach(i=>i.oninput=()=>{MAPCFG[i.dataset.mk]=+i.value;const l=q('mv-'+i.dataset.mk);if(l)l.textContent=i.value});
   const sd=q('mapseed');if(sd)sd.oninput=()=>{MAPCFG.seed=sd.value||'0'};
   const dice=()=>{MAPCFG.seed=Math.random().toString(36).slice(2,8);if(sd)sd.value=MAPCFG.seed};
   if(q('mapdice'))q('mapdice').onclick=dice;
   if(q('mapnew'))q('mapnew').onclick=()=>{dice();mpGenAct()};
+  if(q('mpquick'))q('mpquick').onclick=()=>{dice();mpGenAct()};
   if(q('mapgen'))q('mapgen').onclick=mpGenAct;
   const gz=q('mapgsize');if(gz)gz.onchange=()=>{MAPCFG.size=+gz.value};
   const gs=q('mapgshape');if(gs)gs.onchange=()=>{MAPCFG.shape=gs.value};
