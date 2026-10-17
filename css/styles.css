@@ -571,5 +571,19 @@ body.mapfull #taskbar,body.mapfull #hud{display:none}
 @media (prefers-reduced-motion:reduce){.itdlg .itph,.itdlg .itsay{animation:none}}
 
 
-/* incontro K.O. */
-.ko{filter:grayscale(1);opacity:.72}
+/* =====================================================================
+   v16: tiro dei dadi di danno
+   ===================================================================== */
+.rolldlg{text-align:center}
+.dice{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;margin:20px 0 14px;min-height:64px}
+.die{width:64px;height:64px;display:grid;place-items:center;background:#f4f1ff;color:var(--ink);border:4px solid var(--ink);box-shadow:inset 3px 3px 0 rgba(255,255,255,.7),inset -4px -4px 0 rgba(0,0,0,.22),4px 4px 0 var(--ink);font:400 17px/1 var(--f-px)}
+.die b{font:inherit}
+.die.rolling{animation:diceroll .3s steps(4) infinite}
+.die.land{animation:dicepop .3s steps(4)}
+.die.max{background:var(--ok)}
+.die.min{background:var(--danger);color:#fff}
+.rres{min-height:92px}
+.rtot{font:400 40px/1.3 var(--f-px);color:var(--gold);text-shadow:3px 3px 0 var(--ink)}
+.rres.rpop .rtot{animation:itpop .35s steps(5) both}
+@keyframes diceroll{0%{transform:translate(0,0) rotate(0)}25%{transform:translate(-6px,-10px) rotate(-18deg)}50%{transform:translate(4px,-14px) rotate(14deg)}75%{transform:translate(6px,-4px) rotate(-10deg)}100%{transform:translate(0,0) rotate(0)}}
+@keyframes dicepop{from{transform:scale(1.5) rotate(25deg)}to{transform:none}}
