@@ -133,7 +133,7 @@ body{color:var(--tx);overflow:hidden;background:#05030f;font:17px/1.4 var(--f-ui
 
 /* ---------- barra dei comandi (pulsanti fisici) ---------- */
 #taskbar{
-  position:relative;z-index:2;flex:none;height:62px;display:flex;align-items:center;gap:10px;padding:0 14px;
+  position:relative;z-index:2;flex:none;height:calc(62px + env(safe-area-inset-bottom,0px));display:flex;align-items:center;gap:10px;padding:0 14px;
   padding-bottom:env(safe-area-inset-bottom,0px);
   background:linear-gradient(180deg,#1a1236,#0a0618);border-top:4px solid var(--acc);
   box-shadow:0 -4px 0 var(--ink),inset 0 4px 0 rgba(255,255,255,.08);color:var(--tx);
@@ -442,3 +442,91 @@ details.card[open]>summary{margin-bottom:10px}
 
 /* rifinitura: i pulsanti di forma speciale non hanno margine extra */
 .tb-btn,.drop,.tile,.theme-opt{margin-bottom:0}
+
+
+/* =====================================================================
+   v14: telefono, HUD HP/NEXUS sempre visibile, nome in evidenza
+   ===================================================================== */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{overscroll-behavior:none;touch-action:manipulation}
+#desk{height:100vh;height:100dvh}
+#scr{-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+img{max-width:100%}
+.grow{min-width:0}
+.card,.pcard,.quest,.ego,.move,.bubble,.hero{overflow-wrap:anywhere}
+.bar>.row:first-child{min-width:0;flex:1}
+.bar>.row:last-child{flex:none}
+.bar h2{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* HUD: HP e NEXUS sempre visibili in cima allo schermo del player */
+#hud{display:none;position:sticky;top:0;z-index:4;gap:10px;padding:8px 10px;background:linear-gradient(180deg,hsl(var(--h) 55% 9%),hsl(var(--h) 50% 11%));border-bottom:3px solid var(--ink);box-shadow:0 3px 0 var(--line)}
+#hud.on{display:flex}
+body.locked #hud{display:none}
+.hud-i{flex:1;min-width:0}
+.hud-i .hl{display:flex;justify-content:space-between;align-items:baseline;gap:6px;line-height:1.1}
+.hud-i .hl b{font-size:14px}
+.hud-i .hl span{font:700 15px/1.1 var(--f-ui);white-space:nowrap}
+.hud-i.hp .hl b,.hud-i.hp .hl span{color:var(--hp)}
+.hud-i.nx .hl b,.hud-i.nx .hl span{color:var(--nx)}
+.hud-i .hb{position:relative;height:12px;margin-top:5px;background:#000;border:3px solid var(--ink);box-shadow:0 0 0 2px var(--line);overflow:hidden}
+.hud-i .hb i{display:block;height:100%;transition:width .4s steps(10)}
+.hud-i.hp .hb i{background:#ff4a5e}
+.hud-i.nx .hb i{background:#3fa9ff}
+
+/* Home: il nome conta, "Bentornato" no */
+.hero h2{font-size:clamp(16px,5.4vw,24px)}
+.hero .hi{font:400 8px/1.4 var(--f-px);letter-spacing:2px;text-transform:uppercase;color:var(--mut);opacity:.85}
+.hero .hname{margin:6px 0 0;font:400 clamp(18px,6.4vw,28px)/1.3 var(--f-px);text-shadow:3px 3px 0 var(--ink);overflow-wrap:anywhere}
+.vitals{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 5px 16px 0}
+.vt{padding:12px;background:var(--card);border:3px solid var(--line);box-shadow:0 0 0 3px var(--ink),5px 5px 0 3px var(--ink),inset 3px 3px 0 rgba(255,255,255,.08)}
+.vt.hp{border-color:var(--hp)}
+.vt.nx{border-color:var(--nx)}
+.vt .vl b{display:block;font-size:15px}
+.vt.hp .vl b{color:var(--hp)}
+.vt.nx .vl b{color:var(--nx)}
+.vt .vl span{display:block;margin-top:4px;font:400 clamp(15px,5vw,21px)/1.3 var(--f-px);text-shadow:2px 2px 0 var(--ink)}
+.vt .vl small{font:700 .55em var(--f-ui);color:var(--mut);text-shadow:none}
+.vt .vbar{margin:8px 0 0;height:20px}
+@media (max-width:340px){.vitals{grid-template-columns:1fr}}
+
+/* telefono in verticale */
+@media (max-width:560px){
+  #tb-tray{display:none}
+  #taskbar{height:calc(56px + env(safe-area-inset-bottom,0px));gap:8px;padding-left:max(8px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px))}
+  #tb-start,#tb-back{width:44px;min-width:44px;height:44px}
+  .tb-btn{min-width:44px;height:40px;padding:0 8px}
+  #tb-clockw{margin-left:auto;padding:4px 7px}
+  #tb-clock{font-size:10px}
+  #win::before{display:none}
+  body:not(.locked) #desk::before,body:not(.locked) #desk::after{display:none}
+  #app{padding:12px 10px 28px}
+  h3{font-size:10px}
+  .tiles{gap:12px 10px}
+  .tile{font-size:.82em;gap:6px}
+  .tile span{width:44px;height:44px;font-size:22px}
+  .modal{padding:10px}
+  .modal>div{max-height:88vh;max-height:88dvh;padding:14px}
+  .toast{bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+  .mapwrap{max-height:58vh;max-height:58dvh}
+  .shopgrid{gap:12px 10px}
+  .item{padding:8px}
+  .steps button{min-width:0;padding-left:6px;padding-right:6px}
+  .card .row,.pcard .row{flex-wrap:wrap}
+  input,select,textarea{font-size:16px}
+}
+
+/* telefono in orizzontale (poca altezza) */
+@media (max-height:520px) and (max-width:950px){
+  #winwrap{padding:0}
+  #win{--tb-h:34px;--pad-x:6px;--pad-b:6px;max-width:none;max-height:none;border-radius:0;border-width:0}
+  #win::before,#win::after{display:none}
+  #titlebar{height:34px}
+  #taskbar{height:calc(48px + env(safe-area-inset-bottom,0px))}
+  #tb-start,#tb-back{width:38px;min-width:38px;height:38px}
+  .tb-btn{height:36px}
+  #tb-tray{display:none}
+  body:not(.locked) #desk::before,body:not(.locked) #desk::after{display:none}
+  .lk-avatar{width:min(150px,40vh)}
+  .lk-center{gap:22px}
+  .mapwrap{max-height:64vh;max-height:64dvh}
+}
