@@ -19,7 +19,7 @@ async function redeem(it){
   if(it.stock!=null&&it.stock<=0)return toast('Esaurito');
   const xp=(p.xp||0)+(it.rtype==='xp'?it.amount:0), cur=p.currency-it.price+(it.rtype==='currency'?it.amount:0);
   const history=[{n:it.name,p:it.price,t:Date.now()},...(p.history||[])].slice(0,30);
-  await guard(db.collection('players').doc(uid).update({currency:cur,xp,level:1+Math.floor(xp/100),history,...(it.rtype==='currency'?{}:{inv:[...(p.inv||[]),{id:uid8(),it:it.id,name:it.name,cat:it.cat||'oggetto',photo:it.photo||'',desc:it.desc||'',uses:it.use==='utilizzabile'?it.uses:null,bonus:it.bonus||null,arm:it.arm||0,...dmgCopy(it)}]})}));
+  await guard(db.collection('players').doc(uid).update({currency:cur,xp,level:1+Math.floor(xp/100),history,...(it.rtype==='currency'?{}:{inv:[...(p.inv||[]),{id:uid8(),it:it.id,name:it.name,cat:it.cat||'oggetto',photo:it.photo||'',desc:it.desc||'',uses:it.use==='utilizzabile'?it.uses:null,bonuses:bonusesOf(it),arm:it.arm||0,...dmgCopy(it)}]})}));
   if(it.stock!=null)try{await db.collection('items').doc(it.id).update({stock:it.stock-1})}catch(e){}
   toast('Riscattato: '+it.name);
 }
@@ -156,10 +156,10 @@ function renderMaster(){
     await Promise.all(who.map(async pid=>{
       const pl=S.players[pid],upd={};
       if(coins>0)upd.currency=(pl.currency||0)+coins;
-      if(its.length)upd.inv=[...(pl.inv||[]),...its.map(i=>({id:uid8(),it:i.id,name:i.name,cat:i.cat||'oggetto',photo:i.photo||'',desc:i.desc||'',uses:i.use==='utilizzabile'?i.uses:null,bonus:i.bonus||null,arm:i.arm||0,...dmgCopy(i)}))];
+      if(its.length)upd.inv=[...(pl.inv||[]),...its.map(i=>({id:uid8(),it:i.id,name:i.name,cat:i.cat||'oggetto',photo:i.photo||'',desc:i.desc||'',uses:i.use==='utilizzabile'?i.uses:null,bonuses:bonusesOf(i),arm:i.arm||0,...dmgCopy(i)}))];
       if(Object.keys(upd).length)await guard(C('players').doc(pid).update(upd));
       const mid=uid8();
-      await guard(C('msgs').doc(mid).set({id:mid,to:[pid],from:{t:'sys',name:'SISTEMA'},kind:'obiettivo',text:q.title,qid:q.id,v:coins,rw:q.rw||'',items:its.map(i=>({name:i.name,cat:i.cat||'oggetto',photo:i.photo||'',arm:i.arm||0,bonus:i.bonus||null})),ts}));
+      await guard(C('msgs').doc(mid).set({id:mid,to:[pid],from:{t:'sys',name:'SISTEMA'},kind:'obiettivo',text:q.title,qid:q.id,v:coins,rw:q.rw||'',items:its.map(i=>({name:i.name,cat:i.cat||'oggetto',photo:i.photo||'',arm:i.arm||0,bonuses:bonusesOf(i)})),ts}));
     }));
     await guard(C('quests').doc(id).update({done:qAllDone({...q,doneBy:nd}),doneAt:ts,doneBy:nd}));
     toast('✅ Completato'+(coins?' · 💶 '+coins+' a '+who.length+' player':'')+(its.length?' · '+its.length+' oggetti consegnati':'')+(q.rw?' · extra da consegnare: '+q.rw:''));
@@ -196,15 +196,15 @@ const BK={};TR.forEach(([k,l])=>BK[l]={t:'tr',k});AB.forEach(([k,l])=>BK[l]={t:'
 const armorOf=p=>(p.inv||[]).reduce((s,e)=>s+((e.cat||'oggetto')==='armatura'&&(e.uses==null||e.uses>0)?(+e.arm||0):0),0);
 const armLine=p=>armorOf(p)>0?`<div class="mut" style="margin-top:10px">🛡️ Armatura: −${armorOf(p)} danni a ogni colpo</div>`:'';
 const bonusLabel=b=>b?((b.t==='tr'?TR:AB).find(x=>x[0]===b.k)||[0,'?'])[1]:'nessuno';
-const modOf=p=>{const m={tr:{},ab:{}};(p.inv||[]).forEach(e=>{if(e.bonus&&(e.uses==null||e.uses>0))m[e.bonus.t][e.bonus.k]=(m[e.bonus.t][e.bonus.k]||0)+e.bonus.v});return m};
+const modOf=p=>{const m={tr:{},ab:{}};(p.inv||[]).forEach(e=>{if(e.uses==null||e.uses>0)bonusesOf(e).forEach(b=>{m[b.t][b.k]=(m[b.t][b.k]||0)+b.v})});return m};
 const uploadPhoto=async f=>{if(!assets){toast('Upload non disponibile');return ''}if(f.size>2e6){toast('Foto oltre 2 MB');return ''}const a=await guard(assets.upload(f));return a?a.url:''};
 const egoBoard=p=>{const g=egoOf(p);return hdr('⚡ EGO',1)+`<div class="ego big"><div class="row sp"><span class="lab">IL POTERE DEL PERSONAGGIO</span><button class="g" id="egoE">✎</button></div>${g.t||g.e?`<div class="et" style="font-size:2em;text-align:center;margin:18px 0">${esc(g.t)}</div><div class="mut" style="letter-spacing:3px">EFFETTO</div><p style="white-space:pre-wrap;font-size:1.05em;margin:6px 0">${esc(g.e)}</p>`:'<p class="mut" style="margin:40px 0;text-align:center">Nessun EGO scritto.<br>Tocca ✎ per definire il tuo potere.</p>'}</div>`};
-const ITF=()=>[{l:'Nome',n:'name'},{l:'Prezzo (Euro)',n:'price',t:'number'},{l:'Tipo',n:'cat',t:'select',o:['oggetto','arma','armatura']},{l:'Foto (max 2 MB)',n:'photo',t:'file'},{l:'Cosa dice il mercante (descrizione)',n:'desc',t:'area'},{l:'Utilizzo',n:'use',t:'select',o:['infinito','utilizzabile']},{l:'Numero di usi (solo se utilizzabile)',n:'uses',t:'number'},{l:'Bonus alle statistiche',n:'bk',t:'select',o:['nessuno',...TR.map(t=>t[1]),...AB.map(a=>a[1])]},{l:'Valore del bonus',n:'bv',t:'number'},{l:'Riduzione danni (solo armature: punti di danno in meno a ogni colpo, 0 = nessuna)',n:'arm',t:'number'},...DMGF.map(f=>({...f,l:f.l+' (solo armi)'})),{l:'Scorte (0 = illimitate)',n:'stock',t:'number'}];
-async function itData(r,old){const b=BK[r.bk],o={name:r.name,price:r.price,cat:r.cat,desc:r.desc,use:r.use,uses:r.use==='utilizzabile'?Math.max(1,r.uses):0,bonus:b&&r.bv>0?{t:b.t,k:b.k,v:r.bv}:null,arm:r.cat==='armatura'?Math.min(999,Math.max(0,r.arm||0)):0,...dmgClean(r,r.cat==='arma'),stock:r.stock>0?r.stock:null};if(r.photo){const u=await uploadPhoto(r.photo);if(u)o.photo=u}else if(!old)o.photo='';return o}
+const ITF=()=>[{l:'Nome',n:'name'},{l:'Prezzo (Euro)',n:'price',t:'number'},{l:'Tipo',n:'cat',t:'select',o:['oggetto','arma','armatura']},{l:'Foto (max 2 MB)',n:'photo',t:'file'},{l:'Cosa dice il mercante (descrizione)',n:'desc',t:'area'},{l:'Utilizzo',n:'use',t:'select',o:['infinito','utilizzabile']},{l:'Numero di usi (solo se utilizzabile)',n:'uses',t:'number'},{l:'Bonus a tratti e abilità (uno per riga, es. "Mira +2" oppure "Vigore +1")',n:'bks',t:'area'},{l:'Riduzione danni (solo armature: punti di danno in meno a ogni colpo, 0 = nessuna)',n:'arm',t:'number'},...DMGF.map(f=>({...f,l:f.l+' (solo armi)'})),{l:'Scorte (0 = illimitate)',n:'stock',t:'number'}];
+async function itData(r,old){const o={name:r.name,price:r.price,cat:r.cat,desc:r.desc,use:r.use,uses:r.use==='utilizzabile'?Math.max(1,r.uses):0,bonus:null,bonuses:bonusParse(r.bks),arm:r.cat==='armatura'?Math.min(999,Math.max(0,r.arm||0)):0,...dmgClean(r,r.cat==='arma'),stock:r.stock>0?r.stock:null};if(r.photo){const u=await uploadPhoto(r.photo);if(u)o.photo=u}else if(!old)o.photo='';return o}
 function rebindItems(){
   const IT=db.collection('items');
   app.querySelectorAll('[data-ia]').forEach(b=>b.onclick=async()=>{const r=await ask('Nuovo oggetto',ITF(),{cat:'oggetto',use:'infinito',bk:'nessuno',dt:'d6'});if(r&&r.name){const id=uid8();guard(IT.doc(id).set({id,npc:b.dataset.ia,active:true,rtype:'item',amount:0,...await itData(r)}))}});
-  app.querySelectorAll('[data-ie]').forEach(b=>b.onclick=async()=>{const id=b.dataset.ie,i=S.items[id],r=await ask('Modifica oggetto',ITF(),{...i,use:i.use||'infinito',uses:i.uses||0,bk:bonusLabel(i.bonus),bv:i.bonus?i.bonus.v:0,stock:i.stock??0,...dmgInit(i)});if(r&&r.name)guard(IT.doc(id).update(await itData(r,i)))});
+  app.querySelectorAll('[data-ie]').forEach(b=>b.onclick=async()=>{const id=b.dataset.ie,i=S.items[id],r=await ask('Modifica oggetto',ITF(),{...i,use:i.use||'infinito',uses:i.uses||0,bks:bonusInit(i),stock:i.stock??0,...dmgInit(i)});if(r&&r.name)guard(IT.doc(id).update(await itData(r,i)))});
 }
 function checkEnc(){
   const p=me();if(!p||!authed||encOpen||!LD.npcs||!LD.players)return;
@@ -234,7 +234,7 @@ async function buy(it,n){
   const p=me(),c=it.cat||'oggetto',b=it.bonus,cur=p.currency||0,out=it.stock===0,can=!out&&cur>=it.price;
   let ty=null;
   const ok=await new Promise(res=>{const m=document.createElement('div');m.className='modal';
-    m.innerHTML=`<div class="itdlg"><div class="itph">${it.photo?`<img src="${esc(it.photo)}" alt="">`:`<span>${CATI[c]}</span>`}</div><h3 class="itn">${esc(it.name)}</h3><div class="row" style="flex-wrap:wrap;gap:6px;justify-content:center"><span class="pill">${CATI[c]} ${CATL[c]}</span><span class="pill">${it.use==='utilizzabile'?'Utilizzabile · '+it.uses+(it.uses===1?' uso':' usi'):'♾ Infinito'}</span>${b?`<span class="pill eu">+${b.v} ${esc(bonusLabel(b))}</span>`:''}${c==='armatura'&&it.arm?`<span class="pill eu">🛡️ −${it.arm} danni</span>`:''}${c==='arma'&&hasDmg(it)?`<span class="pill eu">💥 ${dmgTxt(it)}</span>`:''}</div>${it.desc?`<div class="bubble itsay" title="Tocca per leggere tutto subito"><div class="ittxt"></div></div>`:''}<div class="mut" style="text-align:center">Prezzo: 💶 ${it.price} · ${can?'Ti resteranno: 💶 '+(cur-it.price):out?'ESAURITO':'Euro insufficienti'}</div><div class="row" style="margin-top:14px"><button class="g grow" data-n>${can?'Annulla':'Chiudi'}</button>${can?'<button class="grow" data-y>Acquista</button>':''}</div></div>`;
+    m.innerHTML=`<div class="itdlg"><div class="itph">${it.photo?`<img src="${esc(it.photo)}" alt="">`:`<span>${CATI[c]}</span>`}</div><h3 class="itn">${esc(it.name)}</h3><div class="row" style="flex-wrap:wrap;gap:6px;justify-content:center"><span class="pill">${CATI[c]} ${CATL[c]}</span><span class="pill">${it.use==='utilizzabile'?'Utilizzabile · '+it.uses+(it.uses===1?' uso':' usi'):'♾ Infinito'}</span>${bonusesOf(it).map(x=>`<span class="pill eu">+${x.v} ${esc(bonusLabel(x))}</span>`).join('')}${c==='armatura'&&it.arm?`<span class="pill eu">🛡️ −${it.arm} danni</span>`:''}${c==='arma'&&hasDmg(it)?`<span class="pill eu">💥 ${dmgTxt(it)}</span>`:''}</div>${it.desc?`<div class="bubble itsay" title="Tocca per leggere tutto subito"><div class="ittxt"></div></div>`:''}<div class="mut" style="text-align:center">Prezzo: 💶 ${it.price} · ${can?'Ti resteranno: 💶 '+(cur-it.price):out?'ESAURITO':'Euro insufficienti'}</div><div class="row" style="margin-top:14px"><button class="g grow" data-n>${can?'Annulla':'Chiudi'}</button>${can?'<button class="grow" data-y>Acquista</button>':''}</div></div>`;
     document.body.append(m);
     const tx=m.querySelector('.ittxt');if(tx)ty=typeInto(tx,'“'+it.desc+'”');
     const sb=m.querySelector('.itsay');if(sb)sb.onclick=()=>{if(ty)ty.skip()};
@@ -282,7 +282,7 @@ let selP=null;
 const bl=p=>p.blood&&p.blood!=='Non indicato'?esc(p.blood):'—';
 const badge=(k,M)=>{let n=0;if(k==='npcs')n=Object.values(S.npcs).filter(x=>M||visN(x)).length;if(k==='quests')n=Object.values(S.quests).filter(x=>M||visQ(x)).length;if(k==='profile'&&M)n=Object.keys(S.players).length;if(k==='msgs')n=Object.values(S.msgs).filter(m=>M||!(m.to&&m.to.length)||m.to.includes(uid)).length;if(k==='map')n=Object.keys(S.maps||{}).length;return n?`<em class="bdg">${n}</em>`:''};
 const homeCard=p=>{const v=vit(p),pc=(a,b)=>b?Math.max(0,Math.min(100,a/b*100)):0;return `<div class="hero"><div class="grow"><div class="hi">Bentornato</div><h2 class="hname">${esc(p.username)}</h2><div class="row" style="margin-top:10px;flex-wrap:wrap"><span class="pill eu">💶 ${p.currency}</span><span class="pill bl">🩸 ${bl(p)}</span></div></div></div><div class="vitals"><div class="vt hp"><div class="vl"><b>❤️ HP</b><span>${v.h}<small> / ${v.hm}</small></span></div><div class="vbar hp"><i style="width:${pc(v.h,v.hm)}%"></i></div></div><div class="vt nx"><div class="vl"><b>🔷 NEXUS</b><span>${v.n}<small> / ${v.nm}</small></span></div><div class="vbar nx"><i style="width:${pc(v.n,v.nm)}%"></i></div></div></div>`};
-const invRO=p=>`<div class="card"><h3>🎒 INVENTARIO</h3>${(p.inv||[]).map(e=>`<div class="move" style="border-left-color:var(--acc2)"><div style="font-size:1.6em">${e.photo?`${itImg(e.photo,44)}`:(CATI[e.cat]||'🎁')}</div><div class="grow"><b>${esc(e.name)}</b><div class="mut">${CATL[e.cat]||'Oggetto'} · ${e.uses==null?'♾ Infinito':e.uses+(e.uses===1?' uso':' usi')}${e.bonus?` · <span style="color:var(--ok)">+${e.bonus.v} ${esc(bonusLabel(e.bonus))}</span>`:''}${e.cat==='armatura'&&e.arm?` · <span style="color:var(--ok)">🛡️ −${e.arm} danni</span>`:''}${dmgHtml(e)}</div></div></div>`).join('')||'<p class="mut">Inventario vuoto.</p>'}</div>`;
+const invRO=p=>`<div class="card"><h3>🎒 INVENTARIO</h3>${(p.inv||[]).map(e=>`<div class="move" style="border-left-color:var(--acc2)"><div style="font-size:1.6em">${e.photo?`${itImg(e.photo,44)}`:(CATI[e.cat]||'🎁')}</div><div class="grow"><b>${esc(e.name)}</b><div class="mut">${CATL[e.cat]||'Oggetto'} · ${e.uses==null?'♾ Infinito':e.uses+(e.uses===1?' uso':' usi')}${bonusesOf(e).length?` · <span style="color:var(--ok)">${bonusTxt(e)}</span>`:''}${e.cat==='armatura'&&e.arm?` · <span style="color:var(--ok)">🛡️ −${e.arm} danni</span>`:''}${dmgHtml(e)}</div></div></div>`).join('')||'<p class="mut">Inventario vuoto.</p>'}</div>`;
 const masterPlayers=()=>{
   if(selP&&!S.players[selP])selP=null;
   if(!selP)return hdr('👥 Player',1)+(Object.entries(S.players).map(([id,p])=>{const v=vit(p);return `<div class="pcard"><div class="row sp"><b style="font-size:1.1em">${esc(p.username)}</b><div class="row" style="gap:6px"><span class="pill eu">💶 ${p.currency}</span><span class="pill bl">🩸 ${bl(p)}</span></div></div><div class="mut" style="margin-top:8px">❤️ HP</div>${bar(v.h,v.hm,'hp')}<div class="mut">🔷 NEXUS</div>${bar(v.n,v.nm,'nx')}<div class="row" style="margin-top:10px"><button class="grow" data-open="${id}">👁 Apri profilo</button><button class="g" data-pe="${id}">✎</button><button class="d" data-pd="${id}">🗑</button></div></div>`}).join('')||'<p class="mut">Nessun player registrato.</p>');
@@ -307,7 +307,7 @@ const openMsgs=new Set();
 const msgReward=(m,force)=>{
   if(!force&&!openMsgs.has(m.id))return `<button class="mini" style="margin-top:10px" data-mopen="${m.id}">🎁 Apri ricompense</button>`;
   const its=m.items||[],row=(ico,t,s)=>`<div class="move" style="border-left-color:var(--gold)"><div style="font-size:1.6em">${ico}</div><div class="grow"><b>${t}</b>${s?`<div class="mut">${s}</div>`:''}</div></div>`;
-  const rows=(m.v>0?row('💶','+'+m.v+' Euro',''):'')+its.map(i=>row(i.photo?`${itImg(i.photo,44)}`:(CATI[i.cat]||'🎁'),esc(i.name),(CATL[i.cat]||'Oggetto')+(i.bonus?' · +'+i.bonus.v+' '+esc(bonusLabel(i.bonus)):'')+(i.cat==='armatura'&&i.arm?' · 🛡️ −'+i.arm+' danni':''))).join('')+(m.rw?row('🎁',esc(m.rw),'Extra'):'');
+  const rows=(m.v>0?row('💶','+'+m.v+' Euro',''):'')+its.map(i=>row(i.photo?`${itImg(i.photo,44)}`:(CATI[i.cat]||'🎁'),esc(i.name),(CATL[i.cat]||'Oggetto')+(bonusesOf(i).length?' · '+bonusTxt(i):'')+(i.cat==='armatura'&&i.arm?' · 🛡️ −'+i.arm+' danni':''))).join('')+(m.rw?row('🎁',esc(m.rw),'Extra'):'');
   return `<div class="mut" style="letter-spacing:2px;margin-top:10px">RICOMPENSE</div>`+(rows||'<p class="mut">Nessuna ricompensa.</p>')+(force?'':`<button class="g mini" style="margin-top:6px" data-mopen="${m.id}">Chiudi</button>`);
 };
 const myMsgs=()=>Object.values(S.msgs).filter(m=>!(m.to&&m.to.length)||m.to.includes(uid));
@@ -471,9 +471,9 @@ async function respondInvite(yes){
   toast(yes?'Sei entrato nel party!':'Invito rifiutato');
   if(yes){view={name:'party'};render()}
 }
-const IF=()=>[{l:'Nome',n:'name'},{l:'Tipo',n:'cat',t:'select',o:['oggetto','arma','armatura']},{l:'Foto (max 2 MB)',n:'photo',t:'file'},{l:'Descrizione',n:'desc',t:'area'},{l:'Utilizzo',n:'use',t:'select',o:['infinito','utilizzabile']},{l:'Numero di usi (solo se utilizzabile)',n:'uses',t:'number'},{l:'Bonus alle statistiche',n:'bk',t:'select',o:['nessuno',...TR.map(t=>t[1]),...AB.map(a=>a[1])]},{l:'Valore del bonus',n:'bv',t:'number'},{l:'Riduzione danni (solo armature: punti di danno in meno a ogni colpo, 0 = nessuna)',n:'arm',t:'number'},...DMGF.map(f=>({...f,l:f.l+' (solo armi)'}))];
-async function invSave(r,old){const b=BK[r.bk],o={name:r.name.slice(0,60),cat:r.cat,desc:(r.desc||'').slice(0,400),uses:r.use==='utilizzabile'?Math.max(1,r.uses):null,bonus:b&&r.bv>0?{t:b.t,k:b.k,v:r.bv}:null,arm:r.cat==='armatura'?Math.min(999,Math.max(0,r.arm||0)):0,...dmgClean(r,r.cat==='arma')};if(r.photo){const u=await uploadPhoto(r.photo);if(u)o.photo=u}else o.photo=old?(old.photo||''):'';return o}
-const invRow2=e=>`<div class="move" style="border-left-color:var(--acc2)"><div style="font-size:1.6em">${e.photo?`${itImg(e.photo,48)}`:(CATI[e.cat]||'🎁')}</div><div class="grow"><b>${esc(e.name)}</b><div class="mut">${e.uses==null?'♾ Infinito':e.uses+(e.uses===1?' uso':' usi')}${e.bonus?` · <span style="color:var(--ok)">+${e.bonus.v} ${esc(bonusLabel(e.bonus))}</span>`:''}${e.cat==='armatura'&&e.arm?` · <span style="color:var(--ok)">🛡️ −${e.arm} danni</span>`:''}${dmgHtml(e)}</div>${e.desc?`<div class="mut" style="white-space:pre-wrap;margin-top:4px">${esc(e.desc)}</div>`:''}</div><div class="row" style="gap:4px;flex-direction:column">${e.cat==='arma'&&hasDmg(e)?`<button class="mini" data-atk="${e.id}">⚔️ Attacca</button>`:(e.uses!=null?`<button class="mini" data-use="${e.id}">Usa</button>`:'')}<button class="g mini" data-ei="${e.id}">✎</button><button class="d mini" data-di="${e.id}">🗑</button></div></div>`;
+const IF=()=>[{l:'Nome',n:'name'},{l:'Tipo',n:'cat',t:'select',o:['oggetto','arma','armatura']},{l:'Foto (max 2 MB)',n:'photo',t:'file'},{l:'Descrizione',n:'desc',t:'area'},{l:'Utilizzo',n:'use',t:'select',o:['infinito','utilizzabile']},{l:'Numero di usi (solo se utilizzabile)',n:'uses',t:'number'},{l:'Bonus a tratti e abilità (uno per riga, es. "Mira +2" oppure "Vigore +1")',n:'bks',t:'area'},{l:'Riduzione danni (solo armature: punti di danno in meno a ogni colpo, 0 = nessuna)',n:'arm',t:'number'},...DMGF.map(f=>({...f,l:f.l+' (solo armi)'}))];
+async function invSave(r,old){const o={name:r.name.slice(0,60),cat:r.cat,desc:(r.desc||'').slice(0,400),uses:r.use==='utilizzabile'?Math.max(1,r.uses):null,bonus:null,bonuses:bonusParse(r.bks),arm:r.cat==='armatura'?Math.min(999,Math.max(0,r.arm||0)):0,...dmgClean(r,r.cat==='arma')};if(r.photo){const u=await uploadPhoto(r.photo);if(u)o.photo=u}else o.photo=old?(old.photo||''):'';return o}
+const invRow2=e=>`<div class="move" style="border-left-color:var(--acc2)"><div style="font-size:1.6em">${e.photo?`${itImg(e.photo,48)}`:(CATI[e.cat]||'🎁')}</div><div class="grow"><b>${esc(e.name)}</b><div class="mut">${e.uses==null?'♾ Infinito':e.uses+(e.uses===1?' uso':' usi')}${bonusesOf(e).length?` · <span style="color:var(--ok)">${bonusTxt(e)}</span>`:''}${e.cat==='armatura'&&e.arm?` · <span style="color:var(--ok)">🛡️ −${e.arm} danni</span>`:''}${dmgHtml(e)}</div>${e.desc?`<div class="mut" style="white-space:pre-wrap;margin-top:4px">${esc(e.desc)}</div>`:''}</div><div class="row" style="gap:4px;flex-direction:column">${e.cat==='arma'&&hasDmg(e)?`<button class="mini" data-atk="${e.id}">⚔️ Attacca</button>`:(e.uses!=null?`<button class="mini" data-use="${e.id}">Usa</button>`:'')}<button class="g mini" data-ei="${e.id}">✎</button><button class="d mini" data-di="${e.id}">🗑</button></div></div>`;
 function rebindV9(){
   mapInit();
   app.querySelectorAll('[data-mopen]').forEach(b=>b.onclick=()=>{const id=b.dataset.mopen;if(openMsgs.has(id))openMsgs.delete(id);else openMsgs.add(id);render()});
@@ -481,7 +481,7 @@ function rebindV9(){
   const y=$('[data-pyes]'),n=$('[data-pno]');if(y)y.onclick=()=>respondInvite(true);if(n)n.onclick=()=>respondInvite(false);
   const U=d=>guard(db.collection('players').doc(uid).update(d));
   if($('#addItem'))$('#addItem').onclick=async()=>{const p=me();if(!p)return;const r=await ask('Nuovo oggetto',IF(),{cat:invTab==='soldi'?'oggetto':invTab,use:'infinito',bk:'nessuno',dt:'d6'});if(r&&r.name){const o=await invSave(r);U({inv:[...(p.inv||[]),{id:uid8(),it:'',...o}]})}};
-  app.querySelectorAll('[data-ei]').forEach(b=>b.onclick=async()=>{const p=me(),e=p&&(p.inv||[]).find(x=>x.id===b.dataset.ei);if(!e)return;const r=await ask('Modifica oggetto',IF(),{...e,use:e.uses==null?'infinito':'utilizzabile',uses:e.uses||0,bk:bonusLabel(e.bonus),bv:e.bonus?e.bonus.v:0,...dmgInit(e)});if(r&&r.name){const o=await invSave(r,e);U({inv:p.inv.map(x=>x.id===e.id?{...x,...o}:x)})}});
+  app.querySelectorAll('[data-ei]').forEach(b=>b.onclick=async()=>{const p=me(),e=p&&(p.inv||[]).find(x=>x.id===b.dataset.ei);if(!e)return;const r=await ask('Modifica oggetto',IF(),{...e,use:e.uses==null?'infinito':'utilizzabile',uses:e.uses||0,bks:bonusInit(e),...dmgInit(e)});if(r&&r.name){const o=await invSave(r,e);U({inv:p.inv.map(x=>x.id===e.id?{...x,...o}:x)})}});
   app.querySelectorAll('[data-di]').forEach(b=>b.onclick=async()=>{const p=me();if(p&&await askYes('Rimuovere questo oggetto dall inventario?'))U({inv:(p.inv||[]).filter(x=>x.id!==b.dataset.di)})});
 }
 /* ===== v10: temi colore ===== */
@@ -1835,7 +1835,7 @@ const npcInvHtml=n=>{
   if(kindOf(n)!=='combattente')return '';
   const inv=n.inv||[];
   return `<div class="row sp" style="margin-top:12px"><b>🎒 Inventario <span class="tag">nascosto ai player</span></b><button data-nia="${n.id}">+ Oggetto</button></div>`+
-  (inv.map(e=>`<div class="move" style="border-left-color:var(--acc2)"><div style="font-size:1.6em">${e.photo?itImg(e.photo,44):(CATI[e.cat]||'🎁')}</div><div class="grow"><b>${esc(e.name)}</b><div class="mut">${CATL[e.cat]||'Oggetto'} · ${e.uses==null?'♾ Infinito':e.uses+(e.uses===1?' uso':' usi')}${e.bonus?` · <span style="color:var(--ok)">+${e.bonus.v} ${esc(bonusLabel(e.bonus))}</span>`:''}${e.cat==='armatura'&&e.arm?` · <span style="color:var(--ok)">🛡️ −${e.arm} danni</span>`:''}${dmgHtml(e)}</div>${e.desc?`<div class="mut" style="white-space:pre-wrap">${esc(e.desc)}</div>`:''}</div><div class="row" style="gap:4px;flex-direction:column"><button class="g mini" data-nie="${n.id}|${e.id}">✎</button><button class="d mini" data-nid="${n.id}|${e.id}">🗑</button></div></div>`).join('')||'<p class="mut">Inventario vuoto.</p>')+
+  (inv.map(e=>`<div class="move" style="border-left-color:var(--acc2)"><div style="font-size:1.6em">${e.photo?itImg(e.photo,44):(CATI[e.cat]||'🎁')}</div><div class="grow"><b>${esc(e.name)}</b><div class="mut">${CATL[e.cat]||'Oggetto'} · ${e.uses==null?'♾ Infinito':e.uses+(e.uses===1?' uso':' usi')}${bonusesOf(e).length?` · <span style="color:var(--ok)">${bonusTxt(e)}</span>`:''}${e.cat==='armatura'&&e.arm?` · <span style="color:var(--ok)">🛡️ −${e.arm} danni</span>`:''}${dmgHtml(e)}</div>${e.desc?`<div class="mut" style="white-space:pre-wrap">${esc(e.desc)}</div>`:''}</div><div class="row" style="gap:4px;flex-direction:column"><button class="g mini" data-nie="${n.id}|${e.id}">✎</button><button class="d mini" data-nid="${n.id}|${e.id}">🗑</button></div></div>`).join('')||'<p class="mut">Inventario vuoto.</p>')+
   `<div class="row" style="margin-top:12px;flex-wrap:wrap"><button class="${n.ko?'g':'d'} grow" data-nko="${n.id}">${n.ko?'♻️ Rimuovi K.O.':'💀 Segna K.O.'}</button><button class="grow" data-nlt="${n.id}" ${n.ko&&inv.length?'':'disabled'}>🎁 Assegna bottino</button></div>`+
   (n.ko?'':'<div class="mut">Segna il combattente come K.O. per assegnare il suo bottino ai player.</div>');
 };
@@ -1848,7 +1848,7 @@ function rebindNI(){
   });
   app.querySelectorAll('[data-nie]').forEach(b=>b.onclick=async()=>{
     const [id,iid]=b.dataset.nie.split('|'),n=S.npcs[id],e=n&&(n.inv||[]).find(x=>x.id===iid);if(!e)return;
-    const r=await ask('Modifica oggetto',IF(),{...e,use:e.uses==null?'infinito':'utilizzabile',uses:e.uses||0,bk:bonusLabel(e.bonus),bv:e.bonus?e.bonus.v:0,...dmgInit(e)});
+    const r=await ask('Modifica oggetto',IF(),{...e,use:e.uses==null?'infinito':'utilizzabile',uses:e.uses||0,bks:bonusInit(e),...dmgInit(e)});
     if(r&&r.name){const o=await invSave(r,e);U(id,{inv:n.inv.map(x=>x.id===iid?{...x,...o}:x)})}
   });
   app.querySelectorAll('[data-nid]').forEach(b=>b.onclick=async()=>{
@@ -1884,6 +1884,22 @@ async function npcLoot(id){
   }));
   await guard(db.collection('npcs').doc(id).update({inv:inv.filter(e=>!r.its.includes(e.id))}));
   toast('🎁 Bottino assegnato a '+who.length+' player');
+}
+
+/* ===== v18: più bonus per oggetto (tratti e abilità) ===== */
+const bonusesOf=e=>Array.isArray(e.bonuses)?e.bonuses:(e.bonus?[e.bonus]:[]);
+const bonusTxt=e=>bonusesOf(e).map(b=>'+'+b.v+' '+esc(bonusLabel(b))).join(', ');
+const bonusInit=e=>bonusesOf(e).map(b=>bonusLabel(b)+' +'+b.v).join('\n');
+const nzs=t=>String(t).normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim();
+function bonusParse(txt){
+  const map={};Object.entries(BK).forEach(([l,v])=>map[nzs(l)]=v);
+  const out=[],bad=[];
+  for(const ln of splitL(txt)){
+    const m=ln.match(/^(.+?)\s*[:=+]?\s*\+?(\d+)\s*$/),b=m&&map[nzs(m[1])],v=m?parseInt(m[2]):0;
+    if(b&&v>0)out.push({t:b.t,k:b.k,v:Math.min(99,v)});else bad.push(ln);
+  }
+  if(bad.length)toast('Bonus non riconosciuto: '+bad.slice(0,3).join(' | '));
+  return out.slice(0,20);
 }
 
 $('#mbtn').onclick=async()=>{
