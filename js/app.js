@@ -798,6 +798,7 @@ const TDET={
  17:(c,X,Y,Z,C,h)=>{if(h<.2){c.fillStyle='#fff';_fr(c,X+Z*.3,Y+Z*.3,Z*.3,Z*.08)}}
 };
 function paintTile(ctx,mp,x,y,Z){
+  if(mp.ter[y*mp.n+x]===255){const X=x*Z,Y=y*Z;ctx.clearRect(X,Y,Z,Z);if(mp.bgc)ctx.drawImage(mp.bgc,X,Y,Z,Z,X,Y,Z,Z);else{ctx.fillStyle='#1a1626';ctx.fillRect(X,Y,Z,Z)}return}
   const n=mp.n,t=mp.ter,cols=colsFor(mp.pal),k=cols[t[y*n+x]]?t[y*n+x]:3,C=cols[k],X=x*Z,Y=y*Z,s=mp.hs|0;
   const h=(((Math.imul(x,73856093)^Math.imul(y,19349663)^s)>>>0)%997)/997,h2=(((Math.imul(x,2654435761)^Math.imul(y,40503)^(s+7))>>>0)%991)/991;
   ctx.fillStyle=C.sh[Math.min(8,Math.floor(h*9))];ctx.fillRect(X,Y,Z,Z);
@@ -811,6 +812,8 @@ function paintTile(ctx,mp,x,y,Z){
 function mpBuild(mp){
   const Z=mpZ(mp.n),cv=mp.tc||(mp.tc=document.createElement('canvas'));
   cv.width=cv.height=mp.n*Z;const c=cv.getContext('2d');
+  const bi=mp.bg&&mpBgImg(mp.bg);
+  if(bi){const bc=document.createElement('canvas');bc.width=bc.height=mp.n*Z;const g=bc.getContext('2d');g.imageSmoothingQuality='high';g.drawImage(bi,0,0,mp.n*Z,mp.n*Z);mp.bgc=bc}else mp.bgc=null;
   for(let y=0;y<mp.n;y++)for(let x=0;x<mp.n;x++)paintTile(c,mp,x,y,Z);
   mp.tcZ=Z;mp.tcPal=mp.pal;mp.tcDirty=false;
 }
@@ -1368,12 +1371,12 @@ function mpPopulate(mp,c,d,rnd){
 
 function mpBlank(n,base){const k={mare:0,erba:3,neve:7,pavimento:9}[base]??3,ter=new Uint8Array(n*n).fill(k);return {n,ter,fog:new Uint8Array(n*n),fogOn:false,objs:[],pal:'classica',grid:false,scale:0,unit:'m',gt:'terra',hs:hashSeed('b'+n+base),pub:true}}
 function mpToDoc(mp){
-  return JSON.parse(JSON.stringify({v:2,n:mp.n,ter:rleEnc(mp.ter),fog:rleEnc(mp.fog),fogOn:!!mp.fogOn,objs:mp.objs,pal:mp.pal,grid:!!mp.grid,scale:mp.scale||0,unit:mp.unit,gt:mp.gt,hs:mp.hs|0,pub:mp.pub!==false,cfg:{type:mp.gt,size:mp.n}}));
+  return JSON.parse(JSON.stringify({v:2,n:mp.n,ter:rleEnc(mp.ter),fog:rleEnc(mp.fog),fogOn:!!mp.fogOn,objs:mp.objs,pal:mp.pal,grid:!!mp.grid,scale:mp.scale||0,unit:mp.unit,gt:mp.gt,hs:mp.hs|0,pub:mp.pub!==false,bg:mp.bg||'',cfg:{type:mp.gt,size:mp.n}}));
 }
 function mpFromDoc(m){
   if(m&&m.v===2){
     const n=Math.min(192,Math.max(8,parseInt(m.n)||48));
-    return {n,ter:rleDec(m.ter,n*n,3),fog:rleDec(m.fog,n*n,0),fogOn:!!m.fogOn,objs:(m.objs||[]).filter(o=>o&&(o.k==='testo'||STM[o.k])).map(o=>({...o,id:o.id||uid8()})),pal:PAL[m.pal]?m.pal:'classica',grid:!!m.grid,scale:+m.scale||0,unit:UNITS.includes(m.unit)?m.unit:'m',gt:m.gt||'terra',hs:m.hs||1,pub:m.pub!==false};
+    return {n,ter:rleDec(m.ter,n*n,3),fog:rleDec(m.fog,n*n,0),fogOn:!!m.fogOn,objs:(m.objs||[]).filter(o=>o&&(o.k==='testo'||STM[o.k])).map(o=>({...o,id:o.id||uid8()})),pal:PAL[m.pal]?m.pal:'classica',grid:!!m.grid,scale:+m.scale||0,unit:UNITS.includes(m.unit)?m.unit:'m',gt:m.gt||'terra',hs:m.hs||1,pub:m.pub!==false,bg:typeof m.bg==='string'?m.bg.slice(0,800):''};
   }
   const c=mapNorm((m&&m.cfg)||{}),mp=mpGenerate(c);
   (c.addons||[]).forEach(a=>mp.objs.push({id:uid8(),k:MLEG[a.t]||'quercia',x:a.x+a.s/2,y:a.y+a.s/2,s:a.s,r:0,f:0}));
@@ -1450,7 +1453,7 @@ const mapMarks=M=>{
 let MAPCFG=mapNorm({type:'terra',seed:'nexus',size:48}),mapSel=null,MP=null,PMP=null,mpPKey='';
 let mpTool='brush',mpTer=3,mpBr=3,mpBrShape='round',mpKind='pino',mpCat='Natura',mpSize=null,mpScatter=true,mpVar=true,mpAgg=false,mpHid=false,mpTxt='',mpTxtS=1.2,mpRot=0,mpTokN=null,mpTokVis=false;
 let mpFogMode='hide',mpTokPl=null,mpSelId=null,mpZoom=1,mpScroll=null,mpFocus=null,mpDirty=false,mpHist=[],mpRedo=[],mpHover=null,mpOpenD={gen:true,set:false};
-let mpBusy=false,mpPend=false,mpFull=false;
+let mpBusy=false,mpPend=false,mpFull=false,mpFullTools=false;
 const _render0=render;
 function mpSyncFull(){
   const f=document.getElementById('mpfs'),on=!!(f&&f.classList.contains('mpfull'));
@@ -1459,7 +1462,7 @@ function mpSyncFull(){
 }
 render=function(){if(mpBusy){mpPend=true;return}_render0();mpSyncFull()};
 function mpFullSet(on){
-  mpFull=!!on;mpScroll=null;
+  mpFull=!!on;mpFullTools=false;mpScroll=null;
   try{
     if(on&&!document.fullscreenElement&&document.documentElement.requestFullscreen)document.documentElement.requestFullscreen().catch(()=>{});
     else if(!on&&document.fullscreenElement)document.exitFullscreen().catch(()=>{});
@@ -1468,17 +1471,56 @@ function mpFullSet(on){
 }
 document.addEventListener('fullscreenchange',()=>{if(!document.fullscreenElement&&mpFull){mpFull=false;render()}});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&mpFull&&!document.querySelector('.modal'))mpFullSet(false)});
-const mpSnapshot=()=>({n:MP.n,ter:MP.ter.slice(),fog:MP.fog.slice(),objs:JSON.parse(JSON.stringify(MP.objs)),fogOn:MP.fogOn});
+const mpSnapshot=()=>({n:MP.n,ter:MP.ter.slice(),fog:MP.fog.slice(),objs:JSON.parse(JSON.stringify(MP.objs)),fogOn:MP.fogOn,bg:MP.bg||''});
 function mpPush(){mpHist.push(mpSnapshot());if(mpHist.length>40)mpHist.shift();mpRedo=[];mpDirty=true}
-function mpRestore(s){Object.assign(MP,{n:s.n,ter:s.ter,fog:s.fog,objs:s.objs,fogOn:s.fogOn});MP.tcDirty=true;if(mpSelId&&!MP.objs.some(o=>o.id===mpSelId))mpSelId=null;mpDirty=true}
+function mpRestore(s){Object.assign(MP,{n:s.n,ter:s.ter,fog:s.fog,objs:s.objs,fogOn:s.fogOn,bg:s.bg||''});MP.tcDirty=true;if(mpSelId&&!MP.objs.some(o=>o.id===mpSelId))mpSelId=null;mpDirty=true}
 function mpUndo(){if(!mpHist.length)return;mpRedo.push(mpSnapshot());mpRestore(mpHist.pop());render()}
 function mpRedoA(){if(!mpRedo.length)return;mpHist.push(mpSnapshot());mpRestore(mpRedo.pop());render()}
 function mpOpen(id){const m=S.maps[id];if(!m)return;MP=mpFromDoc(m);mapSel=id;mpHist=[];mpRedo=[];mpDirty=false;mpSelId=null;mpScroll=null;render()}
 function mpNewBlank(){ask('🆕 Nuova mappa vuota',[{l:'Terreno di base',n:'base',t:'select',o:['erba','mare','neve','pavimento']},{l:'Dimensione (quadretti)',n:'sz',t:'select',o:SIZES.map(x=>sizeLbl(x[0]))}],{base:'erba',sz:sizeLbl(48)}).then(r=>{if(!r)return;MP=mpBlank(parseInt(r.sz)||48,r.base);mapSel=null;mpHist=[];mpRedo=[];mpDirty=true;mpSelId=null;mpScroll=null;render()})}
+/* ---- mappa da foto: la foto resta come sfondo, ci si disegna sopra (terreni, oggetti, testi, nebbia, segnalini) ---- */
+const mpImgs={};
+function mpBgImg(url){
+  if(!url)return null;
+  let e=mpImgs[url];
+  if(!e){
+    e=mpImgs[url]={img:new Image(),ok:false,cors:true};
+    const done=()=>{e.ok=true;[MP,PMP].forEach(m=>{if(m&&m.bg===url)m.tcDirty=true});render()};
+    const im=e.img;im.onload=done;
+    im.onerror=()=>{if(!e.cors)return;e.cors=false;const i2=new Image();e.img=i2;i2.onload=done;i2.src=url};
+    im.crossOrigin='anonymous';im.src=url;
+  }
+  return e.ok?e.img:null;
+}
+async function mpPhotoPrep(file,fit){
+  const u=URL.createObjectURL(file);
+  try{
+    const im=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=u});
+    const Z=1024,cv=document.createElement('canvas');cv.width=cv.height=Z;const c=cv.getContext('2d');
+    c.fillStyle='#0b0912';c.fillRect(0,0,Z,Z);c.imageSmoothingQuality='high';
+    const w=im.naturalWidth,h=im.naturalHeight,k=fit==='riempi'?Math.max(Z/w,Z/h):Math.min(Z/w,Z/h),dw=w*k,dh=h*k;
+    c.drawImage(im,(Z-dw)/2,(Z-dh)/2,dw,dh);
+    let blob=null;
+    for(const q of [.88,.75,.6]){blob=await new Promise(r=>cv.toBlob(r,'image/jpeg',q));if(blob&&blob.size<1.9e6)break}
+    return new File([blob],'mappa.jpg',{type:'image/jpeg'});
+  }finally{URL.revokeObjectURL(u)}
+}
+async function mpPhotoMap(){
+  if(!assets)return toast('Upload non disponibile');
+  const r=await ask('📷 Mappa da foto',[{l:'Foto (JPG, PNG o WebP)',n:'photo',t:'file'},{l:'Adattamento al quadrato',n:'fit',t:'select',o:['intera (bordi scuri)','riempi (ritaglia)']},{l:'Dimensione (quadretti)',n:'sz',t:'select',o:SIZES.map(x=>sizeLbl(x[0]))}],{fit:'intera (bordi scuri)',sz:sizeLbl(48)});
+  if(!r)return;if(!r.photo)return toast('Scegli prima una foto');
+  toast('Carico la foto…');
+  let f;try{f=await mpPhotoPrep(r.photo,r.fit.startsWith('riempi')?'riempi':'intera')}catch(e){return toast('Foto non leggibile')}
+  const url=await uploadPhoto(f);if(!url)return;
+  const n=parseInt(r.sz)||48;
+  MP={n,ter:new Uint8Array(n*n).fill(255),fog:new Uint8Array(n*n),fogOn:false,objs:[],pal:'classica',grid:false,scale:0,unit:'m',gt:'terra',hs:hashSeed('p'+Date.now()),pub:true,bg:url};
+  mapSel=null;mpHist=[];mpRedo=[];mpDirty=true;mpSelId=null;mpScroll=null;render();
+  toast('Foto caricata: ora modificala e salvala');
+}
 function mpGenAct(){
   if(MP.objs.length&&!confirm('Il generatore sostituisce terreno e oggetti della mappa aperta (puoi annullare con ↶). Continuare?'))return;
   mpPush();const g=mpGenerate({...mapNorm(MAPCFG),pal:MP.pal,grid:MP.grid,scale:MP.scale,unit:MP.unit});
-  Object.assign(MP,{n:g.n,ter:g.ter,fog:g.fog,fogOn:false,objs:g.objs,gt:g.gt,hs:g.hs});MP.tcDirty=true;mpSelId=null;render();
+  Object.assign(MP,{n:g.n,ter:g.ter,fog:g.fog,fogOn:false,objs:g.objs,gt:g.gt,hs:g.hs,bg:''});MP.tcDirty=true;mpSelId=null;render();
 }
 async function mpSave(asNew){
   let id=mapSel,name=(S.maps[id]&&S.maps[id].name)||'';
@@ -1488,7 +1530,7 @@ async function mpSave(asNew){
 }
 function mpResize(nn){
   if(nn===MP.n)return;mpPush();
-  const o=MP.n,ter=new Uint8Array(nn*nn).fill(3),fog=new Uint8Array(nn*nn),m=Math.min(o,nn);
+  const o=MP.n,ter=new Uint8Array(nn*nn).fill(MP.bg?255:3),fog=new Uint8Array(nn*nn),m=Math.min(o,nn);
   for(let y=0;y<m;y++)for(let x=0;x<m;x++){ter[y*nn+x]=MP.ter[y*o+x];fog[y*nn+x]=MP.fog[y*o+x]}
   MP.objs=MP.objs.filter(b=>b.x<nn&&b.y<nn);Object.assign(MP,{n:nn,ter,fog});MP.tcDirty=true;render();
 }
@@ -1500,10 +1542,10 @@ function mpPlace(mp,x,y){
 }
 const mpStat=()=>mpDirty?'● Modifiche non salvate':(mapSel?'✔ Salvata':'Mappa non salvata');
 const MTOOLS=[['pan','✋','Muovi'],['brush','🖌️','Pennello'],['fill','🪣','Riempi'],['line','📏','Linea'],['rect','▭','Rettangolo'],['ellipse','⬭','Ellisse'],['stamp','🌲','Oggetti'],['sel','🔎','Seleziona'],['text','🔤','Testo'],['erase','🧽','Gomma'],['fog','🌫️','Nebbia'],['token','🧍','Segnalini']];
-const zoomBar=()=>`<div class="row" style="gap:6px;margin-bottom:8px;flex:none"><button class="g mini" id="mpzo">−</button><span class="pill">🔍 ${Math.round(mpZoom*100)}%</span><button class="g mini" id="mpzi">+</button><span class="grow"></span><button class="g mini" id="mpfsb">${mpFull?'✕ Esci':'⛶ Schermo intero'}</button></div>`;
+const zoomBar=()=>`<div class="row zbar" style="gap:6px;margin-bottom:8px;flex:none"><button class="g mini" id="mpzo">−</button><span class="pill">🔍 ${Math.round(mpZoom*100)}%</span><button class="g mini" id="mpzi">+</button><span class="grow"></span>${mpFull&&masterOK&&view.name==='master'?`<button class="g mini" id="mpfst">🛠 ${mpFullTools?'Nascondi':'Strumenti'}</button>`:''}<button class="g mini" id="mpfsb">${mpFull?'✕ Esci':'⛶ Schermo intero'}</button></div>`;
 const mpCvW=()=>mpFull?`calc(${mpZoom} * min(100cqw,100cqh))`:(mpZoom*100)+'%';
-const mapList=(M,saved)=>{const l=M?saved:saved.filter(m=>m.pub!==false);return `<div class="card"><h3>${M?'Mappe salvate':'Mappe del Master'}</h3>${l.map(m=>`<div class="move"${m.id===mapSel?' style="border-left-color:var(--ok)"':''}><div class="grow"><b>${esc(m.name)}</b>${m.pub===false?' <span class="tag">nascosta</span>':''}<div class="mut">${esc((MAP_TYPES.find(t=>t[0]===(m.gt||(m.cfg&&m.cfg.type)))||[0,'🗺️ Mappa'])[1])} · ${m.n||(m.cfg&&m.cfg.size)||'?'}×${m.n||(m.cfg&&m.cfg.size)||'?'}</div></div><button class="mini" data-mo="${m.id}">${m.id===mapSel?'Aperta':'Apri'}</button>${M?`<button class="d mini" data-mdel="${m.id}">🗑</button>`:''}</div>`).join('')||'<p class="mut">Nessuna mappa salvata.</p>'}</div>`};
-const terPal=()=>{const cl=terCols(PAL[MP.pal]||PAL.classica);return MGROUPS.map(g=>`<div class="mut" style="margin-top:8px">${g}</div><div class="chips">${TER.filter(t=>t[2]===g).map(t=>`<button class="chipb ${mpTer===t[0]?'sel':''}" data-ter="${t[0]}"><i class="sw" style="background:${cl[t[0]]}"></i>${t[1]}</button>`).join('')}</div>`).join('')};
+const mapList=(M,saved)=>{const l=M?saved:saved.filter(m=>m.pub!==false);return `<div class="card"><h3>${M?'Mappe salvate':'Mappe del Master'}</h3>${l.map(m=>`<div class="move"${m.id===mapSel?' style="border-left-color:var(--ok)"':''}><div class="grow"><b>${esc(m.name)}</b>${m.pub===false?' <span class="tag">nascosta</span>':''}<div class="mut">${esc(m.bg?'📷 Foto':(MAP_TYPES.find(t=>t[0]===(m.gt||(m.cfg&&m.cfg.type)))||[0,'🗺️ Mappa'])[1])} · ${m.n||(m.cfg&&m.cfg.size)||'?'}×${m.n||(m.cfg&&m.cfg.size)||'?'}</div></div><button class="mini" data-mo="${m.id}">${m.id===mapSel?'Aperta':'Apri'}</button>${M?`<button class="d mini" data-mdel="${m.id}">🗑</button>`:''}</div>`).join('')||'<p class="mut">Nessuna mappa salvata.</p>'}</div>`};
+const terPal=()=>{const cl=terCols(PAL[MP.pal]||PAL.classica);return MGROUPS.map(g=>`<div class="mut" style="margin-top:8px">${g}</div><div class="chips">${TER.filter(t=>t[2]===g).map(t=>`<button class="chipb ${mpTer===t[0]?'sel':''}" data-ter="${t[0]}"><i class="sw" style="background:${cl[t[0]]}"></i>${t[1]}</button>`).join('')}</div>`).join('')+(MP.bg?`<div class="mut" style="margin-top:8px">Foto</div><div class="chips"><button class="chipb ${mpTer===255?'sel':''}" data-ter="255"><i class="sw" style="background:linear-gradient(135deg,#e8c36a,#4a7fb8)"></i>📷 Ripristina foto</button></div>`:'')};
 const slider=(id,l,v,a,b,st)=>`<div style="margin-top:8px"><div class="row sp"><span>${l}</span><b id="${id}v">${v}</b></div><input type="range" id="${id}" min="${a}" max="${b}" step="${st||1}" value="${v}"></div>`;
 const chk=(id,l,v)=>`<label class="row" style="gap:6px;margin-top:6px"><input type="checkbox" id="${id}" ${v?'checked':''}> ${l}</label>`;
 function mpOptions(){
@@ -1536,36 +1578,38 @@ const mapBoard=M=>{
     if(!m||m.pub===false)return hdr('🗺️ Mappa',1)+list;
     const key=mapSel+'|'+m.ts;if(mpPKey!==key||!PMP){PMP=mpFromDoc(m);mpPKey=key}
     const mine=p&&p.mpos&&p.mpos[mapSel];
-    return hdr('🗺️ '+esc(m.name),1)+`<div id="mpfs" class="${mpFull?'mpfull':''}"><div class="card cvcard">${zoomBar()}<div class="mapwrap" id="mapwrap"><canvas id="mapcv" class="mapcv" style="width:${mpCvW()};cursor:crosshair"></canvas></div><p class="mut" style="margin:8px 0">Tocca la mappa per segnare dove si trova il tuo personaggio.</p><div class="row" style="flex-wrap:wrap;gap:8px">${mine?'<button class="g" id="mapunpin">Rimuovi il mio segnalino</button>':''}<button class="g" id="mapclose">‹ Altre mappe</button></div></div></div>`+list;
+    return hdr('🗺️ '+esc(m.name),1)+`<div id="mpfs" class="${mpFull?'mpfull'+(mpFullTools?' tools':''):''}"><div class="card cvcard">${zoomBar()}<div class="mapwrap" id="mapwrap"><canvas id="mapcv" class="mapcv" style="width:${mpCvW()};cursor:crosshair"></canvas></div><p class="mut" style="margin:8px 0">Tocca la mappa per segnare dove si trova il tuo personaggio.</p><div class="row" style="flex-wrap:wrap;gap:8px">${mine?'<button class="g" id="mapunpin">Rimuovi il mio segnalino</button>':''}<button class="g" id="mapclose">‹ Altre mappe</button></div></div></div>`+list;
   }
   if(!MP)MP=mpGenerate({...mapNorm(MAPCFG),pal:'classica'});
   const c=mapNorm(MAPCFG),sl=MAP_SL[c.type]||[],cur=mapSel&&S.maps[mapSel],
   landUI=(c.type==='terra'||c.type==='isola')?`<label class="mut" style="margin-top:10px">Forma della terra</label><div class="chips">${LANDS.map(([k,l])=>`<button class="chipb ${c.land===k?'sel':''}" data-ld="${k}">${l}</button>`).join('')}</div><p class="mut" style="margin:6px 0 0">${esc((LANDS.find(l=>l[0]===c.land)||LANDS[0])[2])}. Regola poi la quantità di acqua qui sotto.</p>`:'';
   return hdr('🗺️ '+(cur?esc(cur.name):'Editor mappe'),1)+
-  `<div id="mpfs" class="${mpFull?'mpfull':''}"><div class="card toolcard"><div class="chips">${MTOOLS.map(([k,i,l])=>`<button class="chipb ${mpTool===k?'sel':''}" data-mtl="${k}">${i} ${l}</button>`).join('')}</div><div class="row" style="flex-wrap:wrap;gap:6px;margin-top:10px"><button class="g mini" id="mpu" ${mpHist.length?'':'disabled'}>↶ Annulla</button><button class="g mini" id="mpr" ${mpRedo.length?'':'disabled'}>↷ Ripeti</button><button class="mini" id="mpquick">🎲 Mappa casuale</button><span class="grow"></span><span class="mut" id="mpstat">${mpStat()}</span></div></div>`+
+  `<div id="mpfs" class="${mpFull?'mpfull'+(mpFullTools?' tools':''):''}"><div class="card toolcard"><div class="chips">${MTOOLS.map(([k,i,l])=>`<button class="chipb ${mpTool===k?'sel':''}" data-mtl="${k}">${i} ${l}</button>`).join('')}</div><div class="row" style="flex-wrap:wrap;gap:6px;margin-top:10px"><button class="g mini" id="mpu" ${mpHist.length?'':'disabled'}>↶ Annulla</button><button class="g mini" id="mpr" ${mpRedo.length?'':'disabled'}>↷ Ripeti</button><button class="mini" id="mpquick">🎲 Mappa casuale</button><span class="grow"></span><span class="mut" id="mpstat">${mpStat()}</span></div></div>`+
   `<div class="card cvcard">${zoomBar()}<div class="mapwrap" id="mapwrap"><canvas id="mapcv" class="mapcv" style="width:${mpCvW()};touch-action:${mpTool==='pan'?'auto':'none'};cursor:${mpTool==='pan'?'grab':'crosshair'}"></canvas></div></div>`+
   '<div class="mpopts">'+mpOptions()+'</div></div>'+
   `<details class="card" id="dset" ${mpOpenD.set?'open':''}><summary>⚙️ Impostazioni mappa</summary><label class="mut">Palette</label><select id="mppal">${Object.keys(PAL).map(k=>`<option value="${k}" ${MP.pal===k?'selected':''}>${k[0].toUpperCase()+k.slice(1)}</option>`).join('')}</select><label class="mut">Dimensione (quadretti)</label><select id="mpsize">${sizeOpts(MP.n)}</select><div class="row"><div class="grow"><label class="mut">Scala: 1 quadretto = (0 = nascosta)</label><input id="mpscale" type="number" min="0" step="any" value="${MP.scale}" style="margin:0"></div><div><label class="mut">Unità</label><select id="mpunit" style="margin:0">${UNITS.map(u=>`<option ${MP.unit===u?'selected':''}>${u}</option>`).join('')}</select></div></div>${chk('mpgrid','Griglia',MP.grid)}${chk('mppub','Visibile ai player',MP.pub!==false)}</details>`+
   `<details class="card" id="dgen" ${mpOpenD.gen?'open':''}><summary>🎲 Generatore casuale</summary><p class="mut">Crea una base da cui partire: poi ritoccala con pennello e oggetti.</p><div class="chips">${MAP_TYPES.filter(t=>t[0]!=='isola').map(([k,l])=>`<button class="chipb ${(c.type===k||(k==='terra'&&c.type==='isola'))?'sel':''}" data-mt="${k}">${l}</button>`).join('')}</div><label class="mut" style="margin-top:8px">Seme (stesso seme = stessa mappa)</label><div class="row"><input id="mapseed" value="${esc(c.seed)}" style="margin:0"><button class="g" id="mapdice" title="Seme casuale">🎲</button></div>${landUI}<div class="row" style="margin-top:10px"><div class="grow"><label class="mut">Dimensione</label><select id="mapgsize">${sizeOpts(c.size)}</select></div><div class="grow"><label class="mut">Forma del riquadro</label><select id="mapgshape">${SHAPES.map(([k,l])=>`<option value="${k}" ${c.shape===k?'selected':''}>${l}</option>`).join('')}</select></div></div>${sl.map(([k,l,a,b])=>`<div style="margin-top:6px"><div class="row sp"><span>${l}</span><b id="mv-${k}">${c[k]}</b></div><input type="range" data-mk="${k}" min="${a}" max="${b}" value="${c[k]}"></div>`).join('')}<div class="row" style="margin-top:12px;flex-wrap:wrap;gap:8px"><button id="mapgen">⚡ Genera</button><button class="g" id="mapnew">🎲 Nuova casuale</button></div></details>`+
-  `<div class="card"><h3>Salvataggio</h3><div class="row" style="flex-wrap:wrap;gap:8px"><button id="mapsave">💾 ${cur?'Aggiorna «'+esc(cur.name)+'»':'Salva'}</button>${cur?'<button class="g" id="mapsaveas">💾 Salva come nuova</button>':''}<button class="g" id="mapblank">🆕 Nuova vuota</button><button class="g" id="mapdl">⬇ PNG</button><button class="g" id="mapcopy">📋 Codice</button><button class="g" id="mapload">📥 Carica</button></div></div>`+list;
+  `<div class="card"><h3>Salvataggio</h3><div class="row" style="flex-wrap:wrap;gap:8px"><button id="mapsave">💾 ${cur?'Aggiorna «'+esc(cur.name)+'»':'Salva'}</button>${cur?'<button class="g" id="mapsaveas">💾 Salva come nuova</button>':''}<button class="g" id="mapblank">🆕 Nuova vuota</button><button class="g" id="mapdl">⬇ PNG</button><button class="g" id="mapcopy">📋 Codice</button><button class="g" id="mapload">📥 Carica</button><button class="g" id="mapphoto">📷 Da foto</button>${MP.bg?'<button class="g" id="mapphotorm">🗑 Togli foto</button>':''}</div></div>`+list;
 };
 function mapInit(){
+  const M=masterOK&&view.name==='master',q=id=>document.getElementById(id);
+  /* lista mappe: sempre collegata (prima, senza canvas, la funzione usciva e i player non potevano aprire nulla) */
+  document.querySelectorAll('[data-mo]').forEach(b=>b.onclick=()=>{if(M){if(mpDirty&&b.dataset.mo!==mapSel&&!confirm('Hai modifiche non salvate: aprire un\'altra mappa le perde. Continuare?'))return;mpOpen(b.dataset.mo)}else{mapSel=b.dataset.mo;mpScroll=null;render()}});
   const cv=document.getElementById('mapcv');if(!cv)return;
-  const M=masterOK&&view.name==='master',q=id=>document.getElementById(id),w=q('mapwrap'),mp=M?MP:PMP;
+  const w=q('mapwrap'),mp=M?MP:PMP;
   if(!mp)return;
   /* zoom + scroll */
   const zs=[1,1.5,2,3,4,6];
   const zoomBy=d=>{const i=Math.max(0,Math.min(zs.length-1,zs.indexOf(mpZoom)+d));if(zs[i]===mpZoom)return;mpFocus={fx:(w.scrollLeft+w.clientWidth/2)/w.scrollWidth,fy:(w.scrollTop+w.clientHeight/2)/w.scrollHeight};mpZoom=zs[i];render()};
   if(q('mpzo'))q('mpzo').onclick=()=>zoomBy(-1);if(q('mpzi'))q('mpzi').onclick=()=>zoomBy(1);
   if(q('mpfsb'))q('mpfsb').onclick=()=>mpFullSet(!mpFull);
+  if(q('mpfst'))q('mpfst').onclick=()=>{mpFullTools=!mpFullTools;mpScroll=null;render()};
   if(!zs.includes(mpZoom))mpZoom=1;
   mpEnsure(mp);
   if(mpFocus){w.scrollLeft=mpFocus.fx*w.scrollWidth-w.clientWidth/2;w.scrollTop=mpFocus.fy*w.scrollHeight-w.clientHeight/2;mpFocus=null;mpScroll={l:w.scrollLeft,t:w.scrollTop}}
   else if(mpScroll){w.scrollLeft=mpScroll.l;w.scrollTop=mpScroll.t}
   w.onscroll=()=>{mpScroll={l:w.scrollLeft,t:w.scrollTop}};
   const pt=e=>{const r=cv.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*mp.n,y=(e.clientY-r.top)/r.height*mp.n,t=v=>Math.min(mp.n-1,Math.max(0,Math.floor(v)));return {x,y,tx:t(x),ty:t(y)}};
-  const list=()=>document.querySelectorAll('[data-mo]').forEach(b=>b.onclick=()=>{if(M){if(mpDirty&&b.dataset.mo!==mapSel&&!confirm('Hai modifiche non salvate: aprire un\'altra mappa le perde. Continuare?'))return;mpOpen(b.dataset.mo)}else{mapSel=b.dataset.mo;mpScroll=null;render()}});
-  list();
   if(!M){
     mpDraw(cv,mp,false,null,mapMarks(false));
     cv.onclick=e=>{const p=pt(e);if(mp.ter[p.ty*mp.n+p.tx]===18)return toast('Fuori dalla mappa');const me_=me();if(me_)guard(db.collection('players').doc(uid).update({mpos:{...(me_.mpos||{}),[mapSel]:{x:p.tx,y:p.ty}}}))};
@@ -1708,7 +1752,9 @@ function mapInit(){
   if(q('mapsave'))q('mapsave').onclick=()=>mpSave(false);
   if(q('mapsaveas'))q('mapsaveas').onclick=()=>mpSave(true);
   if(q('mapblank'))q('mapblank').onclick=mpNewBlank;
-  const dl=q('mapdl');if(dl)dl.onclick=()=>{const big=document.createElement('canvas');mpDraw(big,mp,true,{},null);big.toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='mappa-'+(mapSel&&S.maps[mapSel]?S.maps[mapSel].name.replace(/[^\w-]+/g,'_'):mp.gt)+'.png';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000)})};
+  if(q('mapphoto'))q('mapphoto').onclick=mpPhotoMap;
+  if(q('mapphotorm'))q('mapphotorm').onclick=async()=>{if(!await askYes('Togliere la foto? Le zone non dipinte diventeranno erba.'))return;mpPush();for(let i=0;i<mp.ter.length;i++)if(mp.ter[i]===255)mp.ter[i]=3;mp.bg='';mp.tcDirty=true;render()};
+  const dl=q('mapdl');if(dl)dl.onclick=()=>{try{const big=document.createElement('canvas');mpDraw(big,mp,true,{},null);big.toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='mappa-'+(mapSel&&S.maps[mapSel]?S.maps[mapSel].name.replace(/[^\w-]+/g,'_'):mp.gt)+'.png';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000)})}catch(e){toast('PNG non disponibile per questa mappa')}};
   const cp=q('mapcopy');if(cp)cp.onclick=()=>{const code='NXMAP2:'+JSON.stringify(mpToDoc(mp)),show=()=>ask('Codice mappa',[{l:'Copia questo codice',n:'c',t:'area'}],{c:code});if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(code).then(()=>toast('Codice copiato'),show);else show()};
   const ld=q('mapload');if(ld)ld.onclick=async()=>{const r=await ask('Carica mappa',[{l:'Incolla il codice (NXMAP2:… oppure NXMAP:…)',n:'c',t:'area'}]);if(!r)return;try{const s=r.c.trim(),v2=s.startsWith('NXMAP2:'),j=JSON.parse(s.replace(/^NXMAP2?:/,''));mpPush();const g=mpFromDoc(v2?j:{cfg:j});Object.assign(MP,g);MP.tcDirty=true;mpSelId=null;render()}catch(e){toast('Codice non valido')}};
   document.querySelectorAll('[data-mdel]').forEach(b=>b.onclick=async()=>{if(await askYes('Eliminare questa mappa salvata?'))guard(db.collection('maps').doc(b.dataset.mdel).delete())});
