@@ -548,3 +548,24 @@ body.locked #hud{display:none}
 .mpfull.tools .mpopts{display:block;flex:none;max-height:34vh;max-height:34dvh;overflow:auto;margin:0 6px 6px}
 .mpfull .mpopts .card{margin:0 0 6px}
 body.mapfull #taskbar,body.mapfull #hud{display:none}
+
+
+/* foto oggetti: sempre intere, qualunque dimensione */
+.iph{display:inline-grid;place-items:center;width:var(--s,48px);height:var(--s,48px);flex:none;overflow:hidden;background:var(--card-2);border:3px solid var(--line);box-shadow:0 0 0 2px var(--ink)}
+.iph img{display:block;width:100%;height:100%;object-fit:contain}
+.item{cursor:pointer}
+.item button:disabled{pointer-events:none}
+
+/* dialogo oggetto del mercante */
+.itdlg{text-align:center}
+.itdlg .itph{display:grid;place-items:center;width:min(100%,300px);height:min(36vh,300px);height:min(36dvh,300px);margin:0 auto 6px;padding:8px;overflow:hidden;font-size:4.5em;background:var(--card-2);border:4px solid var(--acc);box-shadow:0 0 0 3px var(--ink),6px 6px 0 3px var(--ink);animation:itpop .3s steps(5) both,itfloat 1.4s steps(2) .3s infinite alternate}
+.itdlg .itph img{display:block;width:100%;height:100%;object-fit:contain}
+.itdlg .itn{margin:12px 0 8px}
+.itdlg .itsay{margin:16px 0 10px;text-align:left;min-height:3.4em;cursor:pointer;animation:itpop .25s steps(4) .15s both}
+.itdlg .itsay::before{content:'';position:absolute;top:-11px;left:50%;margin-left:-8px;border:8px solid transparent;border-top:0;border-bottom-color:var(--line)}
+.itdlg .ittxt{white-space:pre-wrap;overflow-wrap:anywhere}
+.itdlg .ittxt.typing::after{content:'▌';margin-left:2px;animation:itblink .5s steps(1) infinite}
+@keyframes itpop{from{transform:scale(.55);opacity:0}to{transform:none;opacity:1}}
+@keyframes itfloat{from{transform:translateY(0)}to{transform:translateY(-4px)}}
+@keyframes itblink{50%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.itdlg .itph,.itdlg .itsay{animation:none}}
