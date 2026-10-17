@@ -530,3 +530,18 @@ body.locked #hud{display:none}
   .lk-center{gap:22px}
   .mapwrap{max-height:64vh;max-height:64dvh}
 }
+
+/* =====================================================================
+   v15: mappe a schermo intero
+   ===================================================================== */
+.mpfull{position:fixed;inset:0;z-index:45;display:flex;flex-direction:column;gap:8px;background:var(--bg);overflow:hidden;
+  padding:8px 8px calc(8px + env(safe-area-inset-bottom,0px));padding-top:calc(8px + env(safe-area-inset-top,0px))}
+.mpfull .card{margin:0 6px 6px 0}
+.mpfull .toolcard{flex:none;max-height:26vh;max-height:26dvh;overflow:auto}
+.mpfull .cvcard{flex:1;min-height:0;display:flex;flex-direction:column}
+.mpfull .cvcard>*{flex:none}
+.mpfull .mapwrap{flex:1 1 auto;min-height:0;max-height:none;container-type:size}
+.mpfull .mapcv{margin:0 auto}
+.mpfull .mpopts{flex:none;max-height:34vh;max-height:34dvh;overflow:auto}
+.mpfull .mpopts .card{margin:0 6px 6px 0}
+body.mapfull #taskbar,body.mapfull #hud{display:none}
