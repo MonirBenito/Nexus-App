@@ -4,18 +4,9 @@ const $=s=>document.querySelector(s), app=$('#app');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let db,user,assets,uid,isMaster=false,masterOK=false,authed=false,cred=null,S={players:{},npcs:{},items:{},quests:{},party:{},msgs:{},maps:{}},view={name:'splash'},tab='players';
 const DROP=`<svg viewBox="0 0 100 130" width="100%" height="100%"><defs><radialGradient id="g" cx="35%" cy="40%"><stop offset="0" stop-color="#ff4d5a"/><stop offset="1" stop-color="#8a0c16"/></radialGradient></defs><path d="M50 4C50 4 8 58 8 84a42 42 0 0 0 84 0C92 58 50 4 50 4Z" fill="url(#g)"/><ellipse cx="34" cy="86" rx="7" ry="15" fill="#fff" opacity=".25" transform="rotate(20 34 86)"/></svg>`;
-const lvl=p=>1+Math.floor((p.xp||0)/100);
 function toast(t){const e=document.createElement('div');e.className='toast';e.textContent=t;document.body.append(e);setTimeout(()=>e.remove(),2200)}
 
 /* ---- form modale generica ---- */
-function ask(title,fields,init={}){return new Promise(res=>{
-  const m=document.createElement('div');m.className='modal';
-  m.innerHTML=`<div><h3>${esc(title)}</h3>${fields.map(f=>`<label class="mut">${esc(f.l)}</label>`+(f.t==='select'?`<select name="${f.n}">${f.o.map(o=>`<option ${init[f.n]==o?'selected':''}>${o}</option>`).join('')}</select>`:f.t==='area'?`<textarea name="${f.n}" rows="3">${esc(init[f.n])}</textarea>`:`<input name="${f.n}" type="${f.t||'text'}" value="${esc(init[f.n])}">`)).join('')}
-  <div class="row"><button class="g grow" data-x>Annulla</button><button class="grow" data-ok>Salva</button></div></div>`;
-  document.body.append(m);
-  m.onclick=e=>{if(e.target.dataset.x!==undefined||e.target===m){m.remove();res(null)}
-    if(e.target.dataset.ok!==undefined){const o={};for(const f of fields){const v=m.querySelector(`[name=${f.n}]`).value;o[f.n]=f.t==='number'?Math.max(0,parseInt(v)||0):v.trim()}m.remove();res(o)}};
-})}
 
 /* ---- dati ---- */
 async function guard(p){try{return await p}catch(e){toast('Operazione non consentita'+(e.message?': '+e.message:''));console.warn(e)}}
@@ -23,24 +14,6 @@ const me=()=>S.players[uid];
 
 async function hash(pw,salt){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(salt+':'+pw));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
 const credDoc=()=>db.collection('data/users/'+uid).doc('cred');
-async function register(){ // tap sulla goccia = registrazione con credenziali
-  const r=await ask('Registrati',[{l:'Username',n:'username'},{l:'Email',n:'email',t:'email'},{l:'Password (min. 8 caratteri)',n:'pw',t:'password'}]);
-  if(!r)return;
-  if(r.username.length<3)return toast('Username troppo corto');
-  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(r.email))return toast('Email non valida');
-  if(r.pw.length<8)return toast('Password troppo corta');
-  const salt=uid8()+uid8(),h=await hash(r.pw,salt),c={email:r.email.toLowerCase(),salt,hash:h};
-  if(!(await guard(credDoc().set(c).then(()=>1))))return;
-  cred=c;
-  const d=db.collection('players').doc(uid);
-  await guard(me()?d.update({username:r.username.slice(0,32)}):d.set({username:r.username.slice(0,32),currency:100,blood:'Non indicato',ego:'',skills:[],history:[],created:Date.now()}));
-  authed=true;toast('Benvenuto!');render();
-}
-async function loginPlayer(){
-  const r=await ask('Accedi',[{l:'Email',n:'email',t:'email'},{l:'Password',n:'pw',t:'password'}]);
-  if(!r)return;
-  if(r.email.toLowerCase()===cred.email&&await hash(r.pw,cred.salt)===cred.hash){authed=true;render()}else toast('Credenziali errate');
-}
 async function redeem(it){
   const p=me(); if(!p||p.currency<it.price)return toast('Fondi insufficienti');
   if(it.stock!=null&&it.stock<=0)return toast('Esaurito');
@@ -52,65 +25,9 @@ async function redeem(it){
 }
 
 /* ---- viste ---- */
-function render(){
-  const v=view.name;
-  $('#mbtn').style.display=(v==='master'&&masterOK)?'none':'block';
-  if(!db){app.innerHTML=`<div class="splash"><h2>Dati non raggiungibili</h2><p class="mut">Connessione ai dati non disponibile. Controlla js/config.js e la connessione a internet.</p></div>`;return}
-  if(v==='master'&&masterOK)return renderMaster();
-  if(!authed||!me())return renderSplash();
-  if(v==='npc')return renderNpc();
-  renderHome();
-}
-function renderSplash(){
-  const reg=!cred;
-  app.innerHTML=`<div class="splash"><h1 style="letter-spacing:2px">NEXUS CONNECTION</h1><button class="drop" id="drop" aria-label="Entra">${DROP}</button><div style="color:var(--acc2);font-weight:700">${reg?'Tocca la goccia per registrarti':'Tocca la goccia per accedere'}</div></div>`;
-  $('#drop').onclick=()=>reg?register():loginPlayer();
-}
-function renderHome(){
-  const p=me(), npcs=Object.values(S.npcs).filter(n=>n.active!==false);
-  app.innerHTML=`<div class="bar"><h2>${esc(p.username)}</h2><div class="row"><button class="g" id="ren">✎</button><button class="g" id="out">⎋</button></div></div>
-  <div class="card stats"><div><b>${lvl(p)}</b><span class="mut">Livello</span></div><div><b>${p.xp||0}</b><span class="mut">XP</span></div><div><b>${p.currency}</b><span class="mut">Monete</span></div></div>
-  <h3>NPC</h3>${npcs.map(n=>`<div class="card row" data-npc="${n.id}" style="cursor:pointer"><div class="avatar">${n.photo?`<img class="avatar" src="${esc(n.photo)}">`:'🩸'}</div><div class="grow"><b>${esc(n.name)}</b><div class="mut">${esc(n.desc)}</div></div>›</div>`).join('')||'<p class="mut">Nessun NPC disponibile.</p>'}
-  <h3>Ultimi riscatti</h3>${(p.history||[]).slice(0,5).map(h=>`<div class="mut">${esc(h.n)} · −${h.p}</div>`).join('')||'<p class="mut">Nessun riscatto.</p>'}`;
-  app.querySelectorAll('[data-npc]').forEach(e=>e.onclick=()=>{view={name:'npc',id:e.dataset.npc};render()});
-  $('#ren').onclick=async()=>{const r=await ask('Il tuo nome',[{l:'Username',n:'username'}],p);if(r&&r.username.length>=3)guard(db.collection('players').doc(uid).update({username:r.username.slice(0,32)}))};
-  $('#out').onclick=()=>{authed=false;render()};
-}
-function renderNpc(){
-  const n=S.npcs[view.id],p=me(); if(!n){view={name:'home'};return render()}
-  const its=Object.values(S.items).filter(i=>i.npc===n.id&&i.active!==false);
-  app.innerHTML=`<button class="g" id="bk">‹ Indietro</button><div class="card row"><div class="avatar">${n.photo?`<img class="avatar" src="${esc(n.photo)}">`:'🩸'}</div><div><h2>${esc(n.name)}</h2><div class="mut">${esc(n.desc)}</div></div></div>
-  <div class="mut">Le tue monete: <b>${p.currency}</b></div><h3>Shop</h3>
-  ${its.map(i=>`<div class="card row sp"><div><b>${esc(i.name)}</b> <span class="tag">${esc(i.rtype)}${i.rtype!=='item'?' +'+i.amount:''}</span><div class="mut">${i.stock!=null?'Scorte: '+i.stock:'Illimitato'}</div></div><button data-r="${i.id}" ${p.currency<i.price||i.stock===0?'disabled':''}>${i.price} 🩸</button></div>`).join('')||'<p class="mut">Questo NPC non vende nulla.</p>'}`;
-  $('#bk').onclick=()=>{view={name:'home'};render()};
-  app.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>redeem(S.items[b.dataset.r]));
-}
 
 /* ---- pannello Master ---- */
 const uid8=()=>Math.random().toString(36).slice(2,10);
-function renderMaster(){
-  let body='';
-  if(tab==='players')body=Object.entries(S.players).map(([id,p])=>`<div class="card"><div class="row sp"><b>${esc(p.username)}</b><span class="tag">Lv ${lvl(p)} · ${p.xp||0}xp · ${p.currency}🩸</span></div><div class="row" style="margin-top:8px"><button class="g grow" data-pe="${id}">Modifica</button><button class="d" data-pd="${id}">Elimina</button></div></div>`).join('')||'<p class="mut">Nessun player registrato.</p>';
-  if(tab==='npcs')body=`<button id="addN" style="width:100%">+ Nuovo NPC</button>`+Object.values(S.npcs).map(n=>`<div class="card"><div class="row"><div class="avatar">${n.photo?`<img class="avatar" src="${esc(n.photo)}">`:'🩸'}</div><div class="grow"><b>${esc(n.name)}</b> ${n.active===false?'<span class="tag">nascosto</span>':''}<div class="mut">${esc(n.desc)}</div></div></div><div class="row" style="margin-top:8px"><button class="g grow" data-ne="${n.id}">Modifica</button><button class="g" data-np="${n.id}">📷</button><button class="d" data-nd="${n.id}">✕</button></div></div>`).join('');
-  if(tab==='shop')body=Object.values(S.npcs).map(n=>`<div class="card"><div class="row sp"><b>${esc(n.name)}</b><button data-ia="${n.id}">+ Oggetto</button></div>${Object.values(S.items).filter(i=>i.npc===n.id).map(i=>`<div class="row sp" style="margin-top:8px"><div>${esc(i.name)} <span class="tag">${i.price}🩸 · ${esc(i.rtype)}${i.rtype!=='item'?' +'+i.amount:''} · ${i.stock!=null?i.stock:'∞'}</span></div><div class="row"><button class="g" data-ie="${i.id}">✎</button><button class="d" data-id="${i.id}">✕</button></div></div>`).join('')}</div>`).join('')||'<p class="mut">Crea prima un NPC.</p>';
-  app.innerHTML=`<div class="bar"><h2>Pannello Master</h2><button class="g" id="ex">Esci</button></div><div class="tabs">${['players','npcs','shop'].map(t=>`<button class="${tab===t?'on':''}" data-t="${t}">${{players:'Player',npcs:'NPC',shop:'Shop'}[t]}</button>`).join('')}</div>${body}`;
-  $('#ex').onclick=()=>{masterOK=false;view={name:'home'};render()};
-  app.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{tab=b.dataset.t;render()});
-  const on=(a,fn)=>app.querySelectorAll(`[data-${a}]`).forEach(b=>b.onclick=()=>fn(b.dataset[a]));
-  const C=n=>db.collection(n);
-  on('pe',async id=>{const p=S.players[id],r=await ask('Player',[{l:'Username',n:'username'},{l:'XP',n:'xp',t:'number'},{l:'Monete',n:'currency',t:'number'}],p);if(r)guard(C('players').doc(id).update({username:r.username||p.username,xp:r.xp,currency:r.currency,level:1+Math.floor(r.xp/100)}))});
-  on('pd',id=>{if(confirm('Eliminare il player?'))guard(C('players').doc(id).delete())});
-  const npcF=[{l:'Nome',n:'name'},{l:'Descrizione',n:'desc',t:'area'},{l:'Visibile',n:'vis',t:'select',o:['sì','no']}];
-  if($('#addN'))$('#addN').onclick=async()=>{const r=await ask('Nuovo NPC',npcF,{vis:'sì'});if(r&&r.name){const id=uid8();guard(C('npcs').doc(id).set({id,name:r.name,desc:r.desc,active:r.vis==='sì',photo:''}))}};
-  on('ne',async id=>{const n=S.npcs[id],r=await ask('Modifica NPC',npcF,{...n,vis:n.active===false?'no':'sì'});if(r&&r.name)guard(C('npcs').doc(id).update({name:r.name,desc:r.desc,active:r.vis==='sì'}))});
-  on('nd',id=>{if(confirm('Eliminare NPC e il suo shop?')){Object.values(S.items).filter(i=>i.npc===id).forEach(i=>C('items').doc(i.id).delete());guard(C('npcs').doc(id).delete())}});
-  on('np',id=>{const f=document.createElement('input');f.type='file';f.accept='image/jpeg,image/png,image/webp';f.onchange=async()=>{const file=f.files[0];if(!file)return;if(!assets)return toast('Upload non disponibile');if(file.size>2e6)return toast('Max 2 MB');const a=await guard(assets.upload(file));if(a)guard(C('npcs').doc(id).update({photo:a.url}))};f.click()});
-  const itF=[{l:'Nome',n:'name'},{l:'Prezzo',n:'price',t:'number'},{l:'Ricompensa',n:'rtype',t:'select',o:['item','currency','xp']},{l:'Quantità ricompensa (monete/xp)',n:'amount',t:'number'},{l:'Scorte (0 = illimitato)',n:'stock',t:'number'}];
-  const itSave=r=>({name:r.name,price:r.price,rtype:r.rtype,amount:r.amount,stock:r.stock>0?r.stock:null});
-  on('ia',async nid=>{const r=await ask('Nuovo oggetto',itF,{rtype:'item'});if(r&&r.name){const id=uid8();guard(C('items').doc(id).set({id,npc:nid,active:true,...itSave(r)}))}});
-  on('ie',async id=>{const i=S.items[id],r=await ask('Modifica oggetto',itF,{...i,stock:i.stock??0});if(r&&r.name)guard(C('items').doc(id).update(itSave(r)))});
-  on('id',id=>{if(confirm('Eliminare l\'oggetto?'))guard(C('items').doc(id).delete())});
-}
 
 /* ---- avvio ---- */
 async function boot(){
@@ -196,12 +113,6 @@ function renderBoard(){
   app.querySelectorAll('[data-sk]').forEach(x=>x.onclick=()=>{if(confirm('Rimuovere la skill?'))U({skills:(p.skills||[]).filter((_,i)=>i!==+x.dataset.sk)})});
   if($('#ren'))$('#ren').onclick=async()=>{const r=await ask('Il tuo nome',[{l:'Username',n:'username'}],p);if(r&&r.username.length>=3)guard(db.collection('players').doc(uid).update({username:r.username.slice(0,32)}))};
 }
-function renderNpc(){
-  const n=S.npcs[view.id],p=me();if(!n){view={name:'npcs'};return render()}
-  const its=Object.values(S.items).filter(i=>i.npc===n.id&&i.active!==false),m=kindOf(n)==='mercante';
-  app.innerHTML=hdr(esc(n.name),1)+`<div class="card row">${av(n)}<div><span class="tag">${KIND[kindOf(n)]}</span><div class="mut">${esc(n.desc)}</div></div></div>`+(m?`<div class="mut">I tuoi Euro: <b>💶 ${p.currency}</b></div><h3>Shop</h3>`+(its.map(i=>`<div class="card row sp"><div><b>${esc(i.name)}</b> <span class="tag">${esc(i.rtype)}${i.rtype!=='item'?' +'+i.amount:''}</span><div class="mut">${i.stock!=null?'Scorte: '+i.stock:'Illimitato'}</div></div><button data-r="${i.id}" ${p.currency<i.price||i.stock===0?'disabled':''}>💶 ${i.price}</button></div>`).join('')||'<p class="mut">Questo mercante non vende nulla.</p>'):'<p class="mut">Nessuna azione disponibile per ora.</p>');
-  bind();app.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>redeem(S.items[b.dataset.r]));
-}
 function renderMaster(){
   const C=n=>db.collection(n);let b='';
   if(!tab)b=hdr('Pannello Master')+tiles();
@@ -266,22 +177,6 @@ const profileHtml=p=>{
   `<h3>Ultimi acquisti</h3>`+((p.history||[]).slice(0,5).map(h=>`<div class="mut">${esc(h.n)} · −💶 ${h.p}</div>`).join('')||'<p class="mut">Nessun acquisto.</p>');
 };
 let encOpen=false;
-function checkEnc(){
-  const p=me();if(!p||!authed||encOpen||!LD.npcs||!LD.players)return;
-  const vis=Object.values(S.npcs).filter(visN),seen=p.seen;
-  if(!Array.isArray(seen)){guard(db.collection('players').doc(uid).update({seen:vis.map(n=>n.id)}));return}
-  const n=vis.find(x=>!seen.includes(x.id));if(!n)return;
-  encOpen=true;
-  const m=document.createElement('div');m.className='modal';
-  m.innerHTML=`<div style="text-align:center"><div class="mut" style="letter-spacing:4px">⚠ ⚠ ⚠</div><h2 class="newenc">NUOVO INCONTRO</h2><div class="encav">${n.photo?`<img src="${esc(n.photo)}">`:'🩸'}</div><h3>${esc(n.name)}</h3><div class="mut">${KIND[kindOf(n)]}</div><div class="row" style="margin-top:14px"><button class="g grow" data-c>Più tardi</button><button class="grow" data-i>Ispeziona</button></div></div>`;
-  document.body.append(m);
-  const done=async go=>{m.remove();encOpen=false;await guard(db.collection('players').doc(uid).update({seen:[...seen,n.id]}));if(go){view={name:'npc',id:n.id};render()}};
-  m.onclick=e=>{if(e.target.dataset.c!==undefined)done(0);if(e.target.dataset.i!==undefined)done(1)};
-}
-async function buy(it,n){
-  const p=me(),ok=await new Promise(res=>{const m=document.createElement('div');m.className='modal';m.innerHTML=`<div style="text-align:center"><div style="font-size:3em">${it.rtype==='currency'?'💶':'🎁'}</div><h3>${esc(it.name)}</h3><div class="mut">Prezzo: 💶 ${it.price} · Ti resteranno: 💶 ${p.currency-it.price}</div><div class="row" style="margin-top:14px"><button class="g grow" data-n>Annulla</button><button class="grow" data-y>Acquista</button></div></div>`;document.body.append(m);m.onclick=e=>{if(e.target.dataset.n!==undefined){m.remove();res(0)}if(e.target.dataset.y!==undefined){m.remove();res(1)}}});
-  if(ok)redeem(it);
-}
 function renderNpc(){
   const n=S.npcs[view.id],p=me();if(!n||!visN(n)){view={name:'npcs'};return render()}
   const m=kindOf(n)==='mercante',its=Object.values(S.items).filter(i=>i.npc===n.id&&i.active!==false);
@@ -296,7 +191,6 @@ const BK={};TR.forEach(([k,l])=>BK[l]={t:'tr',k});AB.forEach(([k,l])=>BK[l]={t:'
 const bonusLabel=b=>b?((b.t==='tr'?TR:AB).find(x=>x[0]===b.k)||[0,'?'])[1]:'nessuno';
 const modOf=p=>{const m={tr:{},ab:{}};(p.inv||[]).forEach(e=>{if(e.bonus&&(e.uses==null||e.uses>0))m[e.bonus.t][e.bonus.k]=(m[e.bonus.t][e.bonus.k]||0)+e.bonus.v});return m};
 const uploadPhoto=async f=>{if(!assets){toast('Upload non disponibile');return ''}if(f.size>2e6){toast('Foto oltre 2 MB');return ''}const a=await guard(assets.upload(f));return a?a.url:''};
-const invHtml=p=>`<div class="card"><h3>🎒 INVENTARIO</h3>${(p.inv||[]).map(e=>`<div class="move" style="border-left-color:var(--acc2)"><div style="font-size:1.6em">${e.photo?`<img src="${esc(e.photo)}" style="width:44px;height:44px;object-fit:cover;border-radius:8px">`:(CATI[e.cat]||'🎁')}</div><div class="grow"><b>${esc(e.name)}</b><div class="mut">${CATL[e.cat]||'Oggetto'} · ${e.uses==null?'♾ Infinito':e.uses+(e.uses===1?' uso':' usi')}${e.bonus?` · <span style="color:var(--ok)">+${e.bonus.v} ${esc(bonusLabel(e.bonus))}</span>`:''}</div></div>${e.uses!=null?`<button class="mini" data-use="${e.id}">Usa</button>`:''}</div>`).join('')||'<p class="mut">Inventario vuoto.</p>'}</div>`;
 const egoBoard=p=>{const g=egoOf(p);return hdr('⚡ EGO',1)+`<div class="ego big"><div class="row sp"><span class="lab">IL POTERE DEL PERSONAGGIO</span><button class="g" id="egoE">✎</button></div>${g.t||g.e?`<div class="et" style="font-size:2em;text-align:center;margin:18px 0">${esc(g.t)}</div><div class="mut" style="letter-spacing:3px">EFFETTO</div><p style="white-space:pre-wrap;font-size:1.05em;margin:6px 0">${esc(g.e)}</p>`:'<p class="mut" style="margin:40px 0;text-align:center">Nessun EGO scritto.<br>Tocca ✎ per definire il tuo potere.</p>'}</div>`};
 const ITF=()=>[{l:'Nome',n:'name'},{l:'Prezzo (Euro)',n:'price',t:'number'},{l:'Tipo',n:'cat',t:'select',o:['oggetto','arma','armatura']},{l:'Foto (max 2 MB)',n:'photo',t:'file'},{l:'Cosa dice il mercante (descrizione)',n:'desc',t:'area'},{l:'Utilizzo',n:'use',t:'select',o:['infinito','utilizzabile']},{l:'Numero di usi (solo se utilizzabile)',n:'uses',t:'number'},{l:'Bonus alle statistiche',n:'bk',t:'select',o:['nessuno',...TR.map(t=>t[1]),...AB.map(a=>a[1])]},{l:'Valore del bonus',n:'bv',t:'number'},{l:'Scorte (0 = illimitate)',n:'stock',t:'number'}];
 async function itData(r,old){const b=BK[r.bk],o={name:r.name,price:r.price,cat:r.cat,desc:r.desc,use:r.use,uses:r.use==='utilizzabile'?Math.max(1,r.uses):0,bonus:b&&r.bv>0?{t:b.t,k:b.k,v:r.bv}:null,stock:r.stock>0?r.stock:null};if(r.photo){const u=await uploadPhoto(r.photo);if(u)o.photo=u}else if(!old)o.photo='';return o}
@@ -330,7 +224,6 @@ const splitL=s=>(s||'').split('\n').map(x=>x.trim()).filter(Boolean);
 const qData=r=>({title:r.title,qt:r.qt,objs:splitL(r.objs),dl:r.dl||'',coins:r.coins,rw:r.rw,to:r.to});
 const dlStr=t=>typeof t==='number'?(t?new Date(t).toLocaleString('it-IT'):''):(t||'');
 const visQ=q=>!(q.to&&q.to.length)||q.to.includes(uid);
-const remain=t=>{const d=t-Date.now();if(d<=0)return null;const m=Math.floor(d/6e4),g=Math.floor(m/1440),h=Math.floor(m%1440/60);return g?`${g}g ${h}h`:h?`${h}h ${m%60}m`:`${m}m`};
 const qBadge=q=>q.qt==='principale'?'<span class="pill" style="background:var(--gold);color:#fff;border-color:var(--gold)">★ PRINCIPALE</span>':'<span class="pill">Secondaria</span>';
 const qRec=q=>q.to&&q.to.length?q.to.filter(i=>S.players[i]):Object.keys(S.players);
 const qAllDone=q=>{const r=qRec(q);return r.length>0&&r.every(i=>(q.doneBy||[]).includes(i))};
@@ -340,7 +233,6 @@ const vit=p=>{const hm=p.hpMax??50,nm=p.nxMax??1000;return {hm,nm,h:Math.min(hm,
 const bar=(v,m,c)=>`<div class="vbar ${c}"><i style="width:${m?Math.max(0,Math.min(100,v/m*100)):0}%"></i><span>${v} / ${m}</span></div>`;
 const vitalsHtml=p=>{const t=vit(p),st=(a,k)=>`<div class="steps">${a.map(d=>`<button class="mini ${d<0?'d':''}" data-${k}="${d}">${d>0?'+':''}${d}</button>`).join('')}</div>`,cu=k=>`<div class="row" style="margin-top:4px"><input id="${k}c" type="number" min="0" placeholder="Quantità personalizzata" style="margin:0"><button class="d mini" data-${k}c="-1">−</button><button class="mini" data-${k}c="1">+</button></div>`;return `<div class="card"><b style="color:var(--hp)">❤️ HP</b>${bar(t.h,t.hm,'hp')}${st([-10,-5,-1,1,5,10],'hp')}${cu('hp')}<div style="height:14px"></div><b style="color:var(--nx)">🔷 NEXUS</b>${bar(t.n,t.nm,'nx')}${st([-250,-100,-50,50,100,250],'nx')}${cu('nx')}</div>`};
 const memCard=(m,mine)=>{const v=vit(m);return `<div class="pcard ${mine?'me':''}"><div class="row sp"><b style="font-size:1.15em">${esc(m.username)}</b>${mine?'<button class="g mini" id="pdE">✎ Descrizione</button>':(masterOK&&view.name==='master'?'':`<button class="mini" data-send="${Object.keys(S.players).find(k=>S.players[k]===m)}">💸 Invia Euro</button>`)}</div><p class="mut" style="white-space:pre-wrap;margin:6px 0">${m.pdesc?esc(m.pdesc):'Nessuna descrizione.'}</p><div class="mut">❤️ HP</div>${bar(v.h,v.hm,'hp')}<div class="mut">🔷 NEXUS</div>${bar(v.n,v.nm,'nx')}</div>`};
-const partyBoard=p=>{const ids=(S.party.main&&S.party.main.members)||[];if(!ids.includes(uid))return hdr('🏕️ Party',1)+'<div class="card"><p class="mut">Non fai ancora parte di un party.</p></div>';return hdr('🏕️ Party',1)+ids.filter(i=>S.players[i]).map(i=>memCard(S.players[i],i===uid)).join('')};
 const phraseHtml=n=>{const ks=n.keys||[];if(!ks.length)return '';if(view.ph===undefined)view.ph=ks[Math.floor(Math.random()*ks.length)];return `<div class="row" style="align-items:flex-start;margin:8px 0"><div class="bubble"><b>${esc(n.name)}</b><div>“${esc(view.ph)}”</div></div></div>`};
 const askYes=msg=>new Promise(res=>{const m=document.createElement('div');m.className='modal';m.innerHTML=`<div style="text-align:center"><h3>${esc(msg)}</h3><div class="row" style="margin-top:14px"><button class="g grow" data-n>Annulla</button><button class="d grow" data-y>Elimina</button></div></div>`;document.body.append(m);m.onclick=e=>{if(e.target.dataset.n!==undefined){m.remove();res(0)}if(e.target.dataset.y!==undefined){m.remove();res(1)}}});
 function rebindDel(){
@@ -379,17 +271,6 @@ const masterPlayers=()=>{
   woundCard(p,true)+`<div class="card"><h3>🧬 TRATTI</h3>${TR.map(([k,l],i)=>`<div style="margin-top:10px"><div class="row sp"><b>${l}</b><b style="color:${COLS[i]}">${t[k]}${md.tr[k]?` <span style="color:var(--ok)">+${md.tr[k]}</span>`:''}</b></div><div class="meter"><i style="width:${Math.min(100,t[k]*20)}%;background:${COLS[i]}"></i></div></div>`).join('')}</div>`+
   `<div class="card"><h3>🗡️ SKILL</h3>${(p.skills||[]).map(s=>skillCard(s,-1,null)).join('')||'<p class="mut">Nessuna skill per ora.</p>'}</div>`+invRO(p);
 };
-async function editPlayer(id){
-  const p=S.players[id],t=trOf(p),a=abOf(p),v=vit(p);
-  const r=await ask('Modifica '+p.username,[{l:'Username',n:'username'},{l:'Euro',n:'currency',t:'number'},{l:'Gruppo sanguigno',n:'blood',t:'select',o:BLOODS},{l:'Punti tratti',n:'points',t:'number'},{l:'Punti abilità',n:'pointsAb',t:'number'},{l:'HP massimi',n:'hpMax',t:'number'},{l:'HP attuali',n:'hp',t:'number'},{l:'NEXUS massimo',n:'nxMax',t:'number'},{l:'NEXUS attuale',n:'nx',t:'number'},...TR.map(([k,l])=>({l:'Tratto '+l,n:'t_'+k,t:'number'})),...AB.map(([k,l])=>({l:'Abilità '+l,n:'a_'+k,t:'number'}))],{...p,points:p.points||0,pointsAb:p.pointsAb||0,hpMax:v.hm,hp:v.h,nxMax:v.nm,nx:v.n,...Object.fromEntries(TR.map(([k])=>['t_'+k,t[k]])),...Object.fromEntries(AB.map(([k])=>['a_'+k,a[k]]))});
-  if(r)guard(db.collection('players').doc(id).update({username:r.username||p.username,currency:r.currency,blood:r.blood,points:r.points,pointsAb:r.pointsAb,hpMax:r.hpMax,hp:Math.min(r.hp,r.hpMax),nxMax:r.nxMax,nx:Math.min(r.nx,r.nxMax),traits:Object.fromEntries(TR.map(([k])=>[k,Math.min(99,r['t_'+k])])),abilities:Object.fromEntries(AB.map(([k])=>[k,Math.min(99,r['a_'+k])]))}));
-}
-function rebindMP(){
-  if(!tab)selP=null;
-  const bk=$('#bk');if(bk&&tab==='profile'&&selP)bk.onclick=()=>{selP=null;render()};
-  app.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>{selP=b.dataset.open;render()});
-  app.querySelectorAll('[data-pe]').forEach(b=>b.onclick=()=>editPlayer(b.dataset.pe));
-}
 /* ===== v7: inventario, messaggi, ferite, editor player ===== */
 let invTab='arma',editing=false,draft={};
 const PN={head:'Testa',torso:'Torso',armR:'Braccio destro',armL:'Braccio sinistro',legR:'Gamba destra',legL:'Gamba sinistra'};
@@ -403,7 +284,6 @@ const msgAv=m=>m.from&&m.from.photo?`<img class="avatar" src="${esc(m.from.photo
 const myMsgs=()=>Object.values(S.msgs).filter(m=>!(m.to&&m.to.length)||m.to.includes(uid));
 const msgBoard=p=>hdr('✉️ Messaggi',1)+(myMsgs().sort((a,b)=>b.ts-a.ts).map(m=>{const c=m.kind==='ferita'?(m.lv?'var(--red2)':'var(--ok)'):m.kind==='money'?'var(--ok)':'var(--acc)';return `<div class="card" style="border-left:4px solid ${c}"><div class="row" style="gap:10px">${msgAv(m)}<div class="grow"><b>${msgFrom(m)}</b><div class="mut">${new Date(m.ts).toLocaleString('it-IT')}</div></div></div><p style="white-space:pre-wrap;margin:8px 0 0">${msgText(m)}</p></div>`}).join('')||'<p class="mut">Nessun messaggio.</p>');
 const masterMsgs=()=>hdr('✉️ Messaggi',1)+'<button id="newMsg" style="width:100%">✉️ Nuovo messaggio</button>'+(Object.values(S.msgs).sort((a,b)=>b.ts-a.ts).map(m=>`<div class="card"><div class="row sp"><b>${msgFrom(m)}</b><button class="d mini" data-md="${m.id}">🗑</button></div><div class="mut">A: ${m.to&&m.to.length?m.to.map(i=>esc(S.players[i]?S.players[i].username:'?')).join(', '):'tutti i player'} · ${new Date(m.ts).toLocaleString('it-IT')}</div><p style="white-space:pre-wrap;margin:6px 0 0">${msgText(m)}</p></div>`).join('')||'<p class="mut">Nessun messaggio inviato.</p>');
-const invRow=e=>`<div class="move" style="border-left-color:var(--acc2)"><div style="font-size:1.6em">${e.photo?`<img src="${esc(e.photo)}" style="width:44px;height:44px;object-fit:cover;border-radius:8px">`:(CATI[e.cat]||'🎁')}</div><div class="grow"><b>${esc(e.name)}</b><div class="mut">${e.uses==null?'♾ Infinito':e.uses+(e.uses===1?' uso':' usi')}${e.bonus?` · <span style="color:var(--ok)">+${e.bonus.v} ${esc(bonusLabel(e.bonus))}</span>`:''}</div></div>${e.uses!=null?`<button class="mini" data-use="${e.id}">Usa</button>`:''}</div>`;
 const invBoard=p=>{
   const tabs=[['arma','⚔️ Armi'],['armatura','🛡️ Armature'],['oggetto','🎁 Item'],['soldi','💶 Soldi']];
   const head=hdr('🎒 Inventario',1)+`<div class="tabs">${tabs.map(([k,l])=>`<button class="${invTab===k?'on':''}" data-it="${k}">${l}</button>`).join('')}</div>`;
@@ -498,10 +378,6 @@ function checkM(){
 let cuid=null;
 const SKF=[{l:'Nome',n:'n'},{l:'Costo NEXUS',n:'c',t:'number'},{l:'Effetto',n:'e',t:'area'},{l:'Danno',n:'dmg'},{l:'Durata',n:'dur'}];
 const skillCard=(s,i,p)=>{const c=s.c||0,eff=s.e??s.d??'',ok=p&&vit(p).n>=c;return `<div class="move" style="border-left-color:var(--nx);flex-direction:column;align-items:stretch"><div class="row sp"><b style="font-size:1.05em">${esc(s.n)}</b><span class="pill" style="border-color:var(--nx);color:var(--nx)">🔷 ${c}</span></div>${eff?`<div class="mut" style="white-space:pre-wrap">${esc(eff)}</div>`:''}<div class="row" style="flex-wrap:wrap;gap:6px">${s.dmg?`<span class="pill" style="border-color:var(--danger);color:var(--danger)">💥 ${esc(s.dmg)}</span>`:''}${s.dur?`<span class="pill" style="border-color:var(--gold);color:var(--gold)">⏳ ${esc(s.dur)}</span>`:''}</div>${p?`<div class="row" style="gap:6px"><button class="grow" data-su="${i}" ${ok?'':'disabled'}>⚡ Usa</button><button class="g mini" data-se="${i}">✎</button><button class="d mini" data-sk="${i}">✕</button></div>`:''}</div>`};
-function renderSplash(){
-  app.innerHTML=`<div class="splash"><div style="letter-spacing:6px;opacity:.8">BENVENUTO IN</div><h1 style="letter-spacing:2px;margin:6px 0 0">NEXUS CONNECTION</h1><div class="dropwrap"><button class="drop" id="drop" aria-label="Entra">${DROP}</button></div><div style="color:var(--acc2);font-weight:700;letter-spacing:1px">Tocca la goccia per entrare</div></div>`;
-  $('#drop').onclick=authSheet;
-}
 function authSheet(){
   const m=document.createElement('div');m.className='modal';
   m.innerHTML=`<div style="text-align:center"><div style="font-size:2.6em">🩸</div><h3>Entra in Nexus Connection</h3><button style="width:100%;margin:6px 0;padding:14px" data-n>🩸 Nuovo player<br><small style="font-weight:400">Crea un nuovo personaggio</small></button><button class="g" style="width:100%;margin:6px 0;padding:14px" data-a>🔑 Accedi<br><small style="font-weight:400">Ho già un account</small></button><button class="g mini" data-x style="margin-top:6px">Annulla</button></div>`;
@@ -733,16 +609,6 @@ function inShape(s,x,y,n){
   if(s==='ovale')return dx*dx+dy*dy/.36<=1;
   if(s==='diamante')return Math.abs(dx)+Math.abs(dy)<=1;
   return true;
-}
-function drawAddon(ctx,P,a,Z){
-  const X=a.x*Z,Y=a.y*Z,W=a.s*Z,r=(fx,fy,fw,fh,col)=>{ctx.fillStyle=col;ctx.fillRect(X+fx*W,Y+fy*W,fw*W,fh*W)};
-  if(a.t==='casa'){r(.1,.45,.8,.5,P.house);r(.05,.2,.9,.28,P.roof);r(.42,.65,.16,.3,shadeC(P.roof,.55))}
-  else if(a.t==='montagna'){r(.05,.7,.9,.25,P.mount);r(.2,.45,.6,.27,P.mount);r(.35,.2,.3,.27,P.mount);r(.4,.2,.2,.14,P.snow)}
-  else if(a.t==='albero'){r(.43,.65,.14,.3,'#6b4a2b');r(.2,.4,.6,.3,P.tree);r(.3,.15,.4,.3,shadeC(P.tree,1.15))}
-  else if(a.t==='torre'){r(.3,.25,.4,.7,P.wall);r(.25,.12,.5,.15,shadeC(P.wall,.8));r(.43,.5,.14,.2,'#14121a')}
-  else if(a.t==='tenda'){r(.1,.7,.8,.25,P.roof);r(.25,.45,.5,.27,P.roof);r(.4,.2,.2,.27,P.roof);r(.44,.72,.12,.23,'#14121a')}
-  else if(a.t==='tesoro'){r(.2,.4,.6,.5,P.treasure);r(.2,.4,.6,.12,shadeC(P.treasure,.75));r(.45,.55,.1,.15,'#14121a')}
-  else if(a.t==='bandiera'){r(.28,.1,.07,.85,'#3a3340');r(.35,.12,.4,.28,'#d02f3a')}
 }
 function drawScale(ctx,c,Z){
   const n=c.size,L=Math.max(1,Math.round(n/8)),W=L*Z,fs=Math.max(10,Math.round(Z*1.3)),pad=Math.round(fs*.5);
