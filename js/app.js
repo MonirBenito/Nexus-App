@@ -4,7 +4,109 @@ const $=s=>document.querySelector(s), app=$('#app');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let db,user,assets,uid,isMaster=false,masterOK=false,authed=false,cred=null,S={players:{},npcs:{},items:{},quests:{},party:{},msgs:{},maps:{}},view={name:'splash'},tab='players';
 const DROP=`<svg viewBox="0 0 100 130" width="100%" height="100%"><defs><radialGradient id="g" cx="35%" cy="40%"><stop offset="0" stop-color="#ff4d5a"/><stop offset="1" stop-color="#8a0c16"/></radialGradient></defs><path d="M50 4C50 4 8 58 8 84a42 42 0 0 0 84 0C92 58 50 4 50 4Z" fill="url(#g)"/><ellipse cx="34" cy="86" rx="7" ry="15" fill="#fff" opacity=".25" transform="rotate(20 34 86)"/></svg>`;
-function toast(t){const e=document.createElement('div');e.className='toast';e.textContent=t;document.body.append(e);setTimeout(()=>e.remove(),2200)}
+/* ===== suoni: sintetizzati con WebAudio (nessun file audio) ===== */
+const SN={u:null,hp:0,nx:0,cur:0};
+const SND=(()=>{
+  let ctx=null,out=null,on=true,last=0,lastSp=0;
+  try{on=localStorage.getItem('nx_snd')!=='0'}catch(e){}
+  const AC=window.AudioContext||window.webkitAudioContext;
+  function init(){
+    if(!AC)return false;
+    if(!ctx){try{ctx=new AC();out=ctx.createGain();out.gain.value=.55;const cmp=ctx.createDynamicsCompressor();out.connect(cmp);cmp.connect(ctx.destination)}catch(e){ctx=null;return false}}
+    if(ctx.state==='suspended')ctx.resume().catch(()=>{});
+    return true;
+  }
+  function t(f,d,o){
+    o=o||{};const T=ctx.currentTime+(o.at||0),g=ctx.createGain(),osc=ctx.createOscillator(),v=o.v==null?.2:o.v;
+    osc.type=o.w||'square';osc.frequency.setValueAtTime(f,T);
+    if(o.to)osc.frequency.exponentialRampToValueAtTime(Math.max(20,o.to),T+d);
+    g.gain.setValueAtTime(.0001,T);g.gain.linearRampToValueAtTime(v,T+.005);g.gain.exponentialRampToValueAtTime(.0001,T+d);
+    osc.connect(g);g.connect(out);osc.start(T);osc.stop(T+d+.03);
+  }
+  function n(d,o){
+    o=o||{};const T=ctx.currentTime+(o.at||0),len=Math.max(1,Math.floor(ctx.sampleRate*d)),b=ctx.createBuffer(1,len,ctx.sampleRate),a=b.getChannelData(0);
+    for(let i=0;i<len;i++)a[i]=Math.random()*2-1;
+    const s=ctx.createBufferSource(),f=ctx.createBiquadFilter(),g=ctx.createGain();
+    s.buffer=b;f.type=o.ft||'bandpass';f.frequency.setValueAtTime(o.f||1500,T);if(o.to)f.frequency.exponentialRampToValueAtTime(o.to,T+d);
+    g.gain.setValueAtTime(o.v==null?.25:o.v,T);g.gain.exponentialRampToValueAtTime(.0001,T+d);
+    s.connect(f);f.connect(g);g.connect(out);s.start(T);s.stop(T+d+.03);
+  }
+  const arp=(fs,step,d,o)=>fs.forEach((f,i)=>t(f,d,{...(o||{}),at:((o&&o.at)||0)+i*step}));
+  const P={
+    click:()=>t(660,.05,{v:.12}),
+    tile:()=>{t(520,.06,{v:.14});t(780,.08,{v:.12,at:.05})},
+    back:()=>t(440,.07,{v:.13,to:300}),
+    open:()=>{t(400,.07,{v:.12});t(600,.09,{v:.12,at:.06})},
+    close:()=>t(500,.08,{v:.1,to:300}),
+    toast:()=>t(880,.06,{v:.1,w:'triangle'}),
+    error:()=>{t(180,.14,{v:.2,w:'sawtooth'});t(140,.2,{v:.2,w:'sawtooth',at:.12})},
+    danger:()=>t(300,.1,{v:.14,to:160,w:'sawtooth'}),
+    ok:()=>arp([660,880],.07,.1,{v:.14}),
+    buy:()=>{arp([988,1319],.07,.12,{v:.16});n(.05,{f:6000,ft:'highpass',v:.1})},
+    coin:()=>arp([1319,1760],.06,.14,{v:.16}),
+    login:()=>arp([392,523,659,784],.08,.16,{v:.15,w:'triangle'}),
+    enc:()=>arp([330,392,494],.1,.2,{v:.17,w:'triangle'}),
+    alarm:()=>{for(let i=0;i<3;i++){t(220,.12,{v:.2,w:'sawtooth',at:i*.2});t(165,.12,{v:.2,w:'sawtooth',at:i*.2+.1})}},
+    quest:()=>arp([523,659,784,1047],.09,.2,{v:.16}),
+    fanfare:()=>{arp([523,659,784],.1,.18,{v:.17});t(1047,.5,{v:.18,at:.3});t(784,.5,{v:.12,at:.3,w:'triangle'})},
+    msg:()=>{t(784,.09,{v:.14,w:'triangle'});t(1047,.14,{v:.14,w:'triangle',at:.09})},
+    hurt:()=>{t(200,.25,{v:.25,w:'sawtooth',to:70});n(.18,{f:900,to:200,v:.3})},
+    heal:()=>arp([523,659,784,1047],.07,.16,{v:.13,w:'sine'}),
+    nx:()=>t(600,.2,{v:.12,w:'sine',to:900}),
+    dice:()=>n(.06,{f:2500+Math.random()*1500,v:.18}),
+    land:()=>{t(180,.12,{v:.22,w:'triangle',to:90});n(.08,{f:1200,v:.2})},
+    crit:()=>arp([784,988,1175,1568],.06,.16,{v:.16}),
+    fail:()=>t(300,.3,{v:.2,w:'sawtooth',to:100}),
+    attack:()=>{n(.22,{f:500,to:4000,v:.3});t(300,.16,{v:.1,w:'sawtooth',to:600})},
+    skill:()=>{t(400,.3,{v:.15,w:'sine',to:1200});t(800,.3,{v:.1,w:'triangle',to:1600,at:.05})},
+    use:()=>{t(500,.1,{v:.14,w:'triangle',to:800});t(800,.1,{v:.12,w:'triangle',at:.08})},
+    ko:()=>arp([330,262,196,147],.14,.25,{v:.2,w:'sawtooth'}),
+    loot:()=>{arp([784,988,1175,1568,1976],.07,.16,{v:.15});n(.2,{f:7000,ft:'highpass',v:.08,at:.1})},
+    paint:()=>n(.05,{f:700,v:.12}),
+    place:()=>{t(300,.06,{v:.16,w:'triangle',to:200});n(.04,{f:900,v:.1})},
+    erase:()=>n(.07,{f:2500,to:800,v:.12}),
+    pin:()=>{t(880,.05,{v:.14});t(1320,.09,{v:.14,at:.05})},
+    type:()=>t(1200+Math.random()*300,.018,{v:.06})
+  };
+  const FREE={type:1,dice:1};
+  function play(k,sp){
+    if(!on||!P[k]||!init()||ctx.state!=='running')return;
+    const now=performance.now();
+    if(!sp&&!FREE[k]&&now-last<35)return;
+    last=now;if(sp)lastSp=now;
+    try{P[k]()}catch(e){}
+  }
+  const toggle=()=>{on=!on;try{localStorage.setItem('nx_snd',on?'1':'0')}catch(e){}if(on)play('ok',1);return on};
+  ['pointerdown','touchstart','keydown'].forEach(ev=>addEventListener(ev,init,{capture:true,passive:true}));
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden&&ctx&&ctx.state==='suspended')ctx.resume().catch(()=>{})});
+  /* suono automatico su ogni pulsante */
+  document.addEventListener('click',e=>{
+    const el=e.target.closest&&e.target.closest('button,.tile,.item,summary,.stb,.chipb');
+    if(!el||el.matches('[data-atk],[data-su],[data-use],[data-nko],[data-nlt],#sndbtn'))return;
+    const inModal=!!el.closest('.modal');
+    play(el.id==='bk'||el.id==='tb-back'?'back'
+      :inModal&&el.matches('[data-x],[data-c],[data-n]')?'close'
+      :inModal&&el.matches('[data-ok]')?'ok'
+      :el.matches('.tile,[data-go],[data-npc],#tb-start,.item')?'tile'
+      :el.classList.contains('d')?'danger':'click');
+  },true);
+  /* apertura di ogni finestra di dialogo (se non ha già un suono suo) */
+  new MutationObserver(ms=>{for(const m of ms)for(const x of m.addedNodes)if(x.nodeType===1&&x.classList.contains('modal')&&performance.now()-lastSp>150)play('open',true)}).observe(document.body,{childList:true});
+  /* pulsante muto/audio nella barra in basso */
+  const st=document.createElement('style');
+  st.textContent='body.locked #sndbtn{opacity:.4;min-width:0;width:40px;height:36px;padding:0;background:transparent;border-color:transparent;box-shadow:none;font-size:16px}body.locked #sndbtn:hover{opacity:1;background:var(--ink)}#sndbtn{font-size:16px}';
+  document.head.append(st);
+  const tb=document.getElementById('taskbar'),mb=document.getElementById('mbtn');
+  if(tb){
+    const b=document.createElement('button');b.className='tb-btn';b.id='sndbtn';b.setAttribute('aria-label','Suoni');
+    const sync=()=>{b.textContent=on?'🔊':'🔇';b.title=on?'Suoni attivi (tocca per silenziare)':'Suoni disattivati'};
+    sync();b.onclick=()=>{toggle();sync()};
+    tb.insertBefore(b,mb||null);
+  }
+  return {play,toggle,sp:()=>lastSp};
+})();
+const SND_ERR=/insufficien|non consentit|errat|non valid|esaurit|troppo|già registrata|non esiste|non disponibile|oltre|Limite|Max |non riconosciuto|non leggibile|Scegli|Scrivi|Salva prima|Fuori dalla|Nessun /i;
+function toast(t){SND.play(SND_ERR.test(String(t))?'error':'toast');const e=document.createElement('div');e.className='toast';e.textContent=t;document.body.append(e);setTimeout(()=>e.remove(),2200)}
 
 /* ---- form modale generica ---- */
 
@@ -21,7 +123,7 @@ async function redeem(it){
   const history=[{n:it.name,p:it.price,t:Date.now()},...(p.history||[])].slice(0,30);
   await guard(db.collection('players').doc(uid).update({currency:cur,xp,level:1+Math.floor(xp/100),history,...(it.rtype==='currency'?{}:{inv:[...(p.inv||[]),{id:uid8(),it:it.id,name:it.name,cat:it.cat||'oggetto',photo:it.photo||'',desc:it.desc||'',uses:it.use==='utilizzabile'?it.uses:null,bonuses:bonusesOf(it),arm:it.arm||0,...dmgCopy(it)}]})}));
   if(it.stock!=null)try{await db.collection('items').doc(it.id).update({stock:it.stock-1})}catch(e){}
-  toast('Riscattato: '+it.name);
+  SND.play('buy',1);toast('Riscattato: '+it.name);
 }
 
 /* ---- viste ---- */
@@ -57,13 +159,13 @@ const egoOf=p=>p.ego&&typeof p.ego==='object'?p.ego:{t:'',e:p.ego||''};
 const egoHtml=p=>{const g=egoOf(p);return g.t||g.e?`<b style="font-size:1.2em;display:block;margin-top:4px">${esc(g.t)}</b><div class="mut" style="margin-top:6px">Effetto</div><p style="white-space:pre-wrap;margin:2px 0">${esc(g.e)}</p>`:'<span class="mut">Scrivi qui il potere del tuo personaggio.</span>'};
 const traitsHtml=p=>{const t=trOf(p),pts=p.points||0;return `<div class="card" style="border-color:var(--acc3)"><div class="row sp"><h3 style="color:var(--acc3)">🧬 TRATTI</h3><span class="tag">Punti: ${pts}</span></div>${TR.map(([k,l])=>`<div class="row sp" style="margin-top:8px"><b>${l}</b><div class="row"><span style="letter-spacing:2px;color:var(--acc2)">${'●'.repeat(t[k])}${'○'.repeat(Math.max(0,5-t[k]))}</span><button data-tr="${k}" ${pts<1||t[k]>=5?'disabled':''}>+</button></div></div>`).join('')}</div>`};
 const abHtml=p=>{const a=abOf(p);return `<div class="card"><h3>🎯 ABILITÀ</h3><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px">${AB.map(([k,l])=>`<div class="row sp"><span>${l}</span><b style="color:var(--acc)">${a[k]}</b></div>`).join('')}</div></div>`};
-const statsCard=p=>`<div class="card stats" style="grid-template-columns:repeat(2,1fr)"><div><b style="color:var(--ok)">💶 ${p.currency}</b><span class="mut">Euro</span></div><div><b style="color:var(--red2)">${p.blood&&p.blood!=='Non indicato'?esc(p.blood):'—'}</b><span class="mut">Gruppo sanguigno</span></div></div>`;
+const statsCard=p=>`<div class="card stats" style="grid-template-columns:repeat(2,1fr)"><div><b style="color:var(--ok)">🪙 ${p.currency}</b><span class="mut">Nummus</span></div><div><b style="color:var(--red2)">${p.blood&&p.blood!=='Non indicato'?esc(p.blood):'—'}</b><span class="mut">Gruppo sanguigno</span></div></div>`;
 const av=n=>`<div class="avatar">${n.photo?`<img class="avatar" src="${esc(n.photo)}">`:'🩸'}</div>`;
 const hdr=(t,back)=>`<div class="bar"><div class="row">${back?'<button class="g" id="bk">‹</button>':''}<h2>${t}</h2></div><div class="row">${masterOK&&view.name==='master'?'':'<button class="g" id="thm" title="Tema colore">🎨</button>'}<button class="g" id="out">${masterOK&&view.name==='master'?'Esci':'⎋'}</button></div></div>`;
 function ask(title,fields,init={}){return new Promise(res=>{
  const m=document.createElement('div');m.className='modal';
  const inp=f=>f.t==='select'?`<select name="${f.n}">${f.o.filter(o=>o!=='xp').map(o=>`<option ${init[f.n]==o?'selected':''}>${o}</option>`).join('')}</select>`:f.t==='area'?`<textarea name="${f.n}" rows="3">${esc(init[f.n])}</textarea>`:f.t==='file'?`<input name="${f.n}" type="file" accept="image/jpeg,image/png,image/webp">`:f.t==='multi'?(f.o.length?f.o.map(([v,l])=>`<label class="row" style="margin:6px 0"><input type="checkbox" name="${f.n}" value="${esc(v)}" style="width:auto;margin:0" ${(init[f.n]||[]).includes(v)?'checked':''}>${esc(l)}</label>`).join(''):'<p class="mut">'+(f.e||'Nessun player registrato.')+'</p>'):`<input name="${f.n}" type="${f.t||'text'}" value="${esc(init[f.n])}">`;
- m.innerHTML=`<div><h3>${esc(title)}</h3>${fields.map(f=>`<label class="mut">${esc(f.l.replace('(monete/xp)','(Euro)'))}</label>`+inp(f)).join('')}<div class="row"><button class="g grow" data-x>Annulla</button><button class="grow" data-ok>Salva</button></div></div>`;
+ m.innerHTML=`<div><h3>${esc(title)}</h3>${fields.map(f=>`<label class="mut">${esc(f.l.replace('(monete/xp)','(Nummus)'))}</label>`+inp(f)).join('')}<div class="row"><button class="g grow" data-x>Annulla</button><button class="grow" data-ok>Salva</button></div></div>`;
  document.body.append(m);
  m.onclick=e=>{if(e.target.dataset.x!==undefined||e.target===m){m.remove();res(null)}
   if(e.target.dataset.ok!==undefined){const o={};for(const f of fields){if(f.t==='file'){o[f.n]=m.querySelector(`[name=${f.n}]`).files[0]||null;continue}if(f.t==='multi'){o[f.n]=[...m.querySelectorAll(`[name=${f.n}]:checked`)].map(x=>x.value);continue}const v=m.querySelector(`[name=${f.n}]`).value;o[f.n]=f.t==='number'?Math.max(0,parseInt(v)||0):v.trim()}m.remove();res(o)}};
@@ -89,7 +191,7 @@ function renderBoard(){
   const p=me(),v=view.name;let b='';
   if(v==='profile')b=profileHtml(p);else if(0)b=hdr('👤 Profilo',1)+`<div class="card"><div class="row sp"><b>${esc(p.username)}</b><button class="g" id="ren">✎</button></div></div>`+statsCard(p)+`<div class="card"><label class="mut">🩸 Gruppo sanguigno</label><select id="bld" style="margin-bottom:0">${BLOODS.map(o=>`<option ${p.blood===o?'selected':''}>${o}</option>`).join('')}</select></div><div class="card" style="border:2px solid var(--acc2)"><div class="row sp"><h3 style="color:var(--acc2)">⚡ EGO</h3><button class="g" id="egoE">✎</button></div>${egoHtml(p)}</div>${traitsHtml(p)}${abHtml(p)}<div class="card" style="border-color:var(--acc)"><div class="row sp"><h3 style="color:var(--acc)">🗡️ SKILL</h3><button id="skA">+ Mossa</button></div>${(p.skills||[]).map((s,i)=>`<div class="row sp" style="margin-top:10px"><div><b>${esc(s.n)}</b><div class="mut" style="white-space:pre-wrap">${esc(s.d)}</div></div><button class="d" data-sk="${i}">✕</button></div>`).join('')||'<p class="mut">Nessuna mossa per ora.</p>'}</div><h3>Ultimi riscatti</h3>`+((p.history||[]).slice(0,5).map(h=>`<div class="mut">${esc(h.n)} · −${h.p}</div>`).join('')||'<p class="mut">Nessun riscatto.</p>');
   if(v==='npcs')b=hdr('🧙 Incontri',1)+(Object.values(S.npcs).filter(visN).map(n=>`<div class="card row" data-npc="${n.id}" style="cursor:pointer">${av(n)}<div class="grow"><b>${esc(n.name)}</b> <span class="tag">${KIND[kindOf(n)]}</span> <span class="tag" style="color:${attOf(n).c}">${attOf(n).i} ${attOf(n).l}</span> ${koTag(n)}<div class="mut">${esc(n.desc)}</div></div>›</div>`).join('')||'<p class="mut">Nessun incontro disponibile.</p>');
-  if(v==='ego')b=egoBoard(p);if(v==='map')b=mapBoard(false);if(v==='inv')b=invBoard(p);if(v==='msgs')b=msgBoard(p);if(v==='party')b=partyBoard2(p);if(v==='quests')b=questBoard();else if(0)b=hdr('📜 Obiettivi',1)+(Object.values(S.quests).filter(q=>!(q.to&&q.to.length)||q.to.includes(uid)).map(q=>`<div class="card"><b>${esc(q.title)}</b><div class="row" style="margin-top:6px"><span class="tag">+${q.coins||0} 💶</span></div></div>`).join('')||'<p class="mut">Nessun obiettivo per te al momento.</p>');
+  if(v==='ego')b=egoBoard(p);if(v==='map')b=mapBoard(false);if(v==='inv')b=invBoard(p);if(v==='msgs')b=msgBoard(p);if(v==='party')b=partyBoard2(p);if(v==='quests')b=questBoard();else if(0)b=hdr('📜 Obiettivi',1)+(Object.values(S.quests).filter(q=>!(q.to&&q.to.length)||q.to.includes(uid)).map(q=>`<div class="card"><b>${esc(q.title)}</b><div class="row" style="margin-top:6px"><span class="tag">+${q.coins||0} 🪙</span></div></div>`).join('')||'<p class="mut">Nessun obiettivo per te al momento.</p>');
   app.innerHTML=b;bind();
   app.querySelectorAll('[data-npc]').forEach(e=>e.onclick=()=>{view={name:'npc',id:e.dataset.npc};render()});
   const U=d=>guard(db.collection('players').doc(uid).update(d));
@@ -110,15 +212,15 @@ function renderBoard(){
   const skD=r=>({n:r.n.slice(0,60),c:r.c,e:r.e.slice(0,600),dmg:r.dmg.slice(0,60),dur:r.dur.slice(0,60),...dmgClean({...r,dfix:0},true)});
   if($('#skA'))$('#skA').onclick=async()=>{const r=await ask('Nuova skill',SKF,{c:0,dt:'d6'});if(r&&r.n)U({skills:[...(p.skills||[]),skD(r)]})};
   app.querySelectorAll('[data-se]').forEach(x=>x.onclick=async()=>{const i=+x.dataset.se,s=(p.skills||[])[i];if(!s)return;const r=await ask('Modifica skill',SKF,{...s,dt:s.dt||'d6',e:s.e??s.d??''});if(r&&r.n){const l=[...p.skills];l[i]=skD(r);U({skills:l})}});
-  app.querySelectorAll('[data-su]').forEach(x=>x.onclick=()=>{const s=(p.skills||[])[+x.dataset.su];if(!s)return;const v=vit(p),c=s.c||0;if(v.n<c)return toast('NEXUS insufficiente');U({nx:v.n-c});toast('⚡ '+s.n+' usata: −'+c+' NEXUS');if((s.dn|0)>0)rollDice({title:'⚡ '+s.n,n:s.dn,die:dieOf(s),fix:/^\d+$/.test(String(s.dmg||'').trim())?+s.dmg:0,min:s.dmin|0})});
+  app.querySelectorAll('[data-su]').forEach(x=>x.onclick=()=>{const s=(p.skills||[])[+x.dataset.su];if(!s)return;const v=vit(p),c=s.c||0;if(v.n<c)return toast('NEXUS insufficiente');U({nx:v.n-c});SND.play('skill',1);toast('⚡ '+s.n+' usata: −'+c+' NEXUS');if((s.dn|0)>0)rollDice({title:'⚡ '+s.n,n:s.dn,die:dieOf(s),fix:/^\d+$/.test(String(s.dmg||'').trim())?+s.dmg:0,min:s.dmin|0})});
   app.querySelectorAll('[data-sk]').forEach(x=>x.onclick=()=>{if(confirm('Rimuovere la skill?'))U({skills:(p.skills||[]).filter((_,i)=>i!==+x.dataset.sk)})});
   if($('#ren'))$('#ren').onclick=async()=>{const r=await ask('Il tuo nome',[{l:'Username',n:'username'}],p);if(r&&r.username.length>=3)guard(db.collection('players').doc(uid).update({username:r.username.slice(0,32)}))};
 }
 function renderMaster(){
   const C=n=>db.collection(n);let b='';
   if(!tab)b=hdr('Pannello Master')+tiles();
-  if(tab==='profile')b=(editing&&selP&&S.players[selP])?editScreen():masterPlayers();else if(0)b=hdr('👥 Player',1)+(Object.entries(S.players).map(([id,p])=>`<div class="card"><div class="row sp"><b>${esc(p.username)}</b><span class="tag">💶 ${p.currency} · ${esc(p.blood||'—')} · ${p.points||0} PT · ${p.pointsAb||0} PA · ❤️${vit(p).h}/${vit(p).hm} 🔷${vit(p).n}/${vit(p).nm}</span></div><div class="row" style="margin-top:8px"><button class="g grow" data-pe="${id}">Modifica</button><button class="g" data-pa="${id}">Abilità</button><button class="d" data-pd="${id}">Elimina</button></div></div>`).join('')||'<p class="mut">Nessun player registrato.</p>');
-  if(tab==='npcs')b=hdr('🧙 Incontri',1)+`<button id="addN" style="width:100%">+ Nuovo incontro</button>`+Object.values(S.npcs).map(n=>`<div class="card"><div class="row">${av(n)}<div class="grow"><b>${esc(n.name)}</b> <span class="tag">${KIND[kindOf(n)]}</span> <span class="tag" style="color:${attOf(n).c}">${attOf(n).i} ${attOf(n).l}</span> ${n.active===false?'<span class="tag">nascosto</span>':''} ${koTag(n)}<div class="mut">${esc(n.desc)}</div><div class="mut">👁 ${n.to&&n.to.length?n.to.map(i=>esc(S.players[i]?.username||'?')).join(', '):'Tutti i player'}</div></div></div><div class="row" style="margin-top:8px"><button class="g grow" data-ne="${n.id}">Modifica</button><button class="g" data-np="${n.id}">📷</button><button class="d" data-nd="${n.id}">✕</button></div>${kindOf(n)==='mercante'?`<div class="row sp" style="margin-top:12px"><b>Shop</b><button data-ia="${n.id}">+ Oggetto</button></div>`+Object.values(S.items).filter(i=>i.npc===n.id).map(i=>`<div class="row sp" style="margin-top:8px"><div>${esc(i.name)} <span class="tag">💶${i.price} · ${esc(i.rtype)}${i.rtype!=='item'?' +'+i.amount:''} · ${i.stock!=null?i.stock:'∞'}</span></div><div class="row"><button class="g" data-ie="${i.id}">✎</button><button class="d" data-id="${i.id}">✕</button></div></div>`).join(''):npcInvHtml(n)}</div>`).join('');
+  if(tab==='profile')b=(editing&&selP&&S.players[selP])?editScreen():masterPlayers();else if(0)b=hdr('👥 Player',1)+(Object.entries(S.players).map(([id,p])=>`<div class="card"><div class="row sp"><b>${esc(p.username)}</b><span class="tag">🪙 ${p.currency} · ${esc(p.blood||'—')} · ${p.points||0} PT · ${p.pointsAb||0} PA · ❤️${vit(p).h}/${vit(p).hm} 🔷${vit(p).n}/${vit(p).nm}</span></div><div class="row" style="margin-top:8px"><button class="g grow" data-pe="${id}">Modifica</button><button class="g" data-pa="${id}">Abilità</button><button class="d" data-pd="${id}">Elimina</button></div></div>`).join('')||'<p class="mut">Nessun player registrato.</p>');
+  if(tab==='npcs')b=hdr('🧙 Incontri',1)+`<button id="addN" style="width:100%">+ Nuovo incontro</button>`+Object.values(S.npcs).map(n=>`<div class="card"><div class="row">${av(n)}<div class="grow"><b>${esc(n.name)}</b> <span class="tag">${KIND[kindOf(n)]}</span> <span class="tag" style="color:${attOf(n).c}">${attOf(n).i} ${attOf(n).l}</span> ${n.active===false?'<span class="tag">nascosto</span>':''} ${koTag(n)}<div class="mut">${esc(n.desc)}</div><div class="mut">👁 ${n.to&&n.to.length?n.to.map(i=>esc(S.players[i]?.username||'?')).join(', '):'Tutti i player'}</div></div></div><div class="row" style="margin-top:8px"><button class="g grow" data-ne="${n.id}">Modifica</button><button class="g" data-np="${n.id}">📷</button><button class="d" data-nd="${n.id}">✕</button></div>${kindOf(n)==='mercante'?`<div class="row sp" style="margin-top:12px"><b>Shop</b><button data-ia="${n.id}">+ Oggetto</button></div>`+Object.values(S.items).filter(i=>i.npc===n.id).map(i=>`<div class="row sp" style="margin-top:8px"><div>${esc(i.name)} <span class="tag">🪙${i.price} · ${esc(i.rtype)}${i.rtype!=='item'?' +'+i.amount:''} · ${i.stock!=null?i.stock:'∞'}</span></div><div class="row"><button class="g" data-ie="${i.id}">✎</button><button class="d" data-id="${i.id}">✕</button></div></div>`).join(''):npcInvHtml(n)}</div>`).join('');
   if(tab==='quests')b=hdr('📜 Obiettivi',1)+`<button id="addQ" style="width:100%">+ Nuovo obiettivo</button>`+Object.values(S.quests).map(q=>`<div class="card">${questCard(q)}<div class="mut">Per: ${q.to&&q.to.length?q.to.map(i=>esc(S.players[i]?.username||'?')).join(', '):'tutti i player'}</div><div class="row" style="margin-top:8px;flex-wrap:wrap">${qAllDone(q)?'':`<button class="grow" data-qc="${q.id}">✅ Completato</button>`}${(q.doneBy||[]).length?`<button class="g grow" data-qo="${q.id}">↩ Riapri</button>`:''}<button class="g" data-qe="${q.id}">Modifica</button><button class="d" data-qd="${q.id}">✕</button></div></div>`).join('');
   if(tab==='party')b=masterParty();else if(0){const ids=(S.party.main&&S.party.main.members)||[];b=hdr('🏕️ Party',1)+`<button id="pmem" style="width:100%">Gestisci membri</button>`+(ids.filter(i=>S.players[i]).map(i=>memCard(S.players[i],false)).join('')||'<p class="mut">Nessun membro nel party.</p>')}
   if(tab==='msgs')b=masterMsgs();
@@ -126,7 +228,7 @@ function renderMaster(){
   if(tab==='ego')b=hdr('⚡ EGO',1)+(Object.values(S.players).map(p=>{const g=egoOf(p);return `<div class="ego" style="animation:none"><b>${esc(p.username)}</b>${g.t||g.e?`<div class="et">${esc(g.t)}</div><p style="white-space:pre-wrap;margin:4px 0">${esc(g.e)}</p>`:'<p class="mut">Nessun EGO scritto.</p>'}</div>`}).join('')||'<p class="mut">Nessun player registrato.</p>');
   app.innerHTML=b;bind();
   const on=(a,fn)=>app.querySelectorAll(`[data-${a}]`).forEach(x=>x.onclick=()=>fn(x.dataset[a]));
-  on('pe',async id=>{const p=S.players[id],t=trOf(p),r=await ask('Player',[{l:'Username',n:'username'},{l:'Euro',n:'currency',t:'number'},{l:'Gruppo sanguigno',n:'blood',t:'select',o:BLOODS},{l:'Punti tratti',n:'points',t:'number'},{l:'Punti abilità',n:'pointsAb',t:'number'},{l:'HP massimi',n:'hpMax',t:'number'},{l:'HP attuali',n:'hp',t:'number'},{l:'NEXUS massimo',n:'nxMax',t:'number'},{l:'NEXUS attuale',n:'nx',t:'number'},...TR.map(([k,l])=>({l:l+' (valore)',n:k,t:'number'}))],{...p,points:p.points||0,pointsAb:p.pointsAb||0,...t,hpMax:vit(p).hm,hp:vit(p).h,nxMax:vit(p).nm,nx:vit(p).n});if(r)guard(C('players').doc(id).update({username:r.username||p.username,currency:r.currency,blood:r.blood,points:r.points,pointsAb:r.pointsAb,hpMax:r.hpMax,hp:Math.min(r.hp,r.hpMax),nxMax:r.nxMax,nx:Math.min(r.nx,r.nxMax),traits:Object.fromEntries(TR.map(([k])=>[k,Math.min(99,r[k])]))}))});
+  on('pe',async id=>{const p=S.players[id],t=trOf(p),r=await ask('Player',[{l:'Username',n:'username'},{l:'Nummus',n:'currency',t:'number'},{l:'Gruppo sanguigno',n:'blood',t:'select',o:BLOODS},{l:'Punti tratti',n:'points',t:'number'},{l:'Punti abilità',n:'pointsAb',t:'number'},{l:'HP massimi',n:'hpMax',t:'number'},{l:'HP attuali',n:'hp',t:'number'},{l:'NEXUS massimo',n:'nxMax',t:'number'},{l:'NEXUS attuale',n:'nx',t:'number'},...TR.map(([k,l])=>({l:l+' (valore)',n:k,t:'number'}))],{...p,points:p.points||0,pointsAb:p.pointsAb||0,...t,hpMax:vit(p).hm,hp:vit(p).h,nxMax:vit(p).nm,nx:vit(p).n});if(r)guard(C('players').doc(id).update({username:r.username||p.username,currency:r.currency,blood:r.blood,points:r.points,pointsAb:r.pointsAb,hpMax:r.hpMax,hp:Math.min(r.hp,r.hpMax),nxMax:r.nxMax,nx:Math.min(r.nx,r.nxMax),traits:Object.fromEntries(TR.map(([k])=>[k,Math.min(99,r[k])]))}))});
   on('pa',async id=>{const p=S.players[id],r=await ask('Abilità',AB.map(([k,l])=>({l,n:k,t:'number'})),abOf(p));if(r)guard(C('players').doc(id).update({abilities:Object.fromEntries(AB.map(([k])=>[k,Math.min(99,r[k])]))}))});
   on('pd',id=>{if(confirm('Eliminare il player?'))guard(C('players').doc(id).delete())});
   const npcF=()=>[{l:'Nome',n:'name'},{l:'Descrizione',n:'desc',t:'area'},{l:'Frasi di approccio (una per riga: se ce ne sono più di una, ne esce una a caso)',n:'keys',t:'area'},{l:'Tipo',n:'kind',t:'select',o:['mercante','combattente']},{l:'Atteggiamento',n:'att',t:'select',o:['neutrale','ostile','buono']},{l:'Visibile',n:'vis',t:'select',o:['sì','no']},{l:'Chi lo vede (nessuno selezionato = tutti i player)',n:'to',t:'multi',o:Object.entries(S.players).map(([i,p])=>[i,p.username])},{l:'Foto (max 2 MB)',n:'photo',t:'file'}];
@@ -140,7 +242,7 @@ function renderMaster(){
   on('ia',async nid=>{const r=await ask('Nuovo oggetto',itF,{rtype:'item'});if(r&&r.name){const id=uid8();guard(C('items').doc(id).set({id,npc:nid,active:true,...itSave(r)}))}});
   on('ie',async id=>{const i=S.items[id],r=await ask('Modifica oggetto',itF,{...i,stock:i.stock??0});if(r&&r.name)guard(C('items').doc(id).update(itSave(r)))});
   on('id',id=>{if(confirm('Eliminare l\'oggetto?'))guard(C('items').doc(id).delete())});
-  const qF=()=>[{l:'Titolo',n:'title'},{l:'Tipo',n:'qt',t:'select',o:['principale','secondaria']},{l:'Compiti (uno per riga)',n:'objs',t:'area'},{l:'Tempo limite (scrivi quello che vuoi, vuoto se non cè)',n:'dl'},{l:'Ricompensa: Euro',n:'coins',t:'number'},{l:'Ricompensa extra (testo, opzionale)',n:'rw'},{l:'Ricompensa: oggetti (scelti dai negozi degli incontri, opzionale)',n:'ri',t:'multi',e:'Nessun oggetto: creane prima nel negozio di un incontro.',o:Object.values(S.items).map(i=>[i.id,(CATI[i.cat||'oggetto']||'🎁')+' '+i.name])},{l:'Visibile a (nessuno selezionato = tutti)',n:'to',t:'multi',o:Object.entries(S.players).map(([i,p])=>[i,p.username])}];
+  const qF=()=>[{l:'Titolo',n:'title'},{l:'Tipo',n:'qt',t:'select',o:['principale','secondaria']},{l:'Compiti (uno per riga)',n:'objs',t:'area'},{l:'Tempo limite (scrivi quello che vuoi, vuoto se non cè)',n:'dl'},{l:'Ricompensa: Nummus',n:'coins',t:'number'},{l:'Ricompensa extra (testo, opzionale)',n:'rw'},{l:'Ricompensa: oggetti (scelti dai negozi degli incontri, opzionale)',n:'ri',t:'multi',e:'Nessun oggetto: creane prima nel negozio di un incontro.',o:Object.values(S.items).map(i=>[i.id,(CATI[i.cat||'oggetto']||'🎁')+' '+i.name])},{l:'Visibile a (nessuno selezionato = tutti)',n:'to',t:'multi',o:Object.entries(S.players).map(([i,p])=>[i,p.username])}];
   if($('#addQ'))$('#addQ').onclick=async()=>{const r=await ask('Nuovo obiettivo',qF(),{qt:'secondaria'});if(r&&r.title){const id=uid8();guard(C('quests').doc(id).set({id,...qData(r)}))}};
   on('qe',async id=>{const q=S.quests[id],r=await ask('Modifica obiettivo',qF(),{...q,qt:q.qt||'secondaria',objs:(q.objs||[]).join('\n'),dl:dlStr(q.dl)});if(r&&r.title)guard(C('quests').doc(id).update(qData(r)))});
   on('qd',id=>{if(confirm('Eliminare questo obiettivo?'))guard(C('quests').doc(id).delete())});
@@ -148,7 +250,7 @@ function renderMaster(){
     const q=S.quests[id];if(!q)return;
     const done=q.doneBy||[],all=qRec(q),todo=all.filter(i=>!done.includes(i)),coins=Math.max(0,+q.coins||0);
     if(!todo.length)return toast('Nessun player a cui assegnarla');
-    const r=await ask('✅ Obiettivo completato',[{l:'Chi l ha completato (riceve '+(coins?'💶 '+coins:'la ricompensa')+')',n:'who',t:'multi',o:todo.map(i=>[i,S.players[i].username])}],{who:todo});
+    const r=await ask('✅ Obiettivo completato',[{l:'Chi l ha completato (riceve '+(coins?'🪙 '+coins:'la ricompensa')+')',n:'who',t:'multi',o:todo.map(i=>[i,S.players[i].username])}],{who:todo});
     if(!r)return;
     const who=(r.who||[]).filter(i=>S.players[i]&&!done.includes(i));
     if(!who.length)return toast('Nessun player selezionato');
@@ -162,7 +264,7 @@ function renderMaster(){
       await guard(C('msgs').doc(mid).set({id:mid,to:[pid],from:{t:'sys',name:'SISTEMA'},kind:'obiettivo',text:q.title,qid:q.id,v:coins,rw:q.rw||'',items:its.map(i=>({name:i.name,cat:i.cat||'oggetto',photo:i.photo||'',arm:i.arm||0,bonuses:bonusesOf(i)})),ts}));
     }));
     await guard(C('quests').doc(id).update({done:qAllDone({...q,doneBy:nd}),doneAt:ts,doneBy:nd}));
-    toast('✅ Completato'+(coins?' · 💶 '+coins+' a '+who.length+' player':'')+(its.length?' · '+its.length+' oggetti consegnati':'')+(q.rw?' · extra da consegnare: '+q.rw:''));
+    toast('✅ Completato'+(coins?' · 🪙 '+coins+' a '+who.length+' player':'')+(its.length?' · '+its.length+' oggetti consegnati':'')+(q.rw?' · extra da consegnare: '+q.rw:''));
   });
   on('qo',id=>{if(confirm('Riaprire questo obiettivo? Le ricompense già date NON vengono tolte: completandola di nuovo verranno date ancora.'))guard(C('quests').doc(id).update({done:false,doneBy:[],doneAt:null}))});
   if($('#pmem'))$('#pmem').onclick=async()=>{const ids=(S.party.main&&S.party.main.members)||[],r=await ask('Membri del party',[{l:'Chi fa parte del party',n:'m',t:'multi',o:Object.entries(S.players).map(([i,p])=>[i,p.username])}],{m:ids});if(r)guard(C('party').doc('main').set({members:r.m}))};
@@ -172,19 +274,19 @@ const LD={},visN=n=>n.active!==false&&(!(n.to&&n.to.length)||n.to.includes(uid))
 const profileHtml=p=>{
   const t=trOf(p),a=abOf(p),pT=p.points||0,pA=p.pointsAb||0,g=egoOf(p),md=modOf(p),COL=Array(5).fill('var(--acc)');
   return hdr('👤 Profilo',1)+
-  `<div class="hero"><div class="grow"><div class="row sp"><h2 style="margin:0">${esc(p.username)}</h2><button class="g" id="ren">✎</button></div><div class="row" style="margin-top:8px;flex-wrap:wrap"><span class="pill eu">💶 ${p.currency}</span><span class="pill bl">🩸 ${p.blood&&p.blood!=='Non indicato'?esc(p.blood):'—'}</span></div></div></div>`+
+  `<div class="hero"><div class="grow"><div class="row sp"><h2 style="margin:0">${esc(p.username)}</h2><button class="g" id="ren">✎</button></div><div class="row" style="margin-top:8px;flex-wrap:wrap"><span class="pill eu">🪙 ${p.currency}</span><span class="pill bl">🩸 ${p.blood&&p.blood!=='Non indicato'?esc(p.blood):'—'}</span></div></div></div>`+
   vitalsHtml(p)+woundCard(p,false)+`<div class="card"><label class="mut">Gruppo sanguigno</label><select id="bld" style="margin-bottom:0">${BLOODS.map(o=>`<option ${p.blood===o?'selected':''}>${o}</option>`).join('')}</select></div>`+
   (0?`<div class="ego"><div class="row sp"><span class="lab">⚡ EGO</span><button class="g" id="egoE">✎</button></div>${g.t||g.e?`<div class="et">${esc(g.t)}</div><div class="mut" style="margin-top:8px">EFFETTO</div><p style="white-space:pre-wrap;margin:2px 0">${esc(g.e)}</p>`:'<p class="mut">Scrivi qui il potere del tuo personaggio.</p>'}</div>`:'')+
   `<div class="card"><div class="row sp"><h3>🧬 TRATTI</h3><span class="pill">Punti tratti: ${pT}</span></div>${TR.map(([k,l],i)=>`<div style="margin-top:12px"><div class="row sp"><b>${l}</b><div class="row"><b style="color:${COL[i]}">${t[k]}${t[k]<=5?'/5':''}${md.tr[k]?` <span style="color:var(--ok)">+${md.tr[k]}</span>`:''}</b><button class="mini" data-tr="${k}" ${pT<1||t[k]>=5?'disabled':''}>+</button></div></div><div class="meter"><i style="width:${Math.min(100,t[k]*20)}%;background:${COL[i]}"></i></div></div>`).join('')}</div>`+
   `<div class="card"><div class="row sp"><h3>🎯 ABILITÀ</h3><span class="pill">Punti abilità: ${pA}</span></div><div class="abg">${AB.map(([k,l])=>`<div class="chip"><span>${l}</span><div class="row" style="gap:6px"><b>${a[k]}${md.ab[k]?`<span style="color:var(--ok)">+${md.ab[k]}</span>`:''}</b><button class="mini" data-ab="${k}" ${pA<1?'disabled':''}>+</button></div></div>`).join('')}</div></div>`+
   `<div class="card"><div class="row sp"><h3>🗡️ SKILL</h3><button id="skA">+ Mossa</button></div>${(p.skills||[]).map((s,i)=>skillCard(s,i,p)).join('')||'<p class="mut">Nessuna mossa per ora.</p>'}</div>`+
-  `<h3>Ultimi acquisti</h3>`+((p.history||[]).slice(0,5).map(h=>`<div class="mut">${esc(h.n)} · −💶 ${h.p}</div>`).join('')||'<p class="mut">Nessun acquisto.</p>');
+  `<h3>Ultimi acquisti</h3>`+((p.history||[]).slice(0,5).map(h=>`<div class="mut">${esc(h.n)} · −🪙 ${h.p}</div>`).join('')||'<p class="mut">Nessun acquisto.</p>');
 };
 let encOpen=false;
 function renderNpc(){
   const n=S.npcs[view.id],p=me();if(!n||!visN(n)){view={name:'npcs'};return render()}
   const m=kindOf(n)==='mercante',its=Object.values(S.items).filter(i=>i.npc===n.id&&i.active!==false);
-  app.innerHTML=hdr(esc(n.name),1)+`<div class="hero npc"><div class="portrait">${n.photo?`<img src="${esc(n.photo)}">`:'🩸'}</div><div><span class="pill">${KIND[kindOf(n)]}</span> <span class="pill" style="color:${attOf(n).c};border-color:${attOf(n).c}">${attOf(n).i} ${attOf(n).l}</span>${n.ko?' <span class="pill" style="color:var(--danger);border-color:var(--danger)">💀 K.O.</span>':''}<div style="margin-top:8px;white-space:pre-wrap">${esc(n.desc)}</div></div></div>`+phraseHtml(n)+(m?`<div class="wallet"><span>PORTAFOGLIO</span><b>💶 ${p.currency}</b></div><h3>🛒 Bottega di ${esc(n.name)}</h3><div class="shopgrid">${its.map(i=>{const out=i.stock===0,poor=p.currency<i.price;return `<div class="item ${out?'out':''}" data-ii="${i.id}"><div class="ico">${i.photo?`${itImg(i.photo,72)}`:CATI[i.cat||'oggetto']}</div><b>${esc(i.name)}</b><span class="tag">${CATI[i.cat||'oggetto']} ${CATL[i.cat||'oggetto']}</span>${i.rtype==='currency'?`<div class="mut">Ricevi 💶 ${i.amount}</div>`:''}${(i.cat==='armatura'&&i.arm)?`<div class="mut">🛡️ −${i.arm} danni</div>`:''}${(i.cat==='arma'&&hasDmg(i))?`<div class="mut">💥 ${dmgTxt(i)}</div>`:''}${costTxt(i)?`<div class="mut">${costTxt(i)} / uso</div>`:''}<div class="mut">${i.stock!=null?(out?'ESAURITO':'Scorte: '+i.stock):'Sempre disponibile'}</div><button data-r="${i.id}" ${out||poor?'disabled':''}>💶 ${i.price}</button>${poor&&!out?'<div class="mut" style="font-size:.75em">Euro insufficienti</div>':''}</div>`}).join('')||'<p class="mut">La bottega è vuota.</p>'}</div>`:'<div class="card"><h3>⚔️ Combattente</h3><p class="mut">Nessuna azione disponibile per ora.</p></div>');
+  app.innerHTML=hdr(esc(n.name),1)+`<div class="hero npc"><div class="portrait">${n.photo?`<img src="${esc(n.photo)}">`:'🩸'}</div><div><span class="pill">${KIND[kindOf(n)]}</span> <span class="pill" style="color:${attOf(n).c};border-color:${attOf(n).c}">${attOf(n).i} ${attOf(n).l}</span>${n.ko?' <span class="pill" style="color:var(--danger);border-color:var(--danger)">💀 K.O.</span>':''}<div style="margin-top:8px;white-space:pre-wrap">${esc(n.desc)}</div></div></div>`+phraseHtml(n)+(m?`<div class="wallet"><span>PORTAFOGLIO</span><b>🪙 ${p.currency}</b></div><h3>🛒 Bottega di ${esc(n.name)}</h3><div class="shopgrid">${its.map(i=>{const out=i.stock===0,poor=p.currency<i.price;return `<div class="item ${out?'out':''}" data-ii="${i.id}"><div class="ico">${i.photo?`${itImg(i.photo,72)}`:CATI[i.cat||'oggetto']}</div><b>${esc(i.name)}</b><span class="tag">${CATI[i.cat||'oggetto']} ${CATL[i.cat||'oggetto']}</span>${i.rtype==='currency'?`<div class="mut">Ricevi 🪙 ${i.amount}</div>`:''}${(i.cat==='armatura'&&i.arm)?`<div class="mut">🛡️ −${i.arm} danni</div>`:''}${(i.cat==='arma'&&hasDmg(i))?`<div class="mut">💥 ${dmgTxt(i)}</div>`:''}${costTxt(i)?`<div class="mut">${costTxt(i)} / uso</div>`:''}<div class="mut">${i.stock!=null?(out?'ESAURITO':'Scorte: '+i.stock):'Sempre disponibile'}</div><button data-r="${i.id}" ${out||poor?'disabled':''}>🪙 ${i.price}</button>${poor&&!out?'<div class="mut" style="font-size:.75em">Nummus insufficienti</div>':''}</div>`}).join('')||'<p class="mut">La bottega è vuota.</p>'}</div>`:'<div class="card"><h3>⚔️ Combattente</h3><p class="mut">Nessuna azione disponibile per ora.</p></div>');
   bind();app.querySelectorAll('[data-r]').forEach(b=>b.onclick=ev=>{ev.stopPropagation();buy(S.items[b.dataset.r],n)});
   app.querySelectorAll('[data-ii]').forEach(c=>c.onclick=()=>buy(S.items[c.dataset.ii],n));
 }
@@ -199,7 +301,7 @@ const bonusLabel=b=>b?((b.t==='tr'?TR:AB).find(x=>x[0]===b.k)||[0,'?'])[1]:'ness
 const modOf=p=>{const m={tr:{},ab:{}};(p.inv||[]).forEach(e=>{if(e.uses==null||e.uses>0)bonusesOf(e).forEach(b=>{m[b.t][b.k]=(m[b.t][b.k]||0)+b.v})});return m};
 const uploadPhoto=async f=>{if(!assets){toast('Upload non disponibile');return ''}if(f.size>2e6){toast('Foto oltre 2 MB');return ''}const a=await guard(assets.upload(f));return a?a.url:''};
 const egoBoard=p=>{const g=egoOf(p);return hdr('⚡ EGO',1)+`<div class="ego big"><div class="row sp"><span class="lab">IL POTERE DEL PERSONAGGIO</span><button class="g" id="egoE">✎</button></div>${g.t||g.e?`<div class="et" style="font-size:2em;text-align:center;margin:18px 0">${esc(g.t)}</div><div class="mut" style="letter-spacing:3px">EFFETTO</div><p style="white-space:pre-wrap;font-size:1.05em;margin:6px 0">${esc(g.e)}</p>`:'<p class="mut" style="margin:40px 0;text-align:center">Nessun EGO scritto.<br>Tocca ✎ per definire il tuo potere.</p>'}</div>`};
-const ITF=()=>[{l:'Nome',n:'name'},{l:'Prezzo (Euro)',n:'price',t:'number'},{l:'Tipo',n:'cat',t:'select',o:['oggetto','arma','armatura']},{l:'Foto (max 2 MB)',n:'photo',t:'file'},{l:'Cosa dice il mercante (descrizione)',n:'desc',t:'area'},{l:'Utilizzo',n:'use',t:'select',o:['infinito','utilizzabile']},{l:'Numero di usi (solo se utilizzabile)',n:'uses',t:'number'},{l:'Bonus a tratti e abilità (uno per riga, es. "Mira +2" oppure "Vigore +1")',n:'bks',t:'area'},{l:'Riduzione danni (solo armature: punti di danno in meno a ogni colpo, 0 = nessuna)',n:'arm',t:'number'},...DMGF.map(f=>({...f,l:f.l+' (solo armi)'})),...COSTF,{l:'Scorte (0 = illimitate)',n:'stock',t:'number'}];
+const ITF=()=>[{l:'Nome',n:'name'},{l:'Prezzo (Nummus)',n:'price',t:'number'},{l:'Tipo',n:'cat',t:'select',o:['oggetto','arma','armatura']},{l:'Foto (max 2 MB)',n:'photo',t:'file'},{l:'Cosa dice il mercante (descrizione)',n:'desc',t:'area'},{l:'Utilizzo',n:'use',t:'select',o:['infinito','utilizzabile']},{l:'Numero di usi (solo se utilizzabile)',n:'uses',t:'number'},{l:'Bonus a tratti e abilità (uno per riga, es. "Mira +2" oppure "Vigore +1")',n:'bks',t:'area'},{l:'Riduzione danni (solo armature: punti di danno in meno a ogni colpo, 0 = nessuna)',n:'arm',t:'number'},...DMGF.map(f=>({...f,l:f.l+' (solo armi)'})),...COSTF,{l:'Scorte (0 = illimitate)',n:'stock',t:'number'}];
 async function itData(r,old){const o={name:r.name,price:r.price,cat:r.cat,desc:r.desc,use:r.use,uses:r.use==='utilizzabile'?Math.max(1,r.uses):0,bonus:null,bonuses:bonusParse(r.bks),arm:r.cat==='armatura'?Math.min(999,Math.max(0,r.arm||0)):0,...dmgClean(r,r.cat==='arma'),...costClean(r),stock:r.stock>0?r.stock:null};if(r.photo){const u=await uploadPhoto(r.photo);if(u)o.photo=u}else if(!old)o.photo='';return o}
 function rebindItems(){
   const IT=db.collection('items');
@@ -211,7 +313,7 @@ function checkEnc(){
   const vis=Object.values(S.npcs).filter(visN),seen=p.seen;
   if(!Array.isArray(seen)){guard(db.collection('players').doc(uid).update({seen:vis.map(n=>n.id)}));return}
   const n=vis.find(x=>!seen.includes(x.id));if(!n)return;
-  encOpen=true;const A=attOf(n);
+  encOpen=true;const A=attOf(n);SND.play(n.att==='ostile'?'alarm':'enc',1);
   const m=document.createElement('div');m.className='modal';
   m.innerHTML=`<div class="${n.att==='ostile'?'shake':''}" style="text-align:center;border:2px solid ${A.c}"><div style="letter-spacing:4px">${A.i} ${A.i} ${A.i}</div><h2 class="newenc" style="color:${A.c}">NUOVO INCONTRO</h2><div style="color:${A.c};font-weight:800;letter-spacing:3px">${A.l.toUpperCase()}</div><div class="encav" style="border-color:${A.c}">${n.photo?`<img src="${esc(n.photo)}">`:'🩸'}</div><h3>${esc(n.name)}</h3><div class="mut">${KIND[kindOf(n)]}</div><div class="mut" style="margin-top:4px">${A.s}</div><div class="row" style="margin-top:14px"><button class="g grow" data-c>Più tardi</button><button class="grow" data-i>Ispeziona</button></div></div>`;
   document.body.append(m);
@@ -226,7 +328,7 @@ function typeInto(el,txt){
   if(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches){el.textContent=txt;return{skip(){},stop(){}}}
   let i=0;const step=Math.max(12,Math.min(32,Math.floor(4200/Math.max(1,ch.length))));
   el.classList.add('typing');el.textContent='';
-  const t=setInterval(()=>{i++;el.textContent=ch.slice(0,i).join('');if(i>=ch.length){clearInterval(t);el.classList.remove('typing')}},step);
+  const t=setInterval(()=>{i++;if(i%2===0)SND.play('type');el.textContent=ch.slice(0,i).join('');if(i>=ch.length){clearInterval(t);el.classList.remove('typing')}},step);
   return{skip(){clearInterval(t);el.textContent=txt;el.classList.remove('typing')},stop(){clearInterval(t)}};
 }
 async function buy(it,n){
@@ -234,7 +336,7 @@ async function buy(it,n){
   const p=me(),c=it.cat||'oggetto',b=it.bonus,cur=p.currency||0,out=it.stock===0,can=!out&&cur>=it.price;
   let ty=null;
   const ok=await new Promise(res=>{const m=document.createElement('div');m.className='modal';
-    m.innerHTML=`<div class="itdlg"><div class="itph">${it.photo?`<img src="${esc(it.photo)}" alt="">`:`<span>${CATI[c]}</span>`}</div><h3 class="itn">${esc(it.name)}</h3><div class="row" style="flex-wrap:wrap;gap:6px;justify-content:center"><span class="pill">${CATI[c]} ${CATL[c]}</span><span class="pill">${it.use==='utilizzabile'?'Utilizzabile · '+it.uses+(it.uses===1?' uso':' usi'):'♾ Infinito'}</span>${bonusesOf(it).map(x=>`<span class="pill eu">+${x.v} ${esc(bonusLabel(x))}</span>`).join('')}${c==='armatura'&&it.arm?`<span class="pill eu">🛡️ −${it.arm} danni</span>`:''}${c==='arma'&&hasDmg(it)?`<span class="pill eu">💥 ${dmgTxt(it)}</span>`:''}${costTxt(it)?`<span class="pill">${costTxt(it)} / uso</span>`:''}</div>${it.desc?`<div class="bubble itsay" title="Tocca per leggere tutto subito"><div class="ittxt"></div></div>`:''}<div class="mut" style="text-align:center">Prezzo: 💶 ${it.price} · ${can?'Ti resteranno: 💶 '+(cur-it.price):out?'ESAURITO':'Euro insufficienti'}</div><div class="row" style="margin-top:14px"><button class="g grow" data-n>${can?'Annulla':'Chiudi'}</button>${can?'<button class="grow" data-y>Acquista</button>':''}</div></div>`;
+    m.innerHTML=`<div class="itdlg"><div class="itph">${it.photo?`<img src="${esc(it.photo)}" alt="">`:`<span>${CATI[c]}</span>`}</div><h3 class="itn">${esc(it.name)}</h3><div class="row" style="flex-wrap:wrap;gap:6px;justify-content:center"><span class="pill">${CATI[c]} ${CATL[c]}</span><span class="pill">${it.use==='utilizzabile'?'Utilizzabile · '+it.uses+(it.uses===1?' uso':' usi'):'♾ Infinito'}</span>${bonusesOf(it).map(x=>`<span class="pill eu">+${x.v} ${esc(bonusLabel(x))}</span>`).join('')}${c==='armatura'&&it.arm?`<span class="pill eu">🛡️ −${it.arm} danni</span>`:''}${c==='arma'&&hasDmg(it)?`<span class="pill eu">💥 ${dmgTxt(it)}</span>`:''}${costTxt(it)?`<span class="pill">${costTxt(it)} / uso</span>`:''}</div>${it.desc?`<div class="bubble itsay" title="Tocca per leggere tutto subito"><div class="ittxt"></div></div>`:''}<div class="mut" style="text-align:center">Prezzo: 🪙 ${it.price} · ${can?'Ti resteranno: 🪙 '+(cur-it.price):out?'ESAURITO':'Nummus insufficienti'}</div><div class="row" style="margin-top:14px"><button class="g grow" data-n>${can?'Annulla':'Chiudi'}</button>${can?'<button class="grow" data-y>Acquista</button>':''}</div></div>`;
     document.body.append(m);
     const tx=m.querySelector('.ittxt');if(tx)ty=typeInto(tx,'“'+it.desc+'”');
     const sb=m.querySelector('.itsay');if(sb)sb.onclick=()=>{if(ty)ty.skip()};
@@ -249,12 +351,12 @@ const visQ=q=>!(q.to&&q.to.length)||q.to.includes(uid);
 const qBadge=q=>q.qt==='principale'?'<span class="pill" style="background:var(--gold);color:#fff;border-color:var(--gold)">★ PRINCIPALE</span>':'<span class="pill">Secondario</span>';
 const qRec=q=>q.to&&q.to.length?q.to.filter(i=>S.players[i]):Object.keys(S.players);
 const qAllDone=q=>{const r=qRec(q);return r.length>0&&r.every(i=>(q.doneBy||[]).includes(i))};
-const questCard=q=>{const M=masterOK&&view.name==='master',dby=q.doneBy||[],dn=M?dby.length>0:dby.includes(uid),who=M?dby.map(i=>esc(S.players[i]?.username||'?')).join(', '):'',exp=false,dt=dlStr(q.dl);return `<div class="quest ${q.qt==='principale'?'main':''} ${exp?'exp':''} ${dn&&!M?'done':''}"><div class="row sp"><b style="font-size:1.1em">${esc(q.title)}</b>${qBadge(q)}</div>${(q.objs||[]).length?`<div class="mut" style="margin-top:8px;letter-spacing:2px">COMPITI</div>${q.objs.map(o=>`<div class="obj">◇ ${esc(o)}</div>`).join('')}`:''}<div class="row" style="margin-top:10px;flex-wrap:wrap;gap:6px">${dn?`<span class="pill eu">✔ Completato${who?' da '+who:''}</span>`:''}<span class="pill eu">💶 +${q.coins||0}</span>${q.rw?`<span class="pill">🎁 ${esc(q.rw)}</span>`:''}${(q.ri||[]).map(id=>S.items[id]).filter(Boolean).map(i=>`<span class="pill">${CATI[i.cat||'oggetto']||'🎁'} ${esc(i.name)}</span>`).join('')}${dt?`<span class="pill" style="border-color:var(--gold);color:var(--gold)">⏳ ${esc(dt)}</span>`:'<span class="pill">∞ Nessun limite</span>'}</div></div>`};
+const questCard=q=>{const M=masterOK&&view.name==='master',dby=q.doneBy||[],dn=M?dby.length>0:dby.includes(uid),who=M?dby.map(i=>esc(S.players[i]?.username||'?')).join(', '):'',exp=false,dt=dlStr(q.dl);return `<div class="quest ${q.qt==='principale'?'main':''} ${exp?'exp':''} ${dn&&!M?'done':''}"><div class="row sp"><b style="font-size:1.1em">${esc(q.title)}</b>${qBadge(q)}</div>${(q.objs||[]).length?`<div class="mut" style="margin-top:8px;letter-spacing:2px">COMPITI</div>${q.objs.map(o=>`<div class="obj">◇ ${esc(o)}</div>`).join('')}`:''}<div class="row" style="margin-top:10px;flex-wrap:wrap;gap:6px">${dn?`<span class="pill eu">✔ Completato${who?' da '+who:''}</span>`:''}<span class="pill eu">🪙 +${q.coins||0}</span>${q.rw?`<span class="pill">🎁 ${esc(q.rw)}</span>`:''}${(q.ri||[]).map(id=>S.items[id]).filter(Boolean).map(i=>`<span class="pill">${CATI[i.cat||'oggetto']||'🎁'} ${esc(i.name)}</span>`).join('')}${dt?`<span class="pill" style="border-color:var(--gold);color:var(--gold)">⏳ ${esc(dt)}</span>`:'<span class="pill">∞ Nessun limite</span>'}</div></div>`};
 const questBoard=()=>{const qs=Object.values(S.quests).filter(visQ),isD=q=>(q.doneBy||[]).includes(uid),act=qs.filter(q=>!isD(q)),sec=(t,l)=>l.length?`<h3>${t}</h3>`+l.map(q=>questCard(q)).join(''):'';return hdr('📜 Obiettivi',1)+(qs.length?sec('★ Principali',act.filter(q=>q.qt==='principale'))+sec('Secondari',act.filter(q=>q.qt!=='principale'))+sec('✔ Completati',qs.filter(isD)):'<p class="mut">Nessun obiettivo per te al momento.</p>')};
 const vit=p=>{const hm=p.hpMax??50,nm=p.nxMax??1000;return {hm,nm,h:Math.min(hm,p.hp??hm),n:Math.min(nm,p.nx??nm)}};
 const bar=(v,m,c)=>`<div class="vbar ${c}"><i style="width:${m?Math.max(0,Math.min(100,v/m*100)):0}%"></i><span>${v} / ${m}</span></div>`;
 const vitalsHtml=p=>{const t=vit(p),st=(a,k)=>`<div class="steps">${a.map(d=>`<button class="mini ${d<0?'d':''}" data-${k}="${d}">${d>0?'+':''}${d}</button>`).join('')}</div>`,cu=k=>`<div class="row" style="margin-top:4px"><input id="${k}c" type="number" min="0" placeholder="Quantità personalizzata" style="margin:0"><button class="d mini" data-${k}c="-1">−</button><button class="mini" data-${k}c="1">+</button></div>`;return `<div class="card"><b style="color:var(--hp)">❤️ HP</b>${bar(t.h,t.hm,'hp')}${st([-10,-5,-1,1,5,10],'hp')}${cu('hp')}<div style="height:14px"></div><b style="color:var(--nx)">🔷 NEXUS</b>${bar(t.n,t.nm,'nx')}${st([-250,-100,-50,50,100,250],'nx')}${cu('nx')}${armLine(p)}</div>`};
-const memCard=(m,mine)=>{const v=vit(m);return `<div class="pcard ${mine?'me':''}"><div class="row sp"><b style="font-size:1.15em">${esc(m.username)}</b>${mine?'<button class="g mini" id="pdE">✎ Descrizione</button>':(masterOK&&view.name==='master'?'':`<button class="mini" data-send="${Object.keys(S.players).find(k=>S.players[k]===m)}">💸 Invia Euro</button>`)}</div><p class="mut" style="white-space:pre-wrap;margin:6px 0">${m.pdesc?esc(m.pdesc):'Nessuna descrizione.'}</p><div class="mut">❤️ HP</div>${bar(v.h,v.hm,'hp')}<div class="mut">🔷 NEXUS</div>${bar(v.n,v.nm,'nx')}</div>`};
+const memCard=(m,mine)=>{const v=vit(m);return `<div class="pcard ${mine?'me':''}"><div class="row sp"><b style="font-size:1.15em">${esc(m.username)}</b>${mine?'<button class="g mini" id="pdE">✎ Descrizione</button>':(masterOK&&view.name==='master'?'':`<button class="mini" data-send="${Object.keys(S.players).find(k=>S.players[k]===m)}">💸 Invia Nummus</button>`)}</div><p class="mut" style="white-space:pre-wrap;margin:6px 0">${m.pdesc?esc(m.pdesc):'Nessuna descrizione.'}</p><div class="mut">❤️ HP</div>${bar(v.h,v.hm,'hp')}<div class="mut">🔷 NEXUS</div>${bar(v.n,v.nm,'nx')}</div>`};
 const phraseHtml=n=>{const ks=n.keys||[];if(!ks.length)return '';if(view.ph===undefined)view.ph=ks[Math.floor(Math.random()*ks.length)];return `<div class="row" style="align-items:flex-start;margin:8px 0"><div class="bubble"><b>${esc(n.name)}</b><div>“${esc(view.ph)}”</div></div></div>`};
 const askYes=msg=>new Promise(res=>{const m=document.createElement('div');m.className='modal';m.innerHTML=`<div style="text-align:center"><h3>${esc(msg)}</h3><div class="row" style="margin-top:14px"><button class="g grow" data-n>Annulla</button><button class="d grow" data-y>Elimina</button></div></div>`;document.body.append(m);m.onclick=e=>{if(e.target.dataset.n!==undefined){m.remove();res(0)}if(e.target.dataset.y!==undefined){m.remove();res(1)}}});
 function rebindDel(){
@@ -271,8 +373,8 @@ function checkQ(){
   const vis=Object.values(S.quests).filter(visQ),seen=p.seenQ;
   if(!Array.isArray(seen)){guard(db.collection('players').doc(uid).update({seenQ:vis.map(q=>q.id)}));return}
   const q=vis.find(x=>!seen.includes(x.id));if(!q)return;
-  encOpen=true;const main=q.qt==='principale',c=main?'var(--gold)':'var(--acc)',m=document.createElement('div');m.className='modal';
-  m.innerHTML=`<div style="text-align:center;border:2px solid ${c}"><div style="font-size:2.6em">📜</div><h2 class="newenc" style="color:${c}">NUOVO OBIETTIVO</h2><div style="color:${c};font-weight:800;letter-spacing:3px">${main?'★ PRINCIPALE':'SECONDARIO'}</div><h3>${esc(q.title)}</h3><div class="row" style="justify-content:center;gap:6px;flex-wrap:wrap"><span class="pill eu">💶 +${q.coins||0}</span>${dlStr(q.dl)?`<span class="pill">⏳ ${esc(dlStr(q.dl))}</span>`:''}</div><div class="row" style="margin-top:14px"><button class="g grow" data-c>Più tardi</button><button class="grow" data-i>Vedi obiettivo</button></div></div>`;
+  encOpen=true;SND.play('quest',1);const main=q.qt==='principale',c=main?'var(--gold)':'var(--acc)',m=document.createElement('div');m.className='modal';
+  m.innerHTML=`<div style="text-align:center;border:2px solid ${c}"><div style="font-size:2.6em">📜</div><h2 class="newenc" style="color:${c}">NUOVO OBIETTIVO</h2><div style="color:${c};font-weight:800;letter-spacing:3px">${main?'★ PRINCIPALE':'SECONDARIO'}</div><h3>${esc(q.title)}</h3><div class="row" style="justify-content:center;gap:6px;flex-wrap:wrap"><span class="pill eu">🪙 +${q.coins||0}</span>${dlStr(q.dl)?`<span class="pill">⏳ ${esc(dlStr(q.dl))}</span>`:''}</div><div class="row" style="margin-top:14px"><button class="g grow" data-c>Più tardi</button><button class="grow" data-i>Vedi obiettivo</button></div></div>`;
   document.body.append(m);
   const done=async go=>{m.remove();encOpen=false;await guard(db.collection('players').doc(uid).update({seenQ:[...seen,q.id]}));if(go){view={name:'quests'};render()}};
   m.onclick=e=>{if(e.target.dataset.c!==undefined)done(0);if(e.target.dataset.i!==undefined)done(1)};
@@ -281,14 +383,14 @@ function checkQ(){
 let selP=null;
 const bl=p=>p.blood&&p.blood!=='Non indicato'?esc(p.blood):'—';
 const badge=(k,M)=>{let n=0;if(k==='npcs')n=Object.values(S.npcs).filter(x=>M||visN(x)).length;if(k==='quests')n=Object.values(S.quests).filter(x=>M||visQ(x)).length;if(k==='profile'&&M)n=Object.keys(S.players).length;if(k==='msgs')n=Object.values(S.msgs).filter(m=>M||!(m.to&&m.to.length)||m.to.includes(uid)).length;if(k==='map')n=Object.keys(S.maps||{}).length;return n?`<em class="bdg">${n}</em>`:''};
-const homeCard=p=>{const v=vit(p),pc=(a,b)=>b?Math.max(0,Math.min(100,a/b*100)):0;return `<div class="hero"><div class="grow"><div class="hi">Bentornato</div><h2 class="hname">${esc(p.username)}</h2><div class="row" style="margin-top:10px;flex-wrap:wrap"><span class="pill eu">💶 ${p.currency}</span><span class="pill bl">🩸 ${bl(p)}</span></div></div></div><div class="vitals"><div class="vt hp"><div class="vl"><b>❤️ HP</b><span>${v.h}<small> / ${v.hm}</small></span></div><div class="vbar hp"><i style="width:${pc(v.h,v.hm)}%"></i></div></div><div class="vt nx"><div class="vl"><b>🔷 NEXUS</b><span>${v.n}<small> / ${v.nm}</small></span></div><div class="vbar nx"><i style="width:${pc(v.n,v.nm)}%"></i></div></div></div>`};
+const homeCard=p=>{const v=vit(p),pc=(a,b)=>b?Math.max(0,Math.min(100,a/b*100)):0;return `<div class="hero"><div class="grow"><div class="hi">Bentornato</div><h2 class="hname">${esc(p.username)}</h2><div class="row" style="margin-top:10px;flex-wrap:wrap"><span class="pill eu">🪙 ${p.currency}</span><span class="pill bl">🩸 ${bl(p)}</span></div></div></div><div class="vitals"><div class="vt hp"><div class="vl"><b>❤️ HP</b><span>${v.h}<small> / ${v.hm}</small></span></div><div class="vbar hp"><i style="width:${pc(v.h,v.hm)}%"></i></div></div><div class="vt nx"><div class="vl"><b>🔷 NEXUS</b><span>${v.n}<small> / ${v.nm}</small></span></div><div class="vbar nx"><i style="width:${pc(v.n,v.nm)}%"></i></div></div></div>`};
 const invRO=p=>`<div class="card"><h3>🎒 INVENTARIO</h3>${(p.inv||[]).map(e=>`<div class="move" style="border-left-color:var(--acc2)"><div style="font-size:1.6em">${e.photo?`${itImg(e.photo,44)}`:(CATI[e.cat]||'🎁')}</div><div class="grow"><b>${esc(e.name)}</b><div class="mut">${CATL[e.cat]||'Oggetto'} · ${e.uses==null?'♾ Infinito':e.uses+(e.uses===1?' uso':' usi')}${bonusesOf(e).length?` · <span style="color:var(--ok)">${bonusTxt(e)}</span>`:''}${e.cat==='armatura'&&e.arm?` · <span style="color:var(--ok)">🛡️ −${e.arm} danni</span>`:''}${dmgHtml(e)}</div></div></div>`).join('')||'<p class="mut">Inventario vuoto.</p>'}</div>`;
 const masterPlayers=()=>{
   if(selP&&!S.players[selP])selP=null;
-  if(!selP)return hdr('👥 Player',1)+(Object.entries(S.players).map(([id,p])=>{const v=vit(p);return `<div class="pcard"><div class="row sp"><b style="font-size:1.1em">${esc(p.username)}</b><div class="row" style="gap:6px"><span class="pill eu">💶 ${p.currency}</span><span class="pill bl">🩸 ${bl(p)}</span></div></div><div class="mut" style="margin-top:8px">❤️ HP</div>${bar(v.h,v.hm,'hp')}<div class="mut">🔷 NEXUS</div>${bar(v.n,v.nm,'nx')}<div class="row" style="margin-top:10px"><button class="grow" data-open="${id}">👁 Apri profilo</button><button class="g" data-pe="${id}">✎</button><button class="d" data-pd="${id}">🗑</button></div></div>`}).join('')||'<p class="mut">Nessun player registrato.</p>');
+  if(!selP)return hdr('👥 Player',1)+(Object.entries(S.players).map(([id,p])=>{const v=vit(p);return `<div class="pcard"><div class="row sp"><b style="font-size:1.1em">${esc(p.username)}</b><div class="row" style="gap:6px"><span class="pill eu">🪙 ${p.currency}</span><span class="pill bl">🩸 ${bl(p)}</span></div></div><div class="mut" style="margin-top:8px">❤️ HP</div>${bar(v.h,v.hm,'hp')}<div class="mut">🔷 NEXUS</div>${bar(v.n,v.nm,'nx')}<div class="row" style="margin-top:10px"><button class="grow" data-open="${id}">👁 Apri profilo</button><button class="g" data-pe="${id}">✎</button><button class="d" data-pd="${id}">🗑</button></div></div>`}).join('')||'<p class="mut">Nessun player registrato.</p>');
   const p=S.players[selP],t=trOf(p),v=vit(p),md=modOf(p),COLS=Array(5).fill('var(--acc)');
   return hdr('👤 '+esc(p.username),1)+
-  `<div class="hero"><div class="grow"><div class="row sp"><h2 style="margin:0">${esc(p.username)}</h2><div class="row"><button class="g" data-msg="${selP}">✉️</button><button class="g" data-pe="${selP}">✎ Modifica</button><button class="d" data-pd="${selP}">🗑</button></div></div><div class="row" style="margin-top:8px;flex-wrap:wrap"><span class="pill eu">💶 ${p.currency}</span><span class="pill bl">🩸 ${bl(p)}</span><span class="pill">Punti tratti ${p.points||0}</span><span class="pill">Punti abilità ${p.pointsAb||0}</span></div></div></div>`+
+  `<div class="hero"><div class="grow"><div class="row sp"><h2 style="margin:0">${esc(p.username)}</h2><div class="row"><button class="g" data-msg="${selP}">✉️</button><button class="g" data-pe="${selP}">✎ Modifica</button><button class="d" data-pd="${selP}">🗑</button></div></div><div class="row" style="margin-top:8px;flex-wrap:wrap"><span class="pill eu">🪙 ${p.currency}</span><span class="pill bl">🩸 ${bl(p)}</span><span class="pill">Punti tratti ${p.points||0}</span><span class="pill">Punti abilità ${p.pointsAb||0}</span></div></div></div>`+
   `<div class="card"><div class="mut">❤️ HP</div>${bar(v.h,v.hm,'hp')}<div class="mut">🔷 NEXUS</div>${bar(v.n,v.nm,'nx')}</div>`+
   woundCard(p,true)+`<div class="card"><h3>🧬 TRATTI</h3>${TR.map(([k,l],i)=>`<div style="margin-top:10px"><div class="row sp"><b>${l}</b><b style="color:${COLS[i]}">${t[k]}${md.tr[k]?` <span style="color:var(--ok)">+${md.tr[k]}</span>`:''}</b></div><div class="meter"><i style="width:${Math.min(100,t[k]*20)}%;background:${COLS[i]}"></i></div></div>`).join('')}</div>`+
   `<div class="card"><h3>🗡️ SKILL</h3>${(p.skills||[]).map(s=>skillCard(s,-1,null)).join('')||'<p class="mut">Nessuna skill per ora.</p>'}</div>`+invRO(p);
@@ -301,33 +403,33 @@ const PARTS=[['head','<circle cx="100" cy="38" r="26"/>'],['torso','<rect x="62"
 const sil=(w,click)=>`<svg viewBox="0 0 200 340" style="width:100%;max-width:210px;margin:0 auto;display:block">${PARTS.map(([k,s])=>`<g data-part="${k}" fill="${WC[w[k]||0]}" stroke="#5b6478" stroke-width="2" style="${click?'cursor:pointer':''}">${s}</g>`).join('')}</svg>`;
 const woundCard=(p,M)=>{const w=p.wounds||{},ks=Object.keys(w).filter(k=>w[k]>0);if(!M&&!ks.length)return '';return `<div class="card"><h3>🩹 ${M?'SAGOMA':'FERITE'}</h3>${M?'<div class="mut" style="text-align:center">Tocca un arto per segnalare una ferita al player</div>':''}${sil(w,M)}<div class="row" style="flex-wrap:wrap;gap:6px;margin-top:8px;justify-content:center">${ks.map(k=>`<span class="pill" style="border-color:${WC[w[k]]};color:${WC[w[k]]}">${PN[k]} · ${LV[w[k]]}</span>`).join('')||'<span class="pill eu">Nessuna ferita</span>'}</div></div>`};
 const msgFrom=m=>m.from&&m.from.t==='npc'?'🧙 '+esc(m.from.name):m.from&&m.from.t==='pl'?'💸 '+esc(m.from.name):'⚙️ SISTEMA';
-const msgText=m=>m.kind==='obiettivo'?'🏆 Obiettivo completato: «'+esc(m.text)+'»':m.kind==='invite'?'🏕️ Invito al party «'+esc(m.text)+'»':m.kind==='ferita'?(m.lv?`🩹 ${PN[m.part]}: ferita ${LV[m.lv].toLowerCase()}`:`💚 ${PN[m.part]}: guarito`)+(m.text?' — '+esc(m.text):''):m.kind==='money'?`💶 +${m.v}`+(m.text?' — '+esc(m.text):''):esc(m.text);
-const msgAv=m=>m.from&&m.from.photo?`<img class="avatar" src="${esc(m.from.photo)}">`:`<div class="avatar">${m.kind==='ferita'?'🩹':m.kind==='money'?'💶':m.kind==='obiettivo'?'🏆':m.from&&m.from.t==='npc'?'🧙':'⚙️'}</div>`;
+const msgText=m=>m.kind==='obiettivo'?'🏆 Obiettivo completato: «'+esc(m.text)+'»':m.kind==='invite'?'🏕️ Invito al party «'+esc(m.text)+'»':m.kind==='ferita'?(m.lv?`🩹 ${PN[m.part]}: ferita ${LV[m.lv].toLowerCase()}`:`💚 ${PN[m.part]}: guarito`)+(m.text?' — '+esc(m.text):''):m.kind==='money'?`🪙 +${m.v}`+(m.text?' — '+esc(m.text):''):esc(m.text);
+const msgAv=m=>m.from&&m.from.photo?`<img class="avatar" src="${esc(m.from.photo)}">`:`<div class="avatar">${m.kind==='ferita'?'🩹':m.kind==='money'?'🪙':m.kind==='obiettivo'?'🏆':m.from&&m.from.t==='npc'?'🧙':'⚙️'}</div>`;
 const openMsgs=new Set();
 const msgReward=(m,force)=>{
   if(!force&&!openMsgs.has(m.id))return `<button class="mini" style="margin-top:10px" data-mopen="${m.id}">🎁 Apri ricompense</button>`;
   const its=m.items||[],row=(ico,t,s)=>`<div class="move" style="border-left-color:var(--gold)"><div style="font-size:1.6em">${ico}</div><div class="grow"><b>${t}</b>${s?`<div class="mut">${s}</div>`:''}</div></div>`;
-  const rows=(m.v>0?row('💶','+'+m.v+' Euro',''):'')+its.map(i=>row(i.photo?`${itImg(i.photo,44)}`:(CATI[i.cat]||'🎁'),esc(i.name),(CATL[i.cat]||'Oggetto')+(bonusesOf(i).length?' · '+bonusTxt(i):'')+(i.cat==='armatura'&&i.arm?' · 🛡️ −'+i.arm+' danni':''))).join('')+(m.rw?row('🎁',esc(m.rw),'Extra'):'');
+  const rows=(m.v>0?row('🪙','+'+m.v+' Nummus',''):'')+its.map(i=>row(i.photo?`${itImg(i.photo,44)}`:(CATI[i.cat]||'🎁'),esc(i.name),(CATL[i.cat]||'Oggetto')+(bonusesOf(i).length?' · '+bonusTxt(i):'')+(i.cat==='armatura'&&i.arm?' · 🛡️ −'+i.arm+' danni':''))).join('')+(m.rw?row('🎁',esc(m.rw),'Extra'):'');
   return `<div class="mut" style="letter-spacing:2px;margin-top:10px">RICOMPENSE</div>`+(rows||'<p class="mut">Nessuna ricompensa.</p>')+(force?'':`<button class="g mini" style="margin-top:6px" data-mopen="${m.id}">Chiudi</button>`);
 };
 const myMsgs=()=>Object.values(S.msgs).filter(m=>!(m.to&&m.to.length)||m.to.includes(uid));
 const msgBoard=p=>hdr('✉️ Messaggi',1)+(myMsgs().sort((a,b)=>b.ts-a.ts).map(m=>{const c=m.kind==='ferita'?(m.lv?'var(--red2)':'var(--ok)'):m.kind==='money'?'var(--ok)':m.kind==='obiettivo'?'var(--gold)':'var(--acc)';return `<div class="card" style="border-left:4px solid ${c}"><div class="row" style="gap:10px">${msgAv(m)}<div class="grow"><b>${msgFrom(m)}</b><div class="mut">${new Date(m.ts).toLocaleString('it-IT')}</div></div></div><p style="white-space:pre-wrap;margin:8px 0 0">${msgText(m)}</p>${m.kind==='obiettivo'?msgReward(m):''}</div>`}).join('')||'<p class="mut">Nessun messaggio.</p>');
 const masterMsgs=()=>hdr('✉️ Messaggi',1)+'<button id="newMsg" style="width:100%">✉️ Nuovo messaggio</button>'+(Object.values(S.msgs).sort((a,b)=>b.ts-a.ts).map(m=>`<div class="card"><div class="row sp"><b>${msgFrom(m)}</b><button class="d mini" data-md="${m.id}">🗑</button></div><div class="mut">A: ${m.to&&m.to.length?m.to.map(i=>esc(S.players[i]?S.players[i].username:'?')).join(', '):'tutti i player'} · ${new Date(m.ts).toLocaleString('it-IT')}</div><p style="white-space:pre-wrap;margin:6px 0 0">${msgText(m)}</p>${m.kind==='obiettivo'?msgReward(m,true):''}</div>`).join('')||'<p class="mut">Nessun messaggio inviato.</p>');
 const invBoard=p=>{
-  const tabs=[['arma','⚔️ Armi'],['armatura','🛡️ Armature'],['oggetto','🎁 Item'],['soldi','💶 Soldi']];
+  const tabs=[['arma','⚔️ Armi'],['armatura','🛡️ Armature'],['oggetto','🎁 Item'],['soldi','🪙 Soldi']];
   const head=hdr('🎒 Inventario',1)+`<div class="tabs">${tabs.map(([k,l])=>`<button class="${invTab===k?'on':''}" data-it="${k}">${l}</button>`).join('')}</div>`;
-  if(invTab==='soldi')return head+`<div class="wallet"><span>SALDO</span><b>💶 ${p.currency}</b></div><h3>Movimenti</h3>`+((p.tx||[]).map(x=>`<div class="move" style="border-left-color:${x.t==='in'?'var(--ok)':'var(--danger)'}"><div class="grow"><b>${x.t==='in'?'Ricevuti da ':'Inviati a '}${esc(x.n)}</b><div class="mut">${new Date(x.ts).toLocaleString('it-IT')}</div></div><b style="color:${x.t==='in'?'var(--ok)':'var(--danger)'}">${x.t==='in'?'+':'−'}💶 ${x.v}</b></div>`).join('')||'<p class="mut">Nessun movimento. Puoi inviare Euro ai membri dalla bacheca Party.</p>');
+  if(invTab==='soldi')return head+`<div class="wallet"><span>SALDO</span><b>🪙 ${p.currency}</b></div><h3>Movimenti</h3>`+((p.tx||[]).map(x=>`<div class="move" style="border-left-color:${x.t==='in'?'var(--ok)':'var(--danger)'}"><div class="grow"><b>${x.t==='in'?'Ricevuti da ':'Inviati a '}${esc(x.n)}</b><div class="mut">${new Date(x.ts).toLocaleString('it-IT')}</div></div><b style="color:${x.t==='in'?'var(--ok)':'var(--danger)'}">${x.t==='in'?'+':'−'}🪙 ${x.v}</b></div>`).join('')||'<p class="mut">Nessun movimento. Puoi inviare Nummus ai membri dalla bacheca Party.</p>');
   return head+`<button id="addItem" style="width:100%;margin:6px 0">+ Aggiungi ${CATL[invTab]}</button>`+((p.inv||[]).filter(e=>(e.cat||'oggetto')===invTab).map(invRow2).join('')||'<p class="mut">Nessun elemento in questa sezione.</p>');
 };
 async function sendMoney(toId){
   const p=me(),to=S.players[toId];if(!p||!to)return;
-  const r=await ask('Invia Euro a '+to.username,[{l:'Importo (Euro)',n:'v',t:'number'},{l:'Messaggio (opzionale)',n:'note'}]);
-  if(!r||r.v<1)return;if(r.v>p.currency)return toast('Euro insufficienti');
+  const r=await ask('Invia Nummus a '+to.username,[{l:'Importo (Nummus)',n:'v',t:'number'},{l:'Messaggio (opzionale)',n:'note'}]);
+  if(!r||r.v<1)return;if(r.v>p.currency)return toast('Nummus insufficienti');
   const ts=Date.now(),id=uid8();
   await guard(db.collection('players').doc(uid).update({currency:p.currency-r.v,tx:[{t:'out',n:to.username,v:r.v,ts},...(p.tx||[])].slice(0,30)}));
   await guard(db.collection('players').doc(toId).update({currency:(to.currency||0)+r.v,tx:[{t:'in',n:p.username,v:r.v,ts},...(to.tx||[])].slice(0,30)}));
   await guard(db.collection('msgs').doc(id).set({id,to:[toId],from:{t:'pl',name:p.username},kind:'money',v:r.v,text:r.note||'',ts}));
-  toast('Inviati 💶 '+r.v+' a '+to.username);
+  SND.play('coin',1);toast('Inviati 🪙 '+r.v+' a '+to.username);
 }
 const stp=(f,l,a,b)=>`<div class="ed"><b>${l}</b><div class="row" style="gap:5px;margin-top:4px"><button class="g mini" data-f="${f}" data-d="${-b}">−${b}</button><button class="d mini" data-f="${f}" data-d="${-a}">−${a}</button><input type="number" data-n="${f}" value="${draft[f]}" style="margin:0;text-align:center;font-weight:800"><button class="mini" data-f="${f}" data-d="${a}">+${a}</button><button class="g mini" data-f="${f}" data-d="${b}">+${b}</button></div></div>`;
 const st1=f=>`<div class="row" style="gap:4px"><button class="g mini" data-f="${f}" data-d="-1">−</button><input type="number" data-n="${f}" value="${draft[f]}" style="width:58px;margin:0;text-align:center;padding:4px"><button class="mini" data-f="${f}" data-d="1">+</button></div>`;
@@ -335,7 +437,7 @@ const editScreen=()=>{
   const d=draft,p=S.players[selP],COLS=Array(5).fill('var(--acc)');
   return hdr('✎ '+esc(p.username),1)+
   `<div class="hero"><div class="grow"><div style="opacity:.9">Username</div><input data-t="username" value="${esc(d.username)}" style="margin:4px 0 0;font-weight:700"></div></div>`+
-  `<div class="card"><h3>💶 EURO</h3>${stp('currency','Saldo',10,100)}</div>`+
+  `<div class="card"><h3>🪙 NUMMUS</h3>${stp('currency','Saldo',10,100)}</div>`+
   `<div class="card"><h3>🩸 GRUPPO SANGUIGNO</h3><div class="chips">${BLOODS.map(o=>`<button class="chipb ${d.blood===o?'sel':''}" data-bl="${o}">${o}</button>`).join('')}</div></div>`+
   `<div class="card"><h3>❤️ HP</h3>${bar(Math.min(d.hp,d.hpMax),d.hpMax,'hp')}${stp('hp','Attuali',1,10)}${stp('hpMax','Massimi',10,50)}<div style="height:12px"></div><h3>🔷 NEXUS</h3>${bar(Math.min(d.nx,d.nxMax),d.nxMax,'nx')}${stp('nx','Attuale',50,250)}${stp('nxMax','Massimo',100,500)}</div>`+
   `<div class="card"><h3>🎟 PUNTI DA SPENDERE</h3>${stp('points','Punti tratti',1,5)}${stp('pointsAb','Punti abilità',1,5)}</div>`+
@@ -393,9 +495,9 @@ function checkM(){
   const mine=myMsgs().sort((a,b)=>a.ts-b.ts),seen=p.seenM;
   if(!Array.isArray(seen)){guard(db.collection('players').doc(uid).update({seenM:mine.map(m=>m.id)}));return}
   const m=mine.find(x=>!seen.includes(x.id));if(!m)return;
-  encOpen=true;const w=m.kind==='ferita',h=w&&m.lv>0,c=w?(m.lv?WC[m.lv]:'var(--ok)'):m.kind==='money'?'var(--ok)':m.kind==='obiettivo'?'var(--gold)':'var(--acc)';
-  const title=w?(m.lv?'SEI STATO FERITO':'FERITA GUARITA'):m.kind==='money'?'HAI RICEVUTO EURO':m.kind==='invite'?'INVITO AL PARTY':m.kind==='obiettivo'?'OBIETTIVO COMPLETATO':'NUOVO MESSAGGIO';
-  const av=m.from&&m.from.photo?`<img src="${esc(m.from.photo)}">`:(w?'🩹':m.kind==='money'?'💶':m.kind==='invite'?'🏕️':m.kind==='obiettivo'?'🏆':m.from&&m.from.t==='npc'?'🧙':'⚙️');
+  encOpen=true;SND.play(m.kind==='ferita'?(m.lv?'hurt':'heal'):m.kind==='money'?'coin':m.kind==='obiettivo'?'fanfare':m.kind==='invite'?'enc':'msg',1);const w=m.kind==='ferita',h=w&&m.lv>0,c=w?(m.lv?WC[m.lv]:'var(--ok)'):m.kind==='money'?'var(--ok)':m.kind==='obiettivo'?'var(--gold)':'var(--acc)';
+  const title=w?(m.lv?'SEI STATO FERITO':'FERITA GUARITA'):m.kind==='money'?'HAI RICEVUTO NUMMUS':m.kind==='invite'?'INVITO AL PARTY':m.kind==='obiettivo'?'OBIETTIVO COMPLETATO':'NUOVO MESSAGGIO';
+  const av=m.from&&m.from.photo?`<img src="${esc(m.from.photo)}">`:(w?'🩹':m.kind==='money'?'🪙':m.kind==='invite'?'🏕️':m.kind==='obiettivo'?'🏆':m.from&&m.from.t==='npc'?'🧙':'⚙️');
   const el=document.createElement('div');el.className='modal';
   el.innerHTML=`<div class="${h&&m.lv>=3?'shake':''}" style="text-align:center;border:2px solid ${c}"><h2 class="newenc" style="color:${c};font-size:1.6em">${title}</h2><div class="encav" style="border-color:${c}">${av}</div><h3>${msgFrom(m)}</h3><p style="white-space:pre-wrap">${m.kind==='obiettivo'?'«'+esc(m.text)+'»<br><span class="mut">Apri il messaggio per leggere le ricompense.</span>':msgText(m)}</p><div class="row" style="margin-top:14px">${m.kind==='invite'?'<button class="g grow" data-c>Dopo</button><button class="d grow" data-no>Rifiuta</button><button class="grow" data-yes>Accetta</button>':'<button class="g grow" data-c>Chiudi</button><button class="grow" data-i>'+(m.kind==='obiettivo'?'Apri messaggio':'Apri messaggi')+'</button>'}</div></div>`;
   document.body.append(el);
@@ -415,7 +517,7 @@ function authSheet(){
 }
 function enter(pid){
   if(LD.players&&!S.players[pid])return toast('Questo account non esiste più');
-  uid=pid;authed=true;view={name:'home'};
+  uid=pid;authed=true;view={name:'home'};SND.play('login',1);
   try{localStorage.setItem('nx_pid',pid)}catch(e){}
   render();
 }
@@ -436,7 +538,7 @@ async function register(){
   const pid=uid8()+uid8(),salt=uid8()+uid8(),h=await hash(r.pw,salt);
   if(!(await guard(ad.set({pid,salt,hash:h}).then(()=>1))))return;
   if(!(await guard(db.collection('players').doc(pid).set({username:r.username.slice(0,32),currency:100,blood:'Non indicato',ego:'',skills:[],history:[],created:Date.now()}).then(()=>1))))return;
-  uid=pid;authed=true;view={name:'home'};
+  uid=pid;authed=true;view={name:'home'};SND.play('login',1);
   try{localStorage.setItem('nx_pid',pid)}catch(e){}
   toast('Benvenuto, '+r.username+'!');render();
 }
@@ -534,6 +636,7 @@ function screenName(){
 }
 function updateStatus(){
   const inM=masterOK&&view.name==='master',p=!inM&&authed&&me();
+  if(p){const v=vit(p),cu=p.currency||0;if(SN.u===uid){if(v.h<SN.hp)SND.play('hurt',1);else if(v.h>SN.hp)SND.play('heal',1);if(v.n!==SN.nx)SND.play('nx');if(cu>SN.cur)SND.play('coin',1)}SN.u=uid;SN.hp=v.h;SN.nx=v.n;SN.cur=cu}else SN.u=null;
   document.body.classList.toggle('locked',!p&&!inM);
   const t=screenName(),w=document.getElementById('win-title'),tt=document.getElementById('tb-title');
   if(w&&w.textContent!==t)w.textContent=t;if(tt&&tt.textContent!==t)tt.textContent=t;
@@ -1568,7 +1671,7 @@ function mpPlace(mp,x,y){
   if(mp.objs.length>=1500){toast('Limite di 1500 oggetti');return null}
   const st=STM[mpKind],base=mpSize??st[3],n=mp.n,px=mpAgg?Math.floor(x)+.5:x,py=mpAgg?Math.floor(y)+.5:y;
   const o={id:uid8(),k:mpKind,x:+Math.min(n,Math.max(0,px)).toFixed(2),y:+Math.min(n,Math.max(0,py)).toFixed(2),s:+(base*(mpVar?0.85+Math.random()*0.3:1)).toFixed(2),r:normA(Math.round(mpRot+(mpVar&&st[2]!=='Edifici'?(Math.random()-.5)*16:0))),f:mpVar&&Math.random()<.5?1:0};
-  if(mpHid)o.h=1;mp.objs.push(o);return o;
+  if(mpHid)o.h=1;mp.objs.push(o);SND.play('place');return o;
 }
 const mpStat=()=>mpDirty?'● Modifiche non salvate':(mapSel?'✔ Salvata':'Mappa non salvata');
 const MTOOLS=[['pan','✋','Muovi'],['brush','🖌️','Pennello'],['fill','🪣','Riempi'],['line','📏','Linea'],['rect','▭','Rettangolo'],['ellipse','⬭','Ellisse'],['stamp','🌲','Oggetti'],['sel','🔎','Seleziona'],['text','🔤','Testo'],['erase','🧽','Gomma'],['fog','🌫️','Nebbia'],['token','🧍','Segnalini']];
@@ -1642,7 +1745,7 @@ function mapInit(){
   const pt=e=>{const r=cv.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*mp.n,y=(e.clientY-r.top)/r.height*mp.n,t=v=>Math.min(mp.n-1,Math.max(0,Math.floor(v)));return {x,y,tx:t(x),ty:t(y)}};
   if(!M){
     mpDraw(cv,mp,false,null,mapMarks(false));
-    cv.onclick=e=>{const p=pt(e);if(mp.ter[p.ty*mp.n+p.tx]===18)return toast('Fuori dalla mappa');const me_=me();if(me_)guard(db.collection('players').doc(uid).update({mpos:{...(me_.mpos||{}),[mapSel]:{x:p.tx,y:p.ty}}}))};
+    cv.onclick=e=>{const p=pt(e);if(mp.ter[p.ty*mp.n+p.tx]===18)return toast('Fuori dalla mappa');const me_=me();if(me_){SND.play('pin',1);guard(db.collection('players').doc(uid).update({mpos:{...(me_.mpos||{}),[mapSel]:{x:p.tx,y:p.ty}}}))}};
     const up=q('mapunpin');if(up)up.onclick=()=>{const p=me(),o={...((p&&p.mpos)||{})};delete o[mapSel];guard(db.collection('players').doc(uid).update({mpos:o}))};
     const cl=q('mapclose');if(cl)cl.onclick=()=>{mapSel=null;mpScroll=null;render()};
     return;
@@ -1673,7 +1776,7 @@ function mapInit(){
     const p=pt(e),T=mpTool;
     if(T==='pan'){if(e.pointerType==='mouse'){drag={m:'pan',x:e.clientX,y:e.clientY,l:w.scrollLeft,t:w.scrollTop};cv.setPointerCapture(e.pointerId);cv.style.cursor='grabbing'}return}
     e.preventDefault();try{cv.setPointerCapture(e.pointerId)}catch(x){}
-    mpBusy=true;
+    mpBusy=true;if(T!=='sel'&&T!=='stamp')SND.play(T==='erase'?'erase':T==='text'?'place':T==='token'?'pin':'paint');
     if(T==='brush'||T==='fog'){mpPush();drag={m:'b',lx:p.tx,ly:p.ty};paint(p.tx,p.ty)}
     else if(T==='fill'){mpPush();if(mpFill(mp,p.tx,p.ty,mpTer)){mp.tcDirty=true}drag={m:'x'}}
     else if(['line','rect','ellipse'].includes(T))drag={m:T,sx:p.tx,sy:p.ty,ex:p.tx,ey:p.ty};
@@ -1811,11 +1914,11 @@ function rollDice(o){
   const m=document.createElement('div');m.className='modal';
   m.innerHTML=`<div class="rolldlg"><h3>${esc(o.title)}</h3><div class="mut">${esc(sub)}</div><div class="dice">${dice.map(()=>'<div class="die rolling"><b>?</b></div>').join('')}</div><div class="rres" style="visibility:hidden"><div class="mut">DANNO</div><div class="rtot">${tot}</div><div class="mut">${esc(brk)}</div></div><div class="row" style="margin-top:14px"><button class="grow" data-c>Chiudi</button></div></div>`;
   document.body.append(m);
-  const els=[...m.querySelectorAll('.die')],res=m.querySelector('.rres');let done=false,iv=0;
-  const land=(d,i)=>{d.className='die land'+(dice[i]===die?' max':dice[i]===1?' min':'');d.firstChild.textContent=dice[i]};
-  const fin=()=>{if(done)return;done=true;clearInterval(iv);els.forEach(land);res.style.visibility='visible';res.classList.add('rpop');if(navigator.vibrate)try{navigator.vibrate(40)}catch(e){}};
+  const els=[...m.querySelectorAll('.die')],res=m.querySelector('.rres');let done=false,iv=0,q=false;SND.play('dice',1);
+  const land=(d,i)=>{d.className='die land'+(dice[i]===die?' max':dice[i]===1?' min':'');d.firstChild.textContent=dice[i];if(!q)SND.play('land',1)};
+  const fin=()=>{if(done)return;done=true;clearInterval(iv);q=true;els.forEach(land);SND.play(dice.length&&dice.every(x=>x===1)?'fail':dice.some(x=>x===die)?'crit':'ok',1);res.style.visibility='visible';res.classList.add('rpop');if(navigator.vibrate)try{navigator.vibrate(40)}catch(e){}};
   if(!n)fin();
-  else{const t0=Date.now();iv=setInterval(()=>{const k=Math.floor((Date.now()-t0-900)/300)+1;els.forEach((d,i)=>{if(i<k){if(!d.classList.contains('land'))land(d,i)}else d.firstChild.textContent=1+Math.floor(Math.random()*die)});if(k>=n)fin()},70)}
+  else{const t0=Date.now();iv=setInterval(()=>{const k=Math.floor((Date.now()-t0-900)/300)+1;els.forEach((d,i)=>{if(i<k){if(!d.classList.contains('land'))land(d,i)}else d.firstChild.textContent=1+Math.floor(Math.random()*die)});if(k<n)SND.play('dice');if(k>=n)fin()},70)}
   m.onclick=e=>{
     if(e.target.dataset.c!==undefined||(e.target===m&&done)){clearInterval(iv);m.remove()}
     else if(!done)fin();
@@ -1828,7 +1931,7 @@ function attack(id){
   if(!hasDmg(e))return toast('Questa arma non ha un danno impostato');
   if(e.uses!=null&&e.uses<1)return toast('Arma esaurita');
   const d=payCost(p,e);if(!d)return;
-  rollDice({title:'⚔️ '+e.name,n:e.dn,die:dieOf(e),fix:e.dfix,min:e.dmin});
+  SND.play('attack',1);rollDice({title:'⚔️ '+e.name,n:e.dn,die:dieOf(e),fix:e.dfix,min:e.dmin});
   if(e.uses!=null){if(e.uses<=1)inv.splice(i,1);else inv[i]={...e,uses:e.uses-1};d.inv=inv}
   if(Object.keys(d).length)guard(db.collection('players').doc(uid).update(d));
 }
@@ -1861,7 +1964,7 @@ function rebindNI(){
   });
   app.querySelectorAll('[data-nko]').forEach(b=>b.onclick=()=>{
     const id=b.dataset.nko,n=S.npcs[id];if(!n)return;
-    U(id,{ko:!n.ko});toast(n.ko?n.name+': K.O. rimosso':'💀 '+n.name+' è K.O.');
+    U(id,{ko:!n.ko});SND.play(n.ko?'ok':'ko',1);toast(n.ko?n.name+': K.O. rimosso':'💀 '+n.name+' è K.O.');
   });
   app.querySelectorAll('[data-nlt]').forEach(b=>b.onclick=()=>npcLoot(b.dataset.nlt));
 }
@@ -1887,7 +1990,7 @@ async function npcLoot(id){
     await guard(db.collection('msgs').doc(mid).set({id:mid,to:[pid],from:{t:'npc',name:n.name,photo:n.photo||''},kind:'msg',text:'Hai sconfitto '+n.name+'!\nBottino: '+gift.map(e=>e.name).join(', '),ts:Date.now()}));
   }));
   await guard(db.collection('npcs').doc(id).update({inv:inv.filter(e=>!r.its.includes(e.id))}));
-  toast('🎁 Bottino assegnato a '+who.length+' player');
+  SND.play('loot',1);toast('🎁 Bottino assegnato a '+who.length+' player');
 }
 
 /* ===== v18: più bonus per oggetto (tratti e abilità) ===== */
@@ -1924,13 +2027,13 @@ function useItem(id){
   const d=payCost(p,e);if(!d)return;
   if(e.uses!=null){if(e.uses<=1)inv.splice(i,1);else inv[i]={...e,uses:e.uses-1};d.inv=inv}
   if(Object.keys(d).length)guard(db.collection('players').doc(uid).update(d));
-  toast('Usato: '+e.name+(costTxt(e)?' ('+costTxt(e)+')':''));
+  SND.play('use',1);toast('Usato: '+e.name+(costTxt(e)?' ('+costTxt(e)+')':''));
 }
 
 $('#mbtn').onclick=async()=>{
   if(masterOK){view={name:'master'};return render()}
   const r=await ask('Login Master',[{l:'Email',n:'email',t:'email'},{l:'Password',n:'pw',t:'password'}]);
   if(!r)return;
-  if(r.email.toLowerCase()===String(NX.MASTER_EMAIL||'').toLowerCase()&&r.pw===NX.MASTER_PASSWORD){masterOK=true;tab=null;view={name:'master'};render()}else toast('Credenziali Master errate');
+  if(r.email.toLowerCase()===String(NX.MASTER_EMAIL||'').toLowerCase()&&r.pw===NX.MASTER_PASSWORD){masterOK=true;tab=null;view={name:'master'};SND.play('login',1);render()}else toast('Credenziali Master errate');
 };
 boot();
