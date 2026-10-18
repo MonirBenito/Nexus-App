@@ -524,6 +524,23 @@ function rebindMP(){
     const c=$('[data-ecancel]'),s=$('[data-esave]');if(c)c.onclick=()=>{editing=false;render()};if(s)s.onclick=saveDraft;
   }
 }
+/* ===== v25: animazione notifiche (scintille, ingresso e uscita) ===== */
+const REDM=()=>{try{return matchMedia('(prefers-reduced-motion: reduce)').matches}catch(e){return false}};
+function notifBurst(card,kind){
+  if(REDM())return;
+  const E={ego:['⚡','✨'],money:['🪙','✨'],obiettivo:['🏆','✨','⭐'],ferita:['🩸','💥'],cura:['💚','✨'],invite:['🏕️','✨'],msg:['✉️','✨']}[kind]||['✨'];
+  const a=card.querySelector('.encav');if(!a)return;
+  const box=document.createElement('div');box.className='nparts';
+  const cx=a.offsetLeft+a.offsetWidth/2,cy=a.offsetTop+a.offsetHeight/2,fall=kind==='money'?70:0;
+  for(let i=0;i<18;i++){
+    const ang=Math.PI*2*i/18+Math.random()*.35,dist=70+Math.random()*95,p=document.createElement('i');
+    p.textContent=E[i%E.length];
+    p.style.cssText=`left:${cx}px;top:${cy}px;--dx:${Math.cos(ang)*dist|0}px;--dy:${(Math.sin(ang)*dist+fall)|0}px;--r:${(Math.random()*360-180)|0}deg;--s:${12+(Math.random()*14|0)}px;--d:${(.38+Math.random()*.18).toFixed(2)}s;--t:${(.9+Math.random()*.6).toFixed(2)}s`;
+    box.append(p);
+  }
+  card.append(box);
+  setTimeout(()=>box.remove(),2300);
+}
 function checkM(){
   const p=me();if(!p||!authed||encOpen||!LD.msgs||!LD.players)return;
   const mine=myMsgs().sort((a,b)=>a.ts-b.ts),seen=p.seenM;
@@ -532,11 +549,12 @@ function checkM(){
   encOpen=true;SND.play(m.kind==='ferita'?(m.lv?'hurt':'heal'):m.kind==='money'?'coin':m.kind==='obiettivo'?'fanfare':m.kind==='invite'?'enc':m.kind==='ego'?'skill':'msg',1);const w=m.kind==='ferita',h=w&&m.lv>0,c=w?(m.lv?WC[m.lv]:'var(--ok)'):m.kind==='money'?'var(--ok)':m.kind==='obiettivo'?'var(--gold)':'var(--acc)';
   const title=w?(m.lv?'SEI STATO FERITO':'FERITA GUARITA'):m.kind==='money'?'HAI RICEVUTO NUMMUS':m.kind==='invite'?'INVITO AL PARTY':m.kind==='obiettivo'?'OBIETTIVO COMPLETATO':m.kind==='ego'?'EGO SVELATO':'NUOVO MESSAGGIO';
   const av=m.from&&m.from.photo?`<img src="${esc(m.from.photo)}">`:(w?'🩹':m.kind==='money'?'🪙':m.kind==='invite'?'🏕️':m.kind==='obiettivo'?'🏆':m.kind==='ego'?'⚡':m.from&&m.from.t==='npc'?'🧙':'⚙️');
-  const el=document.createElement('div');el.className='modal';
-  el.innerHTML=`<div class="${h&&m.lv>=3?'shake':''}" style="text-align:center;border:2px solid ${c}"><h2 class="newenc" style="color:${c};font-size:1.6em">${title}</h2><div class="encav" style="border-color:${c}">${av}</div><h3>${msgFrom(m)}</h3><p style="white-space:pre-wrap">${m.kind==='obiettivo'?'«'+esc(m.text)+'»<br><span class="mut">Apri il messaggio per leggere le ricompense.</span>':msgText(m)}</p><div class="row" style="margin-top:14px">${m.kind==='invite'?'<button class="g grow" data-c>Dopo</button><button class="d grow" data-no>Rifiuta</button><button class="grow" data-yes>Accetta</button>':'<button class="g grow" data-c>Chiudi</button><button class="grow" data-i>'+(m.kind==='obiettivo'?'Apri messaggio':m.kind==='ego'?'Vedi EGO':'Apri messaggi')+'</button>'}</div></div>`;
+  const el=document.createElement('div');el.className='modal notif-m'+(h?' hurt':'');
+  el.innerHTML=`<div class="notif ${h&&m.lv>=3?'shake':''}" style="--nc:${c};text-align:center;border:2px solid ${c}"><h2 class="newenc" style="color:${c};font-size:1.6em">${title}</h2><div class="encav" style="border-color:${c}">${av}</div><h3>${msgFrom(m)}</h3><p style="white-space:pre-wrap">${m.kind==='obiettivo'?'«'+esc(m.text)+'»<br><span class="mut">Apri il messaggio per leggere le ricompense.</span>':msgText(m)}</p><div class="row" style="margin-top:14px">${m.kind==='invite'?'<button class="g grow" data-c>Dopo</button><button class="d grow" data-no>Rifiuta</button><button class="grow" data-yes>Accetta</button>':'<button class="g grow" data-c>Chiudi</button><button class="grow" data-i>'+(m.kind==='obiettivo'?'Apri messaggio':m.kind==='ego'?'Vedi EGO':'Apri messaggi')+'</button>'}</div></div>`;
   document.body.append(el);
-  if(h&&navigator.vibrate)try{navigator.vibrate(m.lv>=3?[300,100,300]:[150])}catch(e){}
-  const done=async go=>{el.remove();encOpen=false;await guard(db.collection('players').doc(uid).update({seenM:[...seen,m.id]}));if(go){if(m.kind==='obiettivo')openMsgs.add(m.id);view={name:m.kind==='ego'?'ego':'msgs'};render()}};
+  notifBurst(el.firstElementChild,w?(m.lv?'ferita':'cura'):m.kind);
+  if(navigator.vibrate)try{navigator.vibrate(h?(m.lv>=3?[300,100,300]:[150]):[40])}catch(e){}
+  const done=async go=>{if(el.dataset.closing)return;el.dataset.closing=1;el.classList.add('notif-out');if(!REDM())await new Promise(r=>setTimeout(r,220));el.remove();encOpen=false;await guard(db.collection('players').doc(uid).update({seenM:[...seen,m.id]}));if(go){if(m.kind==='obiettivo')openMsgs.add(m.id);view={name:m.kind==='ego'?'ego':'msgs'};render()}};
   el.onclick=e=>{if(e.target.dataset.c!==undefined)done(0);if(e.target.dataset.i!==undefined)done(1);if(e.target.dataset.yes!==undefined){done(0);respondInvite(true)}if(e.target.dataset.no!==undefined){done(0);respondInvite(false)}};
 }
 /* ===== v8: schermata iniziale, accesso, skill ===== */
