@@ -587,3 +587,43 @@ body.mapfull #taskbar,body.mapfull #hud{display:none}
 .rres.rpop .rtot{animation:itpop .35s steps(5) both}
 @keyframes diceroll{0%{transform:translate(0,0) rotate(0)}25%{transform:translate(-6px,-10px) rotate(-18deg)}50%{transform:translate(4px,-14px) rotate(14deg)}75%{transform:translate(6px,-4px) rotate(-10deg)}100%{transform:translate(0,0) rotate(0)}}
 @keyframes dicepop{from{transform:scale(1.5) rotate(25deg)}to{transform:none}}
+
+
+/* =====================================================================
+   v21: leggibilità (stessi font, un po' più grandi e più chiari)
+   ===================================================================== */
+:root{--mut:hsl(var(--h) 25% 80%)}
+body{font-size:18px;line-height:1.45;font-weight:500}
+.mut{font-size:.95em}
+h1{font-size:18px;line-height:1.6}
+h2{font-size:14px;line-height:1.7;letter-spacing:.5px;text-shadow:1px 1px 0 var(--ink)}
+.bar h2{font-size:14px}
+h3{font-size:11px;line-height:1.8;letter-spacing:.5px;text-shadow:1px 1px 0 var(--ink)}
+details.card>summary{font-size:11px;letter-spacing:.5px;text-shadow:1px 1px 0 var(--ink)}
+#titlebar{font-size:10px;letter-spacing:.5px}
+#tb-title{font-size:10px;letter-spacing:.5px}
+#tb-net{font-size:8px}
+#tb-clock{font-size:12px}
+.vbar span{font-size:10px;letter-spacing:.5px;text-shadow:1px 1px 0 #000}
+.stats b{font-size:16px;letter-spacing:.5px;text-shadow:1px 1px 0 var(--ink)}
+.wallet b{font-size:14px;letter-spacing:.5px;text-shadow:1px 1px 0 var(--ink)}
+.bdg{font-size:11px}
+.hero .hi{font-size:10px}
+.hero .hname{letter-spacing:.5px;text-shadow:2px 2px 0 var(--ink)}
+.vt .vl span{font-size:clamp(16px,5.4vw,22px);letter-spacing:.5px;text-shadow:1px 1px 0 var(--ink)}
+.vt .vl b,.hud-i .hl b{font-size:16px}
+.hud-i .hl span{font-size:16px}
+.ego .lab{font-size:10px;letter-spacing:1px;text-shadow:1px 1px 0 var(--ink)}
+.ego .et{font-size:15px;text-shadow:1px 1px 0 var(--ink)}
+.newenc{font-size:18px;text-shadow:2px 2px 0 var(--ink)}
+.die{font-size:20px}
+.rtot{text-shadow:2px 2px 0 var(--ink)}
+.tag{font-size:.82em}
+.pill{font-size:.9em}
+.chip{font-size:.98em}
+.tile{font-size:.95em}
+.stb{font-size:.8em}
+@media (max-width:560px){
+  h3{font-size:11px}
+  .tile{font-size:.9em}
+}
