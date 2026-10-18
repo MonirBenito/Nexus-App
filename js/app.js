@@ -394,10 +394,30 @@ function checkQ(){
   const vis=Object.values(S.quests).filter(visQ),seen=p.seenQ;
   if(!Array.isArray(seen)){guard(db.collection('players').doc(uid).update({seenQ:vis.map(q=>q.id)}));return}
   const q=vis.find(x=>!seen.includes(x.id));if(!q)return;
-  encOpen=true;SND.play('quest',1);const main=q.qt==='principale',c=main?'var(--gold)':'var(--acc)',m=document.createElement('div');m.className='modal';
-  m.innerHTML=`<div style="text-align:center;border:2px solid ${c}"><div style="font-size:2.6em">📜</div><h2 class="newenc" style="color:${c}">NUOVO OBIETTIVO</h2><div style="color:${c};font-weight:800;letter-spacing:3px">${main?'★ PRINCIPALE':'SECONDARIO'}</div><h3>${esc(q.title)}</h3><div class="row" style="justify-content:center;gap:6px;flex-wrap:wrap"><span class="pill eu">🪙 +${q.coins||0}</span>${dlStr(q.dl)?`<span class="pill">⏳ ${esc(dlStr(q.dl))}</span>`:''}</div><div class="row" style="margin-top:14px"><button class="g grow" data-c>Più tardi</button><button class="grow" data-i>Vedi obiettivo</button></div></div>`;
+  encOpen=true;const main=q.qt==='principale',c=main?'var(--gold)':'var(--acc)',m=document.createElement('div');
+  SND.play(main?'fanfare':'quest',1);
+  m.className='modal notif-m quest-m'+(main?' qmain':'');
+  const objs=q.objs||[],its=(q.ri||[]).map(i=>S.items[i]).filter(Boolean),dt=dlStr(q.dl),coins=Math.max(0,+q.coins||0);
+  let k=0;const pill=(h,x)=>`<span class="pill qp ${x||''}" style="animation-delay:${(1.15+.12*k++).toFixed(2)}s">${h}</span>`;
+  const objH=objs.length?`<div class="qobjs"><div class="mut" style="letter-spacing:3px;text-align:center">COMPITI</div>${objs.map((o,i)=>`<div class="qo" style="animation-delay:${(.95+.1*i).toFixed(2)}s">◇ ${esc(o)}</div>`).join('')}</div>`:'<div></div>';
+  const rwH=pill('🪙 +<b class="qcn">'+coins+'</b>','eu')+(q.rw?pill('🎁 '+esc(q.rw)):'')+its.map(i=>pill((CATI[i.cat||'oggetto']||'🎁')+' '+esc(i.name))).join('')+(dt?pill('⏳ '+esc(dt),'qdl'):'');
+  const bd=Math.max(1.2,1.2+.12*k,.95+.1*objs.length+.3).toFixed(2);
+  m.innerHTML=`<div class="notif qnotif" style="--nc:${c};text-align:center;border:2px solid ${c}"><h2 class="newenc" style="color:${c}">NUOVO OBIETTIVO</h2><div class="encav" style="border-color:${c}">📜</div><div class="qtype" style="color:${c};border-color:${c}">${main?'★ PRINCIPALE':'SECONDARIO'}</div><h3>${esc(q.title)}</h3>${objH}<div class="row qrw" style="justify-content:center;gap:6px;flex-wrap:wrap;margin-top:12px">${rwH}</div><div class="row" style="margin-top:14px;animation-delay:${bd}s"><button class="g grow" data-c>Più tardi</button><button class="grow" data-i>Vedi obiettivo</button></div></div>`;
   document.body.append(m);
-  const done=async go=>{m.remove();encOpen=false;await guard(db.collection('players').doc(uid).update({seenQ:[...seen,q.id]}));if(go){view={name:'quests'};render()}};
+  notifBurst(m.firstElementChild,main?'questmain':'quest');
+  if(navigator.vibrate)try{navigator.vibrate(main?[60,50,60,50,160]:[40])}catch(e){}
+  /* le monete salgono da 0 al valore */
+  const cn=m.querySelector('.qcn');
+  if(cn&&coins>0&&!REDM()){
+    cn.textContent='0';
+    setTimeout(()=>{const t0=performance.now(),tick=n=>{const f=Math.min(1,(n-t0)/900);cn.textContent=Math.round(coins*(1-Math.pow(1-f,3)));if(f<1)requestAnimationFrame(tick)};requestAnimationFrame(tick)},1200);
+    setTimeout(()=>{cn.textContent=coins},2400);
+  }
+  const done=async go=>{
+    if(m.dataset.closing)return;m.dataset.closing=1;m.classList.add('notif-out');
+    if(!REDM())await new Promise(r=>setTimeout(r,220));
+    m.remove();encOpen=false;await guard(db.collection('players').doc(uid).update({seenQ:[...seen,q.id]}));if(go){view={name:'quests'};render()}
+  };
   m.onclick=e=>{if(e.target.dataset.c!==undefined)done(0);if(e.target.dataset.i!==undefined)done(1)};
 }
 /* ===== v6: UI, vista Master sui player ===== */
@@ -511,7 +531,7 @@ function rebindMP(){
   app.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>{selP=b.dataset.open;render()});
   app.querySelectorAll('[data-pe]').forEach(b=>b.onclick=()=>editPlayer(b.dataset.pe));
   app.querySelectorAll('[data-msg]').forEach(b=>b.onclick=()=>composeMsg(b.dataset.msg));
-  app.querySelectorAll('[data-short]').forEach(b=>b.onclick=async()=>{const id=b.dataset.short,pl=S.players[id];if(!pl)return;const r=await ask('⚡ Cortocircuito: '+pl.username,[{l:'Scritta che vedrà '+pl.username+' (scritta e opzioni vengono ricordate per la prossima volta)',n:'t',t:'area'},{l:'Opzione 1 (primo pulsante)',n:'o1'},{l:'Opzione 2 (secondo pulsante)',n:'o2'},{l:'🧬 Nuova parte EGO da svelare DOPO il cortocircuito: nome categoria (vuoto = nessuna)',n:'xt'},{l:'Testo della nuova parte EGO',n:'xe',t:'area'},{l:'Testo della notifica al player (vuoto = automatico)',n:'xn',t:'area'}],{t:pl.shortMsg||SHORT_DEF,o1:(pl.shortO||[])[0]||SHORT_O[0],o2:(pl.shortO||[])[1]||SHORT_O[1],xt:(pl.shortEgo&&pl.shortEgo.t)||'',xe:(pl.shortEgo&&pl.shortEgo.e)||'',xn:(pl.shortEgo&&pl.shortEgo.n)||''},'⚡ Lancia');if(!r)return;const msg=(r.t||'').slice(0,200)||SHORT_DEF;guard(db.collection('players').doc(id).update({short:Date.now(),shortMsg:msg,shortO:[(r.o1||'').slice(0,40)||SHORT_O[0],(r.o2||'').slice(0,40)||SHORT_O[1]],shortEgo:{t:(r.xt||'').slice(0,80),e:(r.xe||'').slice(0,1500),n:(r.xn||'').slice(0,600)}}));toast('⚡ Cortocircuito inviato a '+pl.username+(r.xt?' · EGO «'+r.xt.slice(0,40)+'» si svelerà dopo':''))});
+  app.querySelectorAll('[data-short]').forEach(b=>b.onclick=async()=>{const id=b.dataset.short,pl=S.players[id];if(!pl)return;const r=await ask('⚡ Cortocircuito: '+pl.username,[{l:'Scritta che vedrà '+pl.username+' (scritta e opzioni vengono ricordate per la prossima volta)',n:'t',t:'area'},{l:'Opzione 1 (primo pulsante)',n:'o1'},{l:'Opzione 2 (secondo pulsante)',n:'o2'},{l:'🧬 Nuova parte EGO da svelare DOPO il cortocircuito: nome categoria (vuoto = nessuna)',n:'xt'},{l:'Testo della nuova parte EGO',n:'xe',t:'area'},{l:'Si svela SOLO se il player sceglie…',n:'xo',t:'select',o:['Opzione 1','Opzione 2','Qualsiasi risposta']},{l:'Testo della notifica al player (vuoto = automatico)',n:'xn',t:'area'}],{t:pl.shortMsg||SHORT_DEF,o1:(pl.shortO||[])[0]||SHORT_O[0],o2:(pl.shortO||[])[1]||SHORT_O[1],xt:(pl.shortEgo&&pl.shortEgo.t)||'',xe:(pl.shortEgo&&pl.shortEgo.e)||'',xo:['Opzione 1','Opzione 2','Qualsiasi risposta'][pl.shortEgo&&pl.shortEgo.o!=null?pl.shortEgo.o:0]||'Opzione 1',xn:(pl.shortEgo&&pl.shortEgo.n)||''},'⚡ Lancia');if(!r)return;const msg=(r.t||'').slice(0,200)||SHORT_DEF,xoI=Math.max(0,['Opzione 1','Opzione 2','Qualsiasi risposta'].indexOf(r.xo));guard(db.collection('players').doc(id).update({short:Date.now(),shortMsg:msg,shortO:[(r.o1||'').slice(0,40)||SHORT_O[0],(r.o2||'').slice(0,40)||SHORT_O[1]],shortEgo:{t:(r.xt||'').slice(0,80),e:(r.xe||'').slice(0,1500),n:(r.xn||'').slice(0,600),o:xoI}}));toast('⚡ Cortocircuito inviato a '+pl.username+(r.xt?' · EGO «'+r.xt.slice(0,40)+'» '+(xoI<2?'solo se sceglie «'+((xoI?r.o2:r.o1)||SHORT_O[xoI]).slice(0,40)+'»':'dopo qualsiasi risposta'):''))});
   app.querySelectorAll('[data-part]').forEach(g=>g.onclick=()=>{if(selP)woundDlg(selP,g.dataset.part)});
   if($('#newMsg'))$('#newMsg').onclick=()=>composeMsg();
   app.querySelectorAll('[data-md]').forEach(b=>b.onclick=async()=>{if(await askYes('Eliminare il messaggio?'))guard(db.collection('msgs').doc(b.dataset.md).delete())});
@@ -528,7 +548,7 @@ function rebindMP(){
 const REDM=()=>{try{return matchMedia('(prefers-reduced-motion: reduce)').matches}catch(e){return false}};
 function notifBurst(card,kind){
   if(REDM())return;
-  const E={ego:['⚡','✨'],money:['🪙','✨'],obiettivo:['🏆','✨','⭐'],ferita:['🩸','💥'],cura:['💚','✨'],invite:['🏕️','✨'],msg:['✉️','✨']}[kind]||['✨'];
+  const E={quest:['📜','✨'],questmain:['⭐','📜','✨','🏆'],ego:['⚡','✨'],money:['🪙','✨'],obiettivo:['🏆','✨','⭐'],ferita:['🩸','💥'],cura:['💚','✨'],invite:['🏕️','✨'],msg:['✉️','✨']}[kind]||['✨'];
   const a=card.querySelector('.encav');if(!a)return;
   const box=document.createElement('div');box.className='nparts';
   const cx=a.offsetLeft+a.offsetWidth/2,cy=a.offsetTop+a.offsetHeight/2,fall=kind==='money'?70:0;
@@ -2207,30 +2227,35 @@ html.sc-shake #desk{filter:hue-rotate(160deg) saturate(2.4) contrast(1.3);animat
     ty=typeInto(ov.querySelector('.sct'),msgT,true);
   },3500));
   T.push(setTimeout(()=>{ov.classList.add('p4');ph=4},3500+tdur+900));
-  const close=()=>{
+  const close=ch=>{
     if(closed)return;closed=true;T.forEach(clearTimeout);clearInterval(bi);
     if(ty)ty.stop();
     document.documentElement.classList.remove('sc-shake');
     SND.play('login',1);ov.classList.add('out');
-    setTimeout(()=>{ov.remove();shortOpen=false;setTimeout(applyShortEgo,500)},520);
+    setTimeout(()=>{ov.remove();shortOpen=false;setTimeout(()=>applyShortEgo(ch),500)},520);
   };
   const op=ov.querySelector('.scopts');
-  opts.forEach((lab,i)=>{const b=document.createElement('button');if(i)b.className='g';b.textContent=lab;b.onclick=e=>{e.stopPropagation();if(ph<4)return;const pl=me();if(pl&&authed)guard(db.collection('players').doc(uid).update({shortAns:{i,o:lab,ts:Date.now()}}));close()};op.append(b)});
+  opts.forEach((lab,i)=>{const b=document.createElement('button');if(i)b.className='g';b.textContent=lab;b.onclick=e=>{e.stopPropagation();if(ph<4)return;const pl=me();if(pl&&authed)guard(db.collection('players').doc(uid).update({shortAns:{i,o:lab,ts:Date.now()}}));close(i)};op.append(b)});
   T.push(setTimeout(close,180000));
 }
 
 /* ===== v26: nuova parte EGO svelata in automatico dopo un cortocircuito (la prepara il Master) ===== */
-async function applyShortEgo(){
+async function applyShortEgo(ch){
   const p=me();if(!p||!authed||!db)return;
   const g=p.shortEgo;if(!g||!g.t)return;
+  const want=g.o==null?2:+g.o; /* 0 = prima risposta, 1 = seconda, 2 = qualsiasi */
+  if(want<2&&ch!==want){ /* ha scelto l'altra risposta: la parte EGO non arriva. Se non ha risposto, resta in attesa */
+    if(ch===0||ch===1)guard(db.collection('players').doc(uid).update({shortEgo:{t:'',e:'',n:'',o:2}}));
+    return;
+  }
   const t=String(g.t).slice(0,80);
-  const ok=await guard(db.collection('players').doc(uid).update({egoX:[...(p.egoX||[]),{id:uid8(),t,e:String(g.e||'').slice(0,1500)}],shortEgo:{t:'',e:'',n:''}}).then(()=>1));
+  const ok=await guard(db.collection('players').doc(uid).update({egoX:[...(p.egoX||[]),{id:uid8(),t,e:String(g.e||'').slice(0,1500)}],shortEgo:{t:'',e:'',n:'',o:2}}).then(()=>1));
   if(!ok)return;
   const id=uid8(),def='Una nuova parte del tuo EGO è stata svelata: «'+t+'»';
   await guard(db.collection('msgs').doc(id).set({id,to:[uid],from:{t:'sys',name:'SISTEMA'},kind:'ego',text:String(g.n||'').trim().slice(0,600)||def,ts:Date.now()}));
 }
 /* ===== v24: il Master modifica tutto del player (EGO e categorie, descrizione, skill, inventario) ===== */
-const egoMasterCard=(id,p)=>{const g=egoOf(p),X=p.egoX||[];return `<div class="ego" style="animation:none"><div class="row sp"><span class="lab">⚡ EGO</span><div class="row"><button class="g mini" data-xego="${id}">✎ EGO</button><button class="mini" data-xxa="${id}">+ Categoria</button></div></div>${p.shortEgo&&p.shortEgo.t?`<div class="move" style="border-left-color:var(--warn)"><div class="grow">⚡ Si svelerà dopo il prossimo cortocircuito: <b>${esc(p.shortEgo.t)}</b></div><button class="d mini" data-xsc="${id}" title="Annulla">✕</button></div>`:''}${g.t||g.e?`<div class="et">${esc(g.t)}</div><p style="white-space:pre-wrap;margin:4px 0">${esc(g.e)}</p>`:'<p class="mut">Nessun EGO scritto.</p>'}${X.map(x=>`<div class="move" style="border-left-color:var(--acc2)"><div class="grow"><b>${esc(x.t)}</b> ${x.h?'<span class="tag">🙈 nascosta al player</span>':'<span class="tag">👁 visibile</span>'}<p style="white-space:pre-wrap;margin:4px 0 0">${esc(x.e)}</p></div><div class="row" style="gap:4px;flex-direction:column"><button class="g mini" data-xxh="${id}|${x.id}" title="${x.h?'Mostra al player':'Nascondi al player'}">${x.h?'👁':'🙈'}</button><button class="g mini" data-xxe="${id}|${x.id}">✎</button><button class="d mini" data-xxd="${id}|${x.id}">🗑</button></div></div>`).join('')}</div>`};
+const egoMasterCard=(id,p)=>{const g=egoOf(p),X=p.egoX||[];return `<div class="ego" style="animation:none"><div class="row sp"><span class="lab">⚡ EGO</span><div class="row"><button class="g mini" data-xego="${id}">✎ EGO</button><button class="mini" data-xxa="${id}">+ Categoria</button></div></div>${p.shortEgo&&p.shortEgo.t?`<div class="move" style="border-left-color:var(--warn)"><div class="grow">⚡ Si svelerà ${(p.shortEgo.o===0||p.shortEgo.o===1)?'se sceglie «'+esc((p.shortO||[])[p.shortEgo.o]||SHORT_O[p.shortEgo.o])+'»':'dopo il prossimo cortocircuito'}: <b>${esc(p.shortEgo.t)}</b></div><button class="d mini" data-xsc="${id}" title="Annulla">✕</button></div>`:''}${g.t||g.e?`<div class="et">${esc(g.t)}</div><p style="white-space:pre-wrap;margin:4px 0">${esc(g.e)}</p>`:'<p class="mut">Nessun EGO scritto.</p>'}${X.map(x=>`<div class="move" style="border-left-color:var(--acc2)"><div class="grow"><b>${esc(x.t)}</b> ${x.h?'<span class="tag">🙈 nascosta al player</span>':'<span class="tag">👁 visibile</span>'}<p style="white-space:pre-wrap;margin:4px 0 0">${esc(x.e)}</p></div><div class="row" style="gap:4px;flex-direction:column"><button class="g mini" data-xxh="${id}|${x.id}" title="${x.h?'Mostra al player':'Nascondi al player'}">${x.h?'👁':'🙈'}</button><button class="g mini" data-xxe="${id}|${x.id}">✎</button><button class="d mini" data-xxd="${id}|${x.id}">🗑</button></div></div>`).join('')}</div>`};
 const mxDesc=(id,p)=>`<div class="card"><div class="row sp"><h3>🏕️ DESCRIZIONE PARTY</h3><button class="g mini" data-xpd="${id}">✎</button></div><p class="mut" style="white-space:pre-wrap;margin:6px 0 0">${p.pdesc?esc(p.pdesc):'Nessuna descrizione.'}</p></div>`;
 const mxSkills=(id,p)=>`<div class="card"><div class="row sp"><h3>🗡️ SKILL</h3><button class="mini" data-xsa="${id}">+ Mossa</button></div>${(p.skills||[]).map((s,i)=>`<div>${skillCard(s,-1,null)}<div class="row" style="gap:6px;margin-top:6px"><button class="g mini grow" data-xse="${id}|${i}">✎ Modifica</button><button class="d mini" data-xsd="${id}|${i}">🗑</button></div></div>`).join('')||'<p class="mut">Nessuna skill per ora.</p>'}</div>`;
 const mxInv=(id,p)=>`<div class="card"><div class="row sp"><h3>🎒 INVENTARIO</h3><button class="mini" data-xia="${id}">+ Oggetto</button></div>${(p.inv||[]).map(e=>`<div class="move" style="border-left-color:var(--acc2)"><div style="font-size:1.6em">${e.photo?itImg(e.photo,44):(CATI[e.cat]||'🎁')}</div><div class="grow"><b>${esc(e.name)}</b><div class="mut">${CATL[e.cat]||'Oggetto'} · ${e.uses==null?'♾ Infinito':e.uses+(e.uses===1?' uso':' usi')}${bonusesOf(e).length?` · <span style="color:var(--ok)">${bonusTxt(e)}</span>`:''}${e.cat==='armatura'&&e.arm?` · <span style="color:var(--ok)">🛡️ −${e.arm} danni</span>`:''}${dmgHtml(e)}</div>${e.desc?`<div class="mut" style="white-space:pre-wrap">${esc(e.desc)}</div>`:''}</div><div class="row" style="gap:4px;flex-direction:column"><button class="g mini" data-xie="${id}|${e.id}">✎</button><button class="d mini" data-xid="${id}|${e.id}">🗑</button></div></div>`).join('')||'<p class="mut">Inventario vuoto.</p>'}</div>`;
@@ -2250,7 +2275,7 @@ function rebindMX(){
     const ok=await guard(db.collection('msgs').doc(id).set({id,to:[pid],from:{t:'sys',name:'SISTEMA'},kind:'ego',text:(r.text||'').slice(0,600)||def,ts:Date.now()}).then(()=>1));
     if(ok)toast('🔔 Notifica inviata a '+p.username);else toast('Notifica NON inviata a '+p.username);
   };
-  on('xsc',id=>U(id,{shortEgo:{t:'',e:'',n:''}}));
+  on('xsc',id=>U(id,{shortEgo:{t:'',e:'',n:'',o:2}}));
   on('xxa',async id=>{const p=S.players[id];if(!p)return;const r=await ask('Nuova categoria EGO',XF,{vis:'sì'});if(!r||!r.t)return;const t=r.t.slice(0,80);await U(id,{egoX:[...(p.egoX||[]),{id:uid8(),t,e:r.e.slice(0,1500),...hv(r)}]});if(r.vis!=='no')egoNotify(id,t)});
   on('xxe',async k=>{const [id,xid]=k.split('|'),p=S.players[id],x=p&&(p.egoX||[]).find(z=>z.id===xid);if(!x)return;const r=await ask('Modifica categoria EGO',XF,{...x,vis:x.h?'no':'sì'});if(!r||!r.t)return;const t=r.t.slice(0,80);await U(id,{egoX:p.egoX.map(z=>z.id===xid?{id:z.id,t,e:r.e.slice(0,1500),...hv(r)}:z)});if(x.h&&r.vis!=='no')egoNotify(id,t)});
   on('xxh',async k=>{const [id,xid]=k.split('|'),p=S.players[id],x=p&&(p.egoX||[]).find(z=>z.id===xid);if(!x)return;await U(id,{egoX:p.egoX.map(z=>{if(z.id!==xid)return z;const {h,...rest}=z;return z.h?rest:{...rest,h:1}})});if(x.h)egoNotify(id,x.t)});
