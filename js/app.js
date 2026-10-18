@@ -527,7 +527,7 @@ function rebindMP(){
 function checkM(){
   const p=me();if(!p||!authed||encOpen||!LD.msgs||!LD.players)return;
   const mine=myMsgs().sort((a,b)=>a.ts-b.ts),seen=p.seenM;
-  if(!Array.isArray(seen)){guard(db.collection('players').doc(uid).update({seenM:mine.map(m=>m.id)}));return}
+  if(!Array.isArray(seen)){guard(db.collection('players').doc(uid).update({seenM:mine.filter(m=>!(m.kind==='ego'&&Date.now()-m.ts<6048e5)).map(m=>m.id)}));return}
   const m=mine.find(x=>!seen.includes(x.id));if(!m)return;
   encOpen=true;SND.play(m.kind==='ferita'?(m.lv?'hurt':'heal'):m.kind==='money'?'coin':m.kind==='obiettivo'?'fanfare':m.kind==='invite'?'enc':m.kind==='ego'?'skill':'msg',1);const w=m.kind==='ferita',h=w&&m.lv>0,c=w?(m.lv?WC[m.lv]:'var(--ok)'):m.kind==='money'?'var(--ok)':m.kind==='obiettivo'?'var(--gold)':'var(--acc)';
   const title=w?(m.lv?'SEI STATO FERITO':'FERITA GUARITA'):m.kind==='money'?'HAI RICEVUTO NUMMUS':m.kind==='invite'?'INVITO AL PARTY':m.kind==='obiettivo'?'OBIETTIVO COMPLETATO':m.kind==='ego'?'EGO SVELATO':'NUOVO MESSAGGIO';
@@ -2219,8 +2219,8 @@ function rebindMX(){
     const r=await ask('🔔 Notifica a '+p.username,[{l:'Invia una notifica al player',n:'send',t:'select',o:['sì','no']},{l:'Testo della notifica (modificabile)',n:'text',t:'area'}],{send:'sì',text:def},'Conferma');
     if(!r||r.send==='no')return;
     const id=uid8();
-    await guard(db.collection('msgs').doc(id).set({id,to:[pid],from:{t:'sys',name:'SISTEMA'},kind:'ego',text:(r.text||'').slice(0,600)||def,ts:Date.now()}));
-    toast('🔔 Notifica inviata a '+p.username);
+    const ok=await guard(db.collection('msgs').doc(id).set({id,to:[pid],from:{t:'sys',name:'SISTEMA'},kind:'ego',text:(r.text||'').slice(0,600)||def,ts:Date.now()}).then(()=>1));
+    if(ok)toast('🔔 Notifica inviata a '+p.username);else toast('Notifica NON inviata a '+p.username);
   };
   on('xxa',async id=>{const p=S.players[id];if(!p)return;const r=await ask('Nuova categoria EGO',XF,{vis:'sì'});if(!r||!r.t)return;const t=r.t.slice(0,80);await U(id,{egoX:[...(p.egoX||[]),{id:uid8(),t,e:r.e.slice(0,1500),...hv(r)}]});if(r.vis!=='no')egoNotify(id,t)});
   on('xxe',async k=>{const [id,xid]=k.split('|'),p=S.players[id],x=p&&(p.egoX||[]).find(z=>z.id===xid);if(!x)return;const r=await ask('Modifica categoria EGO',XF,{...x,vis:x.h?'no':'sì'});if(!r||!r.t)return;const t=r.t.slice(0,80);await U(id,{egoX:p.egoX.map(z=>z.id===xid?{id:z.id,t,e:r.e.slice(0,1500),...hv(r)}:z)});if(x.h&&r.vis!=='no')egoNotify(id,t)});
