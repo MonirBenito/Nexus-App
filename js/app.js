@@ -180,7 +180,7 @@ function render(){
   const v=view.name,M=masterOK&&v==='master';
   $('#mbtn').style.display=M?'none':'block';
   if(!db){app.innerHTML=`<div class="splash"><h2>Dati non raggiungibili</h2><p class="mut">Connessione ai dati non disponibile. Controlla js/config.js e la connessione a internet.</p></div>`;return}
-  autoLogin();if(M){checkShortAns();renderMaster();rebindItems();rebindDel();rebindMP();rebindV9();rebindNI();return}
+  autoLogin();if(M){checkShortAns();renderMaster();rebindItems();rebindDel();rebindMP();rebindV9();rebindNI();rebindMX();return}
   if(!authed||!me())return renderSplash();checkShort();
   if(v==='npc')return renderNpc();
   (v==='home'?renderHome():renderBoard());checkEnc();checkQ();checkM();rebindDel();rebindV9();
@@ -230,7 +230,7 @@ function renderMaster(){
   if(tab==='party')b=masterParty();else if(0){const ids=(S.party.main&&S.party.main.members)||[];b=hdr('🏕️ Party',1)+`<button id="pmem" style="width:100%">Gestisci membri</button>`+(ids.filter(i=>S.players[i]).map(i=>memCard(S.players[i],false)).join('')||'<p class="mut">Nessun membro nel party.</p>')}
   if(tab==='msgs')b=masterMsgs();
   if(tab==='map')b=mapBoard(true);
-  if(tab==='ego')b=hdr('⚡ EGO',1)+(Object.values(S.players).map(p=>{const g=egoOf(p);return `<div class="ego" style="animation:none"><b>${esc(p.username)}</b>${g.t||g.e?`<div class="et">${esc(g.t)}</div><p style="white-space:pre-wrap;margin:4px 0">${esc(g.e)}</p>`:'<p class="mut">Nessun EGO scritto.</p>'}</div>`}).join('')||'<p class="mut">Nessun player registrato.</p>');
+  if(tab==='ego')b=hdr('⚡ EGO',1)+(Object.entries(S.players).map(([id,p])=>`<h3 style="margin-top:14px">${esc(p.username)}</h3>`+egoMasterCard(id,p)).join('')||'<p class="mut">Nessun player registrato.</p>');
   app.innerHTML=b;bind();
   const on=(a,fn)=>app.querySelectorAll(`[data-${a}]`).forEach(x=>x.onclick=()=>fn(x.dataset[a]));
   on('pe',async id=>{const p=S.players[id],t=trOf(p),r=await ask('Player',[{l:'Username',n:'username'},{l:'Nummus',n:'currency',t:'number'},{l:'Gruppo sanguigno',n:'blood',t:'select',o:BLOODS},{l:'Punti tratti',n:'points',t:'number'},{l:'Punti abilità',n:'pointsAb',t:'number'},{l:'HP massimi',n:'hpMax',t:'number'},{l:'HP attuali',n:'hp',t:'number'},{l:'NEXUS massimo',n:'nxMax',t:'number'},{l:'NEXUS attuale',n:'nx',t:'number'},...TR.map(([k,l])=>({l:l+' (valore)',n:k,t:'number'}))],{...p,points:p.points||0,pointsAb:p.pointsAb||0,...t,hpMax:vit(p).hm,hp:vit(p).h,nxMax:vit(p).nm,nx:vit(p).n});if(r)guard(C('players').doc(id).update({username:r.username||p.username,currency:r.currency,blood:r.blood,points:r.points,pointsAb:r.pointsAb,hpMax:r.hpMax,hp:Math.min(r.hp,r.hpMax),nxMax:r.nxMax,nx:Math.min(r.nx,r.nxMax),traits:Object.fromEntries(TR.map(([k])=>[k,Math.min(99,r[k])]))}))});
@@ -305,7 +305,7 @@ const armLine=p=>armorOf(p)>0?`<div class="mut" style="margin-top:10px">🛡️ 
 const bonusLabel=b=>b?((b.t==='tr'?TR:AB).find(x=>x[0]===b.k)||[0,'?'])[1]:'nessuno';
 const modOf=p=>{const m={tr:{},ab:{}};(p.inv||[]).forEach(e=>{if(e.uses==null||e.uses>0)bonusesOf(e).forEach(b=>{m[b.t][b.k]=(m[b.t][b.k]||0)+b.v})});return m};
 const uploadPhoto=async f=>{if(!assets){toast('Upload non disponibile');return ''}if(f.size>2e6){toast('Foto oltre 2 MB');return ''}const a=await guard(assets.upload(f));return a?a.url:''};
-const egoBoard=p=>{const g=egoOf(p);return hdr('⚡ EGO',1)+`<div class="ego big"><div class="row sp"><span class="lab">IL POTERE DEL PERSONAGGIO</span><button class="g" id="egoE">✎</button></div>${g.t||g.e?`<div class="et" style="font-size:2em;text-align:center;margin:18px 0">${esc(g.t)}</div><div class="mut" style="letter-spacing:3px">EFFETTO</div><p style="white-space:pre-wrap;font-size:1.05em;margin:6px 0">${esc(g.e)}</p>`:'<p class="mut" style="margin:40px 0;text-align:center">Nessun EGO scritto.<br>Tocca ✎ per definire il tuo potere.</p>'}</div>`};
+const egoBoard=p=>{const g=egoOf(p),X=p.egoX||[];return hdr('⚡ EGO',1)+`<div class="ego big"><div class="row sp"><span class="lab">IL POTERE DEL PERSONAGGIO</span><button class="g" id="egoE">✎</button></div>${g.t||g.e?`<div class="et" style="font-size:2em;text-align:center;margin:18px 0">${esc(g.t)}</div><div class="mut" style="letter-spacing:3px">EFFETTO</div><p style="white-space:pre-wrap;font-size:1.05em;margin:6px 0">${esc(g.e)}</p>`:'<p class="mut" style="margin:40px 0;text-align:center">Nessun EGO scritto.<br>Tocca ✎ per definire il tuo potere.</p>'}</div>`+X.map(x=>`<div class="ego"><span class="lab">${esc(String(x.t).toUpperCase())}</span><p style="white-space:pre-wrap;margin:8px 0 0">${esc(x.e)}</p></div>`).join('')};
 const ITF=()=>[{l:'Nome',n:'name'},{l:'Prezzo (Nummus)',n:'price',t:'number'},{l:'Tipo',n:'cat',t:'select',o:['oggetto','arma','armatura']},{l:'Foto (max 2 MB)',n:'photo',t:'file'},{l:'Cosa dice il mercante (descrizione)',n:'desc',t:'area'},{l:'Utilizzo',n:'use',t:'select',o:['infinito','utilizzabile']},{l:'Numero di usi (solo se utilizzabile)',n:'uses',t:'number'},{l:'Bonus a tratti e abilità (uno per riga, es. "Mira +2" oppure "Vigore +1")',n:'bks',t:'area'},{l:'Riduzione danni (solo armature: punti di danno in meno a ogni colpo, 0 = nessuna)',n:'arm',t:'number'},...DMGF.map(f=>({...f,l:f.l+' (solo armi)'})),...COSTF,{l:'Scorte (0 = illimitate)',n:'stock',t:'number'}];
 async function itData(r,old){const o={name:r.name,price:r.price,cat:r.cat,desc:r.desc,use:r.use,uses:r.use==='utilizzabile'?Math.max(1,r.uses):0,bonus:null,bonuses:bonusParse(r.bks),arm:r.cat==='armatura'?Math.min(999,Math.max(0,r.arm||0)):0,...dmgClean(r,r.cat==='arma'),...costClean(r),stock:r.stock>0?r.stock:null};if(r.photo){const u=await uploadPhoto(r.photo);if(u)o.photo=u}else if(!old)o.photo='';return o}
 function rebindItems(){
@@ -410,7 +410,7 @@ const masterPlayers=()=>{
   `<div class="hero"><div class="grow"><div class="row sp"><h2 style="margin:0">${esc(p.username)}</h2><div class="row"><button class="g" data-msg="${selP}">✉️</button><button class="g" data-pe="${selP}">✎ Modifica</button><button class="d" data-pd="${selP}">🗑</button></div></div><div class="row" style="margin-top:8px;flex-wrap:wrap"><span class="pill eu">🪙 ${p.currency}</span><span class="pill bl">🩸 ${bl(p)}</span><span class="pill">Punti tratti ${p.points||0}</span><span class="pill">Punti abilità ${p.pointsAb||0}</span></div></div></div>`+
   `<button class="d" style="width:100%;margin:6px 0 10px" data-short="${selP}">⚡ CORTOCIRCUITO</button>${p.shortAns?`<div class="card" style="border-color:var(--warn);margin:0 5px 10px 0">⚡ Risposta al cortocircuito: <b>${esc(p.shortAns.o)}</b><div class="mut">${new Date(p.shortAns.ts).toLocaleString('it-IT')}</div></div>`:''}<div class="card"><div class="mut">❤️ HP</div>${bar(v.h,v.hm,'hp')}<div class="mut">🔷 NEXUS</div>${bar(v.n,v.nm,'nx')}</div>`+
   woundCard(p,true)+`<div class="card"><h3>🧬 TRATTI</h3>${TR.map(([k,l],i)=>`<div style="margin-top:10px"><div class="row sp"><b>${l}</b><b style="color:${COLS[i]}">${t[k]}${md.tr[k]?` <span style="color:var(--ok)">+${md.tr[k]}</span>`:''}</b></div><div class="meter"><i style="width:${Math.min(100,t[k]*20)}%;background:${COLS[i]}"></i></div></div>`).join('')}</div>`+
-  `<div class="card"><h3>🗡️ SKILL</h3>${(p.skills||[]).map(s=>skillCard(s,-1,null)).join('')||'<p class="mut">Nessuna skill per ora.</p>'}</div>`+invRO(p);
+  egoMasterCard(selP,p)+mxDesc(selP,p)+mxSkills(selP,p)+mxInv(selP,p);
 };
 /* ===== v7: inventario, messaggi, ferite, editor player ===== */
 let invTab='arma',editing=false,draft={};
@@ -636,14 +636,16 @@ function themePicker(){
 }
 /* ===== v12: desktop (finestra, barra applicazioni) e mappe a pixel ===== */
 const DAYS=['domenica','lunedì','martedì','mercoledì','giovedì','venerdì','sabato'],MONTHS=['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
+const gclock=()=>{const c=S.party&&S.party.clock;if(c&&c.mode&&c.mode!=='real'&&c.base){return new Date(c.mode==='run'?c.base+(Date.now()-c.real):c.base)}return new Date()};
 function tick(){
-  const d=new Date(),t=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+  const d=gclock(),t=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
   const full=DAYS[d.getDay()]+' '+d.getDate()+' '+MONTHS[d.getMonth()],short=d.toLocaleDateString('it-IT');
   const c=document.getElementById('tb-clock');if(c&&c.textContent!==t)c.textContent=t;
   const dt=document.getElementById('tb-date');if(dt&&dt.textContent!==short)dt.textContent=short;
   document.querySelectorAll('.gtime').forEach(e=>e.textContent=t);
   document.querySelectorAll('.gdate').forEach(e=>e.textContent=full);
   const n=document.getElementById('tb-net');if(n){const on=navigator.onLine!==false;n.textContent=on?'Online':'Offline';n.classList.toggle('off',!on)}
+  const w=document.getElementById('tb-clockw');if(w){w.style.cursor=masterOK?'pointer':'';w.title=masterOK?'Modifica data e ora (Master)':''}
 }
 function screenName(){
   if(masterOK&&view.name==='master'){const T={profile:'Player',ego:'EGO',npcs:'Incontri',quests:'Obiettivi',party:'Party',msgs:'Messaggi',map:'Mappa'};return 'Pannello Master'+(tab&&T[tab]?' — '+T[tab]:'')}
@@ -696,6 +698,19 @@ tbOn('tb-start',()=>{
   else if(authed&&me()){view={name:'home'};render()}
   else authSheet();
 });
+const pad2=n=>String(n).padStart(2,'0');
+async function editClock(){
+  const d=gclock(),c=(S.party&&S.party.clock)||{};
+  const r=await ask('🕒 Data e ora',[{l:'Data',n:'d',t:'date'},{l:'Ora',n:'h',t:'time'},{l:'Modalità',n:'mode',t:'select',o:['scorre da questo momento','fermo','orario reale del dispositivo']}],
+    {d:d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()),h:pad2(d.getHours())+':'+pad2(d.getMinutes()),mode:c.mode==='stop'?'fermo':c.mode==='run'?'scorre da questo momento':'orario reale del dispositivo'});
+  if(!r)return;
+  if(r.mode.startsWith('orario reale')){await guard(db.collection('party').doc('clock').set({mode:'real'}));toast('Orologio: orario reale');tick();return}
+  const base=new Date(r.d+'T'+(r.h||'00:00')).getTime();
+  if(isNaN(base))return toast('Data o ora non valide');
+  await guard(db.collection('party').doc('clock').set({mode:r.mode==='fermo'?'stop':'run',base,real:Date.now()}));
+  toast('Orologio aggiornato');tick();
+}
+tbOn('tb-clockw',()=>{if(masterOK)editClock()});
 
 //#MAPCORE-START
 const MAP_TYPES=[['terra','🌍 Terre e mari'],['isola','🏝️ Isola'],['dungeon','🏰 Dungeon'],['caverna','🕳️ Caverna'],['villaggio','🏘️ Villaggio']];
@@ -2169,6 +2184,27 @@ html.sc-shake #desk{filter:hue-rotate(160deg) saturate(2.4) contrast(1.3);animat
   T.push(setTimeout(close,180000));
 }
 
+/* ===== v24: il Master modifica tutto del player (EGO e categorie, descrizione, skill, inventario) ===== */
+const egoMasterCard=(id,p)=>{const g=egoOf(p),X=p.egoX||[];return `<div class="ego" style="animation:none"><div class="row sp"><span class="lab">⚡ EGO</span><div class="row"><button class="g mini" data-xego="${id}">✎ EGO</button><button class="mini" data-xxa="${id}">+ Categoria</button></div></div>${g.t||g.e?`<div class="et">${esc(g.t)}</div><p style="white-space:pre-wrap;margin:4px 0">${esc(g.e)}</p>`:'<p class="mut">Nessun EGO scritto.</p>'}${X.map(x=>`<div class="move" style="border-left-color:var(--acc2)"><div class="grow"><b>${esc(x.t)}</b><p style="white-space:pre-wrap;margin:4px 0 0">${esc(x.e)}</p></div><div class="row" style="gap:4px;flex-direction:column"><button class="g mini" data-xxe="${id}|${x.id}">✎</button><button class="d mini" data-xxd="${id}|${x.id}">🗑</button></div></div>`).join('')}</div>`};
+const mxDesc=(id,p)=>`<div class="card"><div class="row sp"><h3>🏕️ DESCRIZIONE PARTY</h3><button class="g mini" data-xpd="${id}">✎</button></div><p class="mut" style="white-space:pre-wrap;margin:6px 0 0">${p.pdesc?esc(p.pdesc):'Nessuna descrizione.'}</p></div>`;
+const mxSkills=(id,p)=>`<div class="card"><div class="row sp"><h3>🗡️ SKILL</h3><button class="mini" data-xsa="${id}">+ Mossa</button></div>${(p.skills||[]).map((s,i)=>`<div>${skillCard(s,-1,null)}<div class="row" style="gap:6px;margin-top:6px"><button class="g mini grow" data-xse="${id}|${i}">✎ Modifica</button><button class="d mini" data-xsd="${id}|${i}">🗑</button></div></div>`).join('')||'<p class="mut">Nessuna skill per ora.</p>'}</div>`;
+const mxInv=(id,p)=>`<div class="card"><div class="row sp"><h3>🎒 INVENTARIO</h3><button class="mini" data-xia="${id}">+ Oggetto</button></div>${(p.inv||[]).map(e=>`<div class="move" style="border-left-color:var(--acc2)"><div style="font-size:1.6em">${e.photo?itImg(e.photo,44):(CATI[e.cat]||'🎁')}</div><div class="grow"><b>${esc(e.name)}</b><div class="mut">${CATL[e.cat]||'Oggetto'} · ${e.uses==null?'♾ Infinito':e.uses+(e.uses===1?' uso':' usi')}${bonusesOf(e).length?` · <span style="color:var(--ok)">${bonusTxt(e)}</span>`:''}${e.cat==='armatura'&&e.arm?` · <span style="color:var(--ok)">🛡️ −${e.arm} danni</span>`:''}${dmgHtml(e)}</div>${e.desc?`<div class="mut" style="white-space:pre-wrap">${esc(e.desc)}</div>`:''}</div><div class="row" style="gap:4px;flex-direction:column"><button class="g mini" data-xie="${id}|${e.id}">✎</button><button class="d mini" data-xid="${id}|${e.id}">🗑</button></div></div>`).join('')||'<p class="mut">Inventario vuoto.</p>'}</div>`;
+function rebindMX(){
+  const U=(id,d)=>guard(db.collection('players').doc(id).update(d));
+  const on=(a,fn)=>app.querySelectorAll(`[data-${a}]`).forEach(b=>b.onclick=()=>fn(b.dataset[a]));
+  const skD=r=>({n:r.n.slice(0,60),c:r.c,e:r.e.slice(0,600),dmg:r.dmg.slice(0,60),dur:r.dur.slice(0,60),...dmgClean({...r,dfix:0},true)});
+  on('xego',async id=>{const p=S.players[id];if(!p)return;const r=await ask('EGO di '+p.username,[{l:'Titolo',n:'t'},{l:'Effetto',n:'e',t:'area'}],egoOf(p));if(r)U(id,{ego:{t:r.t.slice(0,80),e:r.e.slice(0,1500)}})});
+  on('xxa',async id=>{const p=S.players[id];if(!p)return;const r=await ask('Nuova categoria EGO',[{l:'Nome categoria',n:'t'},{l:'Testo',n:'e',t:'area'}]);if(r&&r.t)U(id,{egoX:[...(p.egoX||[]),{id:uid8(),t:r.t.slice(0,80),e:r.e.slice(0,1500)}]})});
+  on('xxe',async k=>{const [id,xid]=k.split('|'),p=S.players[id],x=p&&(p.egoX||[]).find(z=>z.id===xid);if(!x)return;const r=await ask('Modifica categoria EGO',[{l:'Nome categoria',n:'t'},{l:'Testo',n:'e',t:'area'}],x);if(r&&r.t)U(id,{egoX:p.egoX.map(z=>z.id===xid?{...z,t:r.t.slice(0,80),e:r.e.slice(0,1500)}:z)})});
+  on('xxd',async k=>{const [id,xid]=k.split('|'),p=S.players[id];if(p&&await askYes('Eliminare questa categoria EGO?'))U(id,{egoX:(p.egoX||[]).filter(z=>z.id!==xid)})});
+  on('xpd',async id=>{const p=S.players[id];if(!p)return;const r=await ask('Descrizione di '+p.username,[{l:'Descrizione',n:'pdesc',t:'area'}],p);if(r)U(id,{pdesc:r.pdesc.slice(0,600)})});
+  on('xsa',async id=>{const p=S.players[id];if(!p)return;const r=await ask('Nuova skill per '+p.username,SKF,{c:0,dt:'d6'});if(r&&r.n)U(id,{skills:[...(p.skills||[]),skD(r)]})});
+  on('xse',async k=>{const [id,i]=k.split('|'),p=S.players[id],s=p&&(p.skills||[])[+i];if(!s)return;const r=await ask('Modifica skill',SKF,{...s,dt:s.dt||'d6',e:s.e??s.d??''});if(r&&r.n){const l=[...p.skills];l[+i]=skD(r);U(id,{skills:l})}});
+  on('xsd',async k=>{const [id,i]=k.split('|'),p=S.players[id];if(p&&await askYes('Rimuovere questa skill?'))U(id,{skills:(p.skills||[]).filter((_,j)=>j!==+i)})});
+  on('xia',async id=>{const p=S.players[id];if(!p)return;const r=await ask('Nuovo oggetto per '+p.username,IF(),{cat:'oggetto',use:'infinito',bk:'nessuno',dt:'d6'});if(r&&r.name){const o=await invSave(r);U(id,{inv:[...(p.inv||[]),{id:uid8(),it:'',...o}]})}});
+  on('xie',async k=>{const [id,iid]=k.split('|'),p=S.players[id],e=p&&(p.inv||[]).find(x=>x.id===iid);if(!e)return;const r=await ask('Modifica oggetto',IF(),{...e,use:e.uses==null?'infinito':'utilizzabile',uses:e.uses||0,bks:bonusInit(e),...dmgInit(e)});if(r&&r.name){const o=await invSave(r,e);U(id,{inv:p.inv.map(x=>x.id===iid?{...x,...o}:x)})}});
+  on('xid',async k=>{const [id,iid]=k.split('|'),p=S.players[id];if(p&&await askYes('Rimuovere questo oggetto dall\'inventario?'))U(id,{inv:(p.inv||[]).filter(x=>x.id!==iid)})});
+}
 $('#mbtn').onclick=async()=>{
   if(masterOK){view={name:'master'};return render()}
   const r=await ask('Login Master',[{l:'Email',n:'email',t:'email'},{l:'Password',n:'pw',t:'password'}]);
