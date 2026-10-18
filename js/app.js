@@ -180,7 +180,7 @@ function render(){
   const v=view.name,M=masterOK&&v==='master';
   $('#mbtn').style.display=M?'none':'block';
   if(!db){app.innerHTML=`<div class="splash"><h2>Dati non raggiungibili</h2><p class="mut">Connessione ai dati non disponibile. Controlla js/config.js e la connessione a internet.</p></div>`;return}
-  autoLogin();if(M){renderMaster();rebindItems();rebindDel();rebindMP();rebindV9();rebindNI();return}
+  autoLogin();if(M){checkShortAns();renderMaster();rebindItems();rebindDel();rebindMP();rebindV9();rebindNI();return}
   if(!authed||!me())return renderSplash();checkShort();
   if(v==='npc')return renderNpc();
   (v==='home'?renderHome():renderBoard());checkEnc();checkQ();checkM();rebindDel();rebindV9();
@@ -328,10 +328,10 @@ function checkEnc(){
 }
 const itImg=(u,sz)=>`<span class="iph" style="--s:${sz}px"><img src="${esc(u)}" alt="" loading="lazy"></span>`;
 /* scrive il testo lettera per lettera (tocca per saltare) */
-function typeInto(el,txt){
+function typeInto(el,txt,slow){
   const ch=Array.from(txt);
   if(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches){el.textContent=txt;return{skip(){},stop(){}}}
-  let i=0;const step=Math.max(12,Math.min(32,Math.floor(4200/Math.max(1,ch.length))));
+  let i=0;const step=slow?Math.max(45,Math.min(95,Math.floor(13000/Math.max(1,ch.length)))):Math.max(12,Math.min(32,Math.floor(4200/Math.max(1,ch.length))));
   el.classList.add('typing');el.textContent='';
   const t=setInterval(()=>{i++;if(i%2===0)SND.play('type');el.textContent=ch.slice(0,i).join('');if(i>=ch.length){clearInterval(t);el.classList.remove('typing')}},step);
   return{skip(){clearInterval(t);el.textContent=txt;el.classList.remove('typing')},stop(){clearInterval(t)}};
@@ -396,7 +396,7 @@ const masterPlayers=()=>{
   const p=S.players[selP],t=trOf(p),v=vit(p),md=modOf(p),COLS=Array(5).fill('var(--acc)');
   return hdr('👤 '+esc(p.username),1)+
   `<div class="hero"><div class="grow"><div class="row sp"><h2 style="margin:0">${esc(p.username)}</h2><div class="row"><button class="g" data-msg="${selP}">✉️</button><button class="g" data-pe="${selP}">✎ Modifica</button><button class="d" data-pd="${selP}">🗑</button></div></div><div class="row" style="margin-top:8px;flex-wrap:wrap"><span class="pill eu">🪙 ${p.currency}</span><span class="pill bl">🩸 ${bl(p)}</span><span class="pill">Punti tratti ${p.points||0}</span><span class="pill">Punti abilità ${p.pointsAb||0}</span></div></div></div>`+
-  `<button class="d" style="width:100%;margin:6px 0 10px" data-short="${selP}">⚡ CORTOCIRCUITO</button><div class="card"><div class="mut">❤️ HP</div>${bar(v.h,v.hm,'hp')}<div class="mut">🔷 NEXUS</div>${bar(v.n,v.nm,'nx')}</div>`+
+  `<button class="d" style="width:100%;margin:6px 0 10px" data-short="${selP}">⚡ CORTOCIRCUITO</button>${p.shortAns?`<div class="card" style="border-color:var(--warn);margin:0 5px 10px 0">⚡ Risposta al cortocircuito: <b>${esc(p.shortAns.o)}</b><div class="mut">${new Date(p.shortAns.ts).toLocaleString('it-IT')}</div></div>`:''}<div class="card"><div class="mut">❤️ HP</div>${bar(v.h,v.hm,'hp')}<div class="mut">🔷 NEXUS</div>${bar(v.n,v.nm,'nx')}</div>`+
   woundCard(p,true)+`<div class="card"><h3>🧬 TRATTI</h3>${TR.map(([k,l],i)=>`<div style="margin-top:10px"><div class="row sp"><b>${l}</b><b style="color:${COLS[i]}">${t[k]}${md.tr[k]?` <span style="color:var(--ok)">+${md.tr[k]}</span>`:''}</b></div><div class="meter"><i style="width:${Math.min(100,t[k]*20)}%;background:${COLS[i]}"></i></div></div>`).join('')}</div>`+
   `<div class="card"><h3>🗡️ SKILL</h3>${(p.skills||[]).map(s=>skillCard(s,-1,null)).join('')||'<p class="mut">Nessuna skill per ora.</p>'}</div>`+invRO(p);
 };
@@ -483,7 +483,7 @@ function rebindMP(){
   app.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>{selP=b.dataset.open;render()});
   app.querySelectorAll('[data-pe]').forEach(b=>b.onclick=()=>editPlayer(b.dataset.pe));
   app.querySelectorAll('[data-msg]').forEach(b=>b.onclick=()=>composeMsg(b.dataset.msg));
-  app.querySelectorAll('[data-short]').forEach(b=>b.onclick=async()=>{const id=b.dataset.short,pl=S.players[id];if(!pl)return;const r=await ask('⚡ Cortocircuito: '+pl.username,[{l:'Scritta che vedrà '+pl.username+' (viene ricordata per la prossima volta)',n:'t',t:'area'}],{t:pl.shortMsg||SHORT_DEF},'⚡ Lancia');if(!r)return;const msg=(r.t||'').slice(0,200)||SHORT_DEF;guard(db.collection('players').doc(id).update({short:Date.now(),shortMsg:msg}));toast('⚡ Cortocircuito inviato a '+pl.username)});
+  app.querySelectorAll('[data-short]').forEach(b=>b.onclick=async()=>{const id=b.dataset.short,pl=S.players[id];if(!pl)return;const r=await ask('⚡ Cortocircuito: '+pl.username,[{l:'Scritta che vedrà '+pl.username+' (scritta e opzioni vengono ricordate per la prossima volta)',n:'t',t:'area'},{l:'Opzione 1 (primo pulsante)',n:'o1'},{l:'Opzione 2 (secondo pulsante)',n:'o2'}],{t:pl.shortMsg||SHORT_DEF,o1:(pl.shortO||[])[0]||SHORT_O[0],o2:(pl.shortO||[])[1]||SHORT_O[1]},'⚡ Lancia');if(!r)return;const msg=(r.t||'').slice(0,200)||SHORT_DEF;guard(db.collection('players').doc(id).update({short:Date.now(),shortMsg:msg,shortO:[(r.o1||'').slice(0,40)||SHORT_O[0],(r.o2||'').slice(0,40)||SHORT_O[1]]}));toast('⚡ Cortocircuito inviato a '+pl.username)});
   app.querySelectorAll('[data-part]').forEach(g=>g.onclick=()=>{if(selP)woundDlg(selP,g.dataset.part)});
   if($('#newMsg'))$('#newMsg').onclick=()=>composeMsg();
   app.querySelectorAll('[data-md]').forEach(b=>b.onclick=async()=>{if(await askYes('Eliminare il messaggio?'))guard(db.collection('msgs').doc(b.dataset.md).delete())});
@@ -2037,16 +2037,22 @@ function useItem(id){
 }
 
 /* ===== v20: cortocircuito del dispositivo (lo lancia il Master) ===== */
-let shortDone=null,shortOpen=false;const SHORT_DEF='IL NEXUS STA INONDANDO IL CIRCUITO';
+let shortDone=null,shortOpen=false;const SHORT_DEF='IL NEXUS STA INONDANDO IL CIRCUITO',SHORT_O=['Riavvia il sistema','Resisti'];
+let ansSeen=null;
+function checkShortAns(){
+  if(!LD.players)return;
+  if(!ansSeen){ansSeen={};Object.entries(S.players).forEach(([id,p])=>ansSeen[id]=(p.shortAns&&p.shortAns.ts)||0);return}
+  Object.entries(S.players).forEach(([id,p])=>{const t=(p.shortAns&&p.shortAns.ts)||0;if(t>(ansSeen[id]||0)){ansSeen[id]=t;SND.play('msg',1);toast('⚡ '+p.username+' ha scelto: '+p.shortAns.o)}});
+}
 function checkShort(){
   const p=me();if(!p||!authed||!LD.players)return;
   const t=+p.short||0;
   if(!shortDone||shortDone.u!==uid){shortDone={u:uid,t};return} /* al primo accesso non rigioca i vecchi */
   if(shortOpen||t<=shortDone.t)return;
-  shortDone.t=t;runShort(p.shortMsg);
+  shortDone.t=t;runShort(p.shortMsg,p.shortO);
 }
-function runShort(msg){
-  shortOpen=true;const msgT=String(msg||'').trim().slice(0,200)||SHORT_DEF;
+function runShort(msg,os){
+  shortOpen=true;const msgT=String(msg||'').trim().slice(0,200)||SHORT_DEF,opts=[0,1].map(i=>String((os&&os[i])||SHORT_O[i]).trim().slice(0,40)||SHORT_O[i]);
   if(!document.getElementById('scstyle')){
     const st=document.createElement('style');st.id='scstyle';
     st.textContent=`.shortc{position:fixed;inset:0;z-index:200;overflow:hidden;background:transparent}
@@ -2068,11 +2074,14 @@ html.sc-shake #desk{filter:hue-rotate(160deg) saturate(2.4) contrast(1.3);animat
 .sct{font:400 clamp(13px,4.2vw,26px)/1.7 var(--f-px);color:var(--acc-2);text-shadow:3px 0 #ff2a55,-3px 0 #2affea,0 0 24px var(--acc);letter-spacing:2px;max-width:92%;min-height:3.4em;white-space:pre-wrap;overflow-wrap:anywhere}
 .shortc.p3 .sct{animation:scgl 1.4s steps(1) infinite}
 @keyframes scgl{0%{transform:translate(0)}10%{transform:translate(-4px,2px) skewX(6deg)}20%{transform:none}55%{transform:translate(5px,-2px);opacity:.7}60%{transform:none;opacity:1}}
+.scopts{display:none;gap:16px;flex-wrap:wrap;justify-content:center;width:100%;max-width:520px}
+.shortc.p4 .scopts{display:flex;animation:itpop .3s steps(5) both}
+.scopts button{min-width:150px;font-size:1.05em;padding:12px 20px 13px}
 .shortc.out{opacity:0;transition:opacity .5s}`;
     document.head.append(st);
   }
   const ov=document.createElement('div');ov.className='shortc p1';
-  ov.innerHTML='<canvas></canvas><div class="scflash"></div><div class="scline"></div><div class="scmsg"><div class="sct"></div></div>';
+  ov.innerHTML='<canvas></canvas><div class="scflash"></div><div class="scline"></div><div class="scmsg"><div class="sct"></div><div class="scopts"></div></div>';
   document.body.append(ov);
   document.documentElement.classList.add('sc-shake');
   SND.play('short',1);
@@ -2090,7 +2099,7 @@ html.sc-shake #desk{filter:hue-rotate(160deg) saturate(2.4) contrast(1.3);animat
     for(let i=0;i<14;i++){c.fillStyle=Math.random()<.5?'#ffcb3d':'#fff';c.fillRect(Math.random()*cv.width,Math.random()*cv.height,2+Math.random()*4,2+Math.random()*4)}
   };
   const bi=setInterval(bolt,90);bolt();
-  let ty=null,ph=1,closed=false;const nch=Array.from(msgT).length,tdur=nch*Math.max(12,Math.min(32,Math.floor(4200/nch)));
+  let ty=null,ph=1,closed=false;const nch=Array.from(msgT).length,tdur=nch*Math.max(45,Math.min(95,Math.floor(13000/nch)));
   const T=[];
   T.push(setTimeout(()=>{ /* lo schermo si spegne come un vecchio CRT */
     clearInterval(bi);c.clearRect(0,0,cv.width,cv.height);
@@ -2099,9 +2108,9 @@ html.sc-shake #desk{filter:hue-rotate(160deg) saturate(2.4) contrast(1.3);animat
   },2600));
   T.push(setTimeout(()=>{ /* messaggio */
     ov.classList.remove('p2');ov.classList.add('p3');ph=3;
-    ty=typeInto(ov.querySelector('.sct'),msgT);
+    ty=typeInto(ov.querySelector('.sct'),msgT,true);
   },3500));
-  T.push(setTimeout(()=>{ov.classList.add('p4');ph=4},3500+tdur+1500));
+  T.push(setTimeout(()=>{ov.classList.add('p4');ph=4},3500+tdur+900));
   const close=()=>{
     if(closed)return;closed=true;T.forEach(clearTimeout);clearInterval(bi);
     if(ty)ty.stop();
@@ -2109,8 +2118,9 @@ html.sc-shake #desk{filter:hue-rotate(160deg) saturate(2.4) contrast(1.3);animat
     SND.play('login',1);ov.classList.add('out');
     setTimeout(()=>{ov.remove();shortOpen=false},520);
   };
-  ov.onclick=()=>{if(ph>=4)close()};
-  T.push(setTimeout(close,40000));
+  const op=ov.querySelector('.scopts');
+  opts.forEach((lab,i)=>{const b=document.createElement('button');if(i)b.className='g';b.textContent=lab;b.onclick=e=>{e.stopPropagation();if(ph<4)return;const pl=me();if(pl&&authed)guard(db.collection('players').doc(uid).update({shortAns:{i,o:lab,ts:Date.now()}}));close()};op.append(b)});
+  T.push(setTimeout(close,180000));
 }
 
 $('#mbtn').onclick=async()=>{
