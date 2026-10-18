@@ -182,6 +182,7 @@ function render(){
   if(!db){app.innerHTML=`<div class="splash"><h2>Dati non raggiungibili</h2><p class="mut">Connessione ai dati non disponibile. Controlla js/config.js e la connessione a internet.</p></div>`;return}
   autoLogin();if(M){checkShortAns();renderMaster();rebindItems();rebindDel();rebindMP();rebindV9();rebindNI();rebindMX();return}
   if(!authed||!me())return renderSplash();checkShort();
+  if(v!=='npc'){npcAnim=null;if(npcTy){npcTy.stop();npcTy=null}app.classList.remove('npcfx')}
   if(v==='npc')return renderNpc();
   (v==='home'?renderHome():renderBoard());checkEnc();checkQ();checkM();rebindDel();rebindV9();
 }
@@ -291,9 +292,24 @@ let encOpen=false;
 function renderNpc(){
   const n=S.npcs[view.id],p=me();if(!n||!visN(n)){view={name:'npcs'};return render()}
   const m=kindOf(n)==='mercante',its=Object.values(S.items).filter(i=>i.npc===n.id&&i.active!==false);
-  app.innerHTML=hdr(esc(n.name),1)+`<div class="hero npc"><div class="portrait">${n.photo?`<img src="${esc(n.photo)}">`:'🩸'}</div><div><span class="pill">${KIND[kindOf(n)]}</span> <span class="pill" style="color:${attOf(n).c};border-color:${attOf(n).c}">${attOf(n).i} ${attOf(n).l}</span>${n.ko?' <span class="pill" style="color:var(--danger);border-color:var(--danger)">💀 K.O.</span>':''}<div style="margin-top:8px;white-space:pre-wrap">${esc(n.desc)}</div></div></div>`+phraseHtml(n)+(m?`<div class="wallet"><span>PORTAFOGLIO</span><b>🪙 ${p.currency}</b></div><h3>🛒 Bottega di ${esc(n.name)}</h3><div class="shopgrid">${its.map(i=>{const out=i.stock===0,poor=p.currency<i.price;return `<div class="item ${out?'out':''}" data-ii="${i.id}"><div class="ico">${i.photo?`${itImg(i.photo,72)}`:CATI[i.cat||'oggetto']}</div><b>${esc(i.name)}</b><span class="tag">${CATI[i.cat||'oggetto']} ${CATL[i.cat||'oggetto']}</span>${i.rtype==='currency'?`<div class="mut">Ricevi 🪙 ${i.amount}</div>`:''}${(i.cat==='armatura'&&i.arm)?`<div class="mut">🛡️ −${i.arm} danni</div>`:''}${(i.cat==='arma'&&hasDmg(i))?`<div class="mut">💥 ${dmgTxt(i)}</div>`:''}${costTxt(i)?`<div class="mut">${costTxt(i)} / uso</div>`:''}<div class="mut">${i.stock!=null?(out?'ESAURITO':'Scorte: '+i.stock):'Sempre disponibile'}</div><button data-r="${i.id}" ${out||poor?'disabled':''}>🪙 ${i.price}</button>${poor&&!out?'<div class="mut" style="font-size:.75em">Nummus insufficienti</div>':''}</div>`}).join('')||'<p class="mut">La bottega è vuota.</p>'}</div>`:'<div class="card"><h3>⚔️ Combattente</h3><p class="mut">Nessuna azione disponibile per ora.</p></div>');
+  app.innerHTML=hdr(esc(n.name),1)+`<div class="hero npc"><div class="portrait">${n.photo?`<img src="${esc(n.photo)}">`:'🩸'}</div><div><span class="pill">${KIND[kindOf(n)]}</span> <span class="pill" style="color:${attOf(n).c};border-color:${attOf(n).c}">${attOf(n).i} ${attOf(n).l}</span>${n.ko?' <span class="pill" style="color:var(--danger);border-color:var(--danger)">💀 K.O.</span>':''}<div class="npcdesc" style="margin-top:8px;white-space:pre-wrap">${esc(n.desc)}</div></div></div>`+phraseHtml(n)+(m?`<div class="wallet"><span>PORTAFOGLIO</span><b>🪙 ${p.currency}</b></div><h3>🛒 Bottega di ${esc(n.name)}</h3><div class="shopgrid">${its.map(i=>{const out=i.stock===0,poor=p.currency<i.price;return `<div class="item ${out?'out':''}" data-ii="${i.id}"><div class="ico">${i.photo?`${itImg(i.photo,72)}`:CATI[i.cat||'oggetto']}</div><b>${esc(i.name)}</b><span class="tag">${CATI[i.cat||'oggetto']} ${CATL[i.cat||'oggetto']}</span>${i.rtype==='currency'?`<div class="mut">Ricevi 🪙 ${i.amount}</div>`:''}${(i.cat==='armatura'&&i.arm)?`<div class="mut">🛡️ −${i.arm} danni</div>`:''}${(i.cat==='arma'&&hasDmg(i))?`<div class="mut">💥 ${dmgTxt(i)}</div>`:''}${costTxt(i)?`<div class="mut">${costTxt(i)} / uso</div>`:''}<div class="mut">${i.stock!=null?(out?'ESAURITO':'Scorte: '+i.stock):'Sempre disponibile'}</div><button data-r="${i.id}" ${out||poor?'disabled':''}>🪙 ${i.price}</button>${poor&&!out?'<div class="mut" style="font-size:.75em">Nummus insufficienti</div>':''}</div>`}).join('')||'<p class="mut">La bottega è vuota.</p>'}</div>`:'<div class="card"><h3>⚔️ Combattente</h3><p class="mut">Nessuna azione disponibile per ora.</p></div>');
   markViewed('npcs',n.id);bind();app.querySelectorAll('[data-r]').forEach(b=>b.onclick=ev=>{ev.stopPropagation();buy(S.items[b.dataset.r],n)});
   app.querySelectorAll('[data-ii]').forEach(c=>c.onclick=()=>buy(S.items[c.dataset.ii],n));
+  npcFx(n);
+}
+/* animazione di apertura dell'Incontro: foto con pop, testi scritti piano piano, oggetti a cascata (solo alla prima apertura, non a ogni aggiornamento dati) */
+let npcAnim=null,npcTy=null;
+function npcFx(n){
+  if(npcTy){npcTy.stop();npcTy=null}
+  const first=npcAnim!==view.id;npcAnim=view.id;
+  app.classList.toggle('npcfx',first);
+  if(!first)return;
+  const hero=app.querySelector('.hero.npc'),d=app.querySelector('.npcdesc'),b=app.querySelector('.bubble'),ph=b&&b.querySelector('.phr'),phTxt=ph?ph.textContent:'';
+  app.querySelectorAll('.shopgrid .item').forEach((e,i)=>e.style.setProperty('--d',i));
+  if(ph)ph.textContent='';
+  const showPh=()=>{if(!b)return;b.classList.add('show');if(ph&&phTxt){SND.play('msg');npcTy=typeInto(ph,phTxt)}};
+  if(d&&n.desc){const ty=typeInto(d,n.desc,false,showPh);if(!npcTy)npcTy=ty}else showPh();
+  if(hero)hero.onclick=()=>{const s=npcTy;if(s)s.skip();if(npcTy&&npcTy!==s)npcTy.skip()};
 }
 /* ===== v4: oggetti, atteggiamenti, EGO ===== */
 const ATT={buono:{i:'💚',c:'#1f8f5f',l:'Buono',s:'Sembra amichevole: puoi avvicinarti.'},neutrale:{i:'⚖️',c:'#b78103',l:'Neutrale',s:'Non sai ancora cosa aspettarti.'},ostile:{i:'💀',c:'#d02f3a',l:'Ostile',s:'Attenzione: è pericoloso!'}};
@@ -305,7 +321,7 @@ const armLine=p=>armorOf(p)>0?`<div class="mut" style="margin-top:10px">🛡️ 
 const bonusLabel=b=>b?((b.t==='tr'?TR:AB).find(x=>x[0]===b.k)||[0,'?'])[1]:'nessuno';
 const modOf=p=>{const m={tr:{},ab:{}};(p.inv||[]).forEach(e=>{if(e.uses==null||e.uses>0)bonusesOf(e).forEach(b=>{m[b.t][b.k]=(m[b.t][b.k]||0)+b.v})});return m};
 const uploadPhoto=async f=>{if(!assets){toast('Upload non disponibile');return ''}if(f.size>2e6){toast('Foto oltre 2 MB');return ''}const a=await guard(assets.upload(f));return a?a.url:''};
-const egoBoard=p=>{const g=egoOf(p),X=p.egoX||[];return hdr('⚡ EGO',1)+`<div class="ego big"><div class="row sp"><span class="lab">IL POTERE DEL PERSONAGGIO</span><button class="g" id="egoE">✎</button></div>${g.t||g.e?`<div class="et" style="font-size:2em;text-align:center;margin:18px 0">${esc(g.t)}</div><div class="mut" style="letter-spacing:3px">EFFETTO</div><p style="white-space:pre-wrap;font-size:1.05em;margin:6px 0">${esc(g.e)}</p>`:'<p class="mut" style="margin:40px 0;text-align:center">Nessun EGO scritto.<br>Tocca ✎ per definire il tuo potere.</p>'}</div>`+X.map(x=>`<div class="ego"><span class="lab">${esc(String(x.t).toUpperCase())}</span><p style="white-space:pre-wrap;margin:8px 0 0">${esc(x.e)}</p></div>`).join('')};
+const egoBoard=p=>{const g=egoOf(p),X=(p.egoX||[]).filter(x=>!x.h);return hdr('⚡ EGO',1)+`<div class="ego big"><div class="row sp"><span class="lab">IL POTERE DEL PERSONAGGIO</span><button class="g" id="egoE">✎</button></div>${g.t||g.e?`<div class="et" style="font-size:2em;text-align:center;margin:18px 0">${esc(g.t)}</div><div class="mut" style="letter-spacing:3px">EFFETTO</div><p style="white-space:pre-wrap;font-size:1.05em;margin:6px 0">${esc(g.e)}</p>`:'<p class="mut" style="margin:40px 0;text-align:center">Nessun EGO scritto.<br>Tocca ✎ per definire il tuo potere.</p>'}</div>`+X.map(x=>`<div class="ego"><span class="lab">${esc(String(x.t).toUpperCase())}</span><p style="white-space:pre-wrap;margin:8px 0 0">${esc(x.e)}</p></div>`).join('')};
 const ITF=()=>[{l:'Nome',n:'name'},{l:'Prezzo (Nummus)',n:'price',t:'number'},{l:'Tipo',n:'cat',t:'select',o:['oggetto','arma','armatura']},{l:'Foto (max 2 MB)',n:'photo',t:'file'},{l:'Cosa dice il mercante (descrizione)',n:'desc',t:'area'},{l:'Utilizzo',n:'use',t:'select',o:['infinito','utilizzabile']},{l:'Numero di usi (solo se utilizzabile)',n:'uses',t:'number'},{l:'Bonus a tratti e abilità (uno per riga, es. "Mira +2" oppure "Vigore +1")',n:'bks',t:'area'},{l:'Riduzione danni (solo armature: punti di danno in meno a ogni colpo, 0 = nessuna)',n:'arm',t:'number'},...DMGF.map(f=>({...f,l:f.l+' (solo armi)'})),...COSTF,{l:'Scorte (0 = illimitate)',n:'stock',t:'number'}];
 async function itData(r,old){const o={name:r.name,price:r.price,cat:r.cat,desc:r.desc,use:r.use,uses:r.use==='utilizzabile'?Math.max(1,r.uses):0,bonus:null,bonuses:bonusParse(r.bks),arm:r.cat==='armatura'?Math.min(999,Math.max(0,r.arm||0)):0,...dmgClean(r,r.cat==='arma'),...costClean(r),stock:r.stock>0?r.stock:null};if(r.photo){const u=await uploadPhoto(r.photo);if(u)o.photo=u}else if(!old)o.photo='';return o}
 function rebindItems(){
@@ -328,13 +344,13 @@ function checkEnc(){
 }
 const itImg=(u,sz)=>`<span class="iph" style="--s:${sz}px"><img src="${esc(u)}" alt="" loading="lazy"></span>`;
 /* scrive il testo lettera per lettera (tocca per saltare) */
-function typeInto(el,txt,slow){
-  const ch=Array.from(txt);
-  if(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches){el.textContent=txt;return{skip(){},stop(){}}}
+function typeInto(el,txt,slow,cb){
+  const ch=Array.from(txt);let fin=false;const end=()=>{if(!fin){fin=true;if(cb)cb()}};
+  if(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches){el.textContent=txt;end();return{skip(){},stop(){}}}
   let i=0;const step=slow?Math.max(45,Math.min(95,Math.floor(13000/Math.max(1,ch.length)))):Math.max(12,Math.min(32,Math.floor(4200/Math.max(1,ch.length))));
   el.classList.add('typing');el.textContent='';
-  const t=setInterval(()=>{i++;if(i%2===0)SND.play('type');el.textContent=ch.slice(0,i).join('');if(i>=ch.length){clearInterval(t);el.classList.remove('typing')}},step);
-  return{skip(){clearInterval(t);el.textContent=txt;el.classList.remove('typing')},stop(){clearInterval(t)}};
+  const t=setInterval(()=>{i++;if(i%2===0)SND.play('type');el.textContent=ch.slice(0,i).join('');if(i>=ch.length){clearInterval(t);el.classList.remove('typing');end()}},step);
+  return{skip(){clearInterval(t);el.textContent=txt;el.classList.remove('typing');end()},stop(){clearInterval(t)}};
 }
 async function buy(it,n){
   if(!it)return;
@@ -362,7 +378,7 @@ const vit=p=>{const hm=p.hpMax??50,nm=p.nxMax??1000;return {hm,nm,h:Math.min(hm,
 const bar=(v,m,c)=>`<div class="vbar ${c}"><i style="width:${m?Math.max(0,Math.min(100,v/m*100)):0}%"></i><span>${v} / ${m}</span></div>`;
 const vitalsHtml=p=>{const t=vit(p),st=(a,k)=>`<div class="steps">${a.map(d=>`<button class="mini ${d<0?'d':''}" data-${k}="${d}">${d>0?'+':''}${d}</button>`).join('')}</div>`,cu=k=>`<div class="row" style="margin-top:4px"><input id="${k}c" type="number" min="0" placeholder="Quantità personalizzata" style="margin:0"><button class="d mini" data-${k}c="-1">−</button><button class="mini" data-${k}c="1">+</button></div>`;return `<div class="card"><b style="color:var(--hp)">❤️ HP</b>${bar(t.h,t.hm,'hp')}${st([-10,-5,-1,1,5,10],'hp')}${cu('hp')}<div style="height:14px"></div><b style="color:var(--nx)">🔷 NEXUS</b>${bar(t.n,t.nm,'nx')}${st([-250,-100,-50,50,100,250],'nx')}${cu('nx')}${armLine(p)}</div>`};
 const memCard=(m,mine)=>{const v=vit(m);return `<div class="pcard ${mine?'me':''}"><div class="row sp"><b style="font-size:1.15em">${esc(m.username)}</b>${mine?'<button class="g mini" id="pdE">✎ Descrizione</button>':(masterOK&&view.name==='master'?'':`<button class="mini" data-send="${Object.keys(S.players).find(k=>S.players[k]===m)}">💸 Invia Nummus</button>`)}</div><p class="mut" style="white-space:pre-wrap;margin:6px 0">${m.pdesc?esc(m.pdesc):'Nessuna descrizione.'}</p><div class="mut">❤️ HP</div>${bar(v.h,v.hm,'hp')}<div class="mut">🔷 NEXUS</div>${bar(v.n,v.nm,'nx')}</div>`};
-const phraseHtml=n=>{const ks=n.keys||[];if(!ks.length)return '';if(view.ph===undefined)view.ph=ks[Math.floor(Math.random()*ks.length)];return `<div class="row" style="align-items:flex-start;margin:8px 0"><div class="bubble"><b>${esc(n.name)}</b><div>“${esc(view.ph)}”</div></div></div>`};
+const phraseHtml=n=>{const ks=n.keys||[];if(!ks.length)return '';if(view.ph===undefined)view.ph=ks[Math.floor(Math.random()*ks.length)];return `<div class="row" style="align-items:flex-start;margin:8px 0"><div class="bubble"><b>${esc(n.name)}</b><div class="phr">“${esc(view.ph)}”</div></div></div>`};
 const askYes=msg=>new Promise(res=>{const m=document.createElement('div');m.className='modal';m.innerHTML=`<div style="text-align:center"><h3>${esc(msg)}</h3><div class="row" style="margin-top:14px"><button class="g grow" data-n>Annulla</button><button class="d grow" data-y>Elimina</button></div></div>`;document.body.append(m);m.onclick=e=>{if(e.target.dataset.n!==undefined){m.remove();res(0)}if(e.target.dataset.y!==undefined){m.remove();res(1)}}});
 function rebindDel(){
   const on2=(a,msg,run)=>app.querySelectorAll(`[data-${a}]`).forEach(b=>b.onclick=async()=>{if(await askYes(msg))run(b.dataset[a])});
@@ -681,6 +697,7 @@ let lastKey='';
 new MutationObserver(()=>{
   tick();updateStatus();
   const key=[view.name,tab,selP,editing,invTab,view.id].join('|');
+  app.classList.toggle('enter',key!==lastKey); /* animazione d'ingresso solo al cambio di schermata */
   if(key!==lastKey){lastKey=key;const s=document.getElementById('scr');if(s)s.scrollTop=0}
 }).observe(app,{childList:true});
 setInterval(tick,15000);tick();
@@ -2185,7 +2202,7 @@ html.sc-shake #desk{filter:hue-rotate(160deg) saturate(2.4) contrast(1.3);animat
 }
 
 /* ===== v24: il Master modifica tutto del player (EGO e categorie, descrizione, skill, inventario) ===== */
-const egoMasterCard=(id,p)=>{const g=egoOf(p),X=p.egoX||[];return `<div class="ego" style="animation:none"><div class="row sp"><span class="lab">⚡ EGO</span><div class="row"><button class="g mini" data-xego="${id}">✎ EGO</button><button class="mini" data-xxa="${id}">+ Categoria</button></div></div>${g.t||g.e?`<div class="et">${esc(g.t)}</div><p style="white-space:pre-wrap;margin:4px 0">${esc(g.e)}</p>`:'<p class="mut">Nessun EGO scritto.</p>'}${X.map(x=>`<div class="move" style="border-left-color:var(--acc2)"><div class="grow"><b>${esc(x.t)}</b><p style="white-space:pre-wrap;margin:4px 0 0">${esc(x.e)}</p></div><div class="row" style="gap:4px;flex-direction:column"><button class="g mini" data-xxe="${id}|${x.id}">✎</button><button class="d mini" data-xxd="${id}|${x.id}">🗑</button></div></div>`).join('')}</div>`};
+const egoMasterCard=(id,p)=>{const g=egoOf(p),X=p.egoX||[];return `<div class="ego" style="animation:none"><div class="row sp"><span class="lab">⚡ EGO</span><div class="row"><button class="g mini" data-xego="${id}">✎ EGO</button><button class="mini" data-xxa="${id}">+ Categoria</button></div></div>${g.t||g.e?`<div class="et">${esc(g.t)}</div><p style="white-space:pre-wrap;margin:4px 0">${esc(g.e)}</p>`:'<p class="mut">Nessun EGO scritto.</p>'}${X.map(x=>`<div class="move" style="border-left-color:var(--acc2)"><div class="grow"><b>${esc(x.t)}</b> ${x.h?'<span class="tag">🙈 nascosta al player</span>':'<span class="tag">👁 visibile</span>'}<p style="white-space:pre-wrap;margin:4px 0 0">${esc(x.e)}</p></div><div class="row" style="gap:4px;flex-direction:column"><button class="g mini" data-xxh="${id}|${x.id}" title="${x.h?'Mostra al player':'Nascondi al player'}">${x.h?'👁':'🙈'}</button><button class="g mini" data-xxe="${id}|${x.id}">✎</button><button class="d mini" data-xxd="${id}|${x.id}">🗑</button></div></div>`).join('')}</div>`};
 const mxDesc=(id,p)=>`<div class="card"><div class="row sp"><h3>🏕️ DESCRIZIONE PARTY</h3><button class="g mini" data-xpd="${id}">✎</button></div><p class="mut" style="white-space:pre-wrap;margin:6px 0 0">${p.pdesc?esc(p.pdesc):'Nessuna descrizione.'}</p></div>`;
 const mxSkills=(id,p)=>`<div class="card"><div class="row sp"><h3>🗡️ SKILL</h3><button class="mini" data-xsa="${id}">+ Mossa</button></div>${(p.skills||[]).map((s,i)=>`<div>${skillCard(s,-1,null)}<div class="row" style="gap:6px;margin-top:6px"><button class="g mini grow" data-xse="${id}|${i}">✎ Modifica</button><button class="d mini" data-xsd="${id}|${i}">🗑</button></div></div>`).join('')||'<p class="mut">Nessuna skill per ora.</p>'}</div>`;
 const mxInv=(id,p)=>`<div class="card"><div class="row sp"><h3>🎒 INVENTARIO</h3><button class="mini" data-xia="${id}">+ Oggetto</button></div>${(p.inv||[]).map(e=>`<div class="move" style="border-left-color:var(--acc2)"><div style="font-size:1.6em">${e.photo?itImg(e.photo,44):(CATI[e.cat]||'🎁')}</div><div class="grow"><b>${esc(e.name)}</b><div class="mut">${CATL[e.cat]||'Oggetto'} · ${e.uses==null?'♾ Infinito':e.uses+(e.uses===1?' uso':' usi')}${bonusesOf(e).length?` · <span style="color:var(--ok)">${bonusTxt(e)}</span>`:''}${e.cat==='armatura'&&e.arm?` · <span style="color:var(--ok)">🛡️ −${e.arm} danni</span>`:''}${dmgHtml(e)}</div>${e.desc?`<div class="mut" style="white-space:pre-wrap">${esc(e.desc)}</div>`:''}</div><div class="row" style="gap:4px;flex-direction:column"><button class="g mini" data-xie="${id}|${e.id}">✎</button><button class="d mini" data-xid="${id}|${e.id}">🗑</button></div></div>`).join('')||'<p class="mut">Inventario vuoto.</p>'}</div>`;
@@ -2194,8 +2211,10 @@ function rebindMX(){
   const on=(a,fn)=>app.querySelectorAll(`[data-${a}]`).forEach(b=>b.onclick=()=>fn(b.dataset[a]));
   const skD=r=>({n:r.n.slice(0,60),c:r.c,e:r.e.slice(0,600),dmg:r.dmg.slice(0,60),dur:r.dur.slice(0,60),...dmgClean({...r,dfix:0},true)});
   on('xego',async id=>{const p=S.players[id];if(!p)return;const r=await ask('EGO di '+p.username,[{l:'Titolo',n:'t'},{l:'Effetto',n:'e',t:'area'}],egoOf(p));if(r)U(id,{ego:{t:r.t.slice(0,80),e:r.e.slice(0,1500)}})});
-  on('xxa',async id=>{const p=S.players[id];if(!p)return;const r=await ask('Nuova categoria EGO',[{l:'Nome categoria',n:'t'},{l:'Testo',n:'e',t:'area'}]);if(r&&r.t)U(id,{egoX:[...(p.egoX||[]),{id:uid8(),t:r.t.slice(0,80),e:r.e.slice(0,1500)}]})});
-  on('xxe',async k=>{const [id,xid]=k.split('|'),p=S.players[id],x=p&&(p.egoX||[]).find(z=>z.id===xid);if(!x)return;const r=await ask('Modifica categoria EGO',[{l:'Nome categoria',n:'t'},{l:'Testo',n:'e',t:'area'}],x);if(r&&r.t)U(id,{egoX:p.egoX.map(z=>z.id===xid?{...z,t:r.t.slice(0,80),e:r.e.slice(0,1500)}:z)})});
+  const XF=[{l:'Nome categoria',n:'t'},{l:'Testo',n:'e',t:'area'},{l:'Visibile al player',n:'vis',t:'select',o:['sì','no']}],hv=r=>r.vis==='no'?{h:1}:{};
+  on('xxa',async id=>{const p=S.players[id];if(!p)return;const r=await ask('Nuova categoria EGO',XF,{vis:'sì'});if(r&&r.t)U(id,{egoX:[...(p.egoX||[]),{id:uid8(),t:r.t.slice(0,80),e:r.e.slice(0,1500),...hv(r)}]})});
+  on('xxe',async k=>{const [id,xid]=k.split('|'),p=S.players[id],x=p&&(p.egoX||[]).find(z=>z.id===xid);if(!x)return;const r=await ask('Modifica categoria EGO',XF,{...x,vis:x.h?'no':'sì'});if(r&&r.t)U(id,{egoX:p.egoX.map(z=>z.id===xid?{id:z.id,t:r.t.slice(0,80),e:r.e.slice(0,1500),...hv(r)}:z)})});
+  on('xxh',k=>{const [id,xid]=k.split('|'),p=S.players[id];if(!p)return;U(id,{egoX:(p.egoX||[]).map(z=>{if(z.id!==xid)return z;const {h,...rest}=z;return z.h?rest:{...rest,h:1}})})});
   on('xxd',async k=>{const [id,xid]=k.split('|'),p=S.players[id];if(p&&await askYes('Eliminare questa categoria EGO?'))U(id,{egoX:(p.egoX||[]).filter(z=>z.id!==xid)})});
   on('xpd',async id=>{const p=S.players[id];if(!p)return;const r=await ask('Descrizione di '+p.username,[{l:'Descrizione',n:'pdesc',t:'area'}],p);if(r)U(id,{pdesc:r.pdesc.slice(0,600)})});
   on('xsa',async id=>{const p=S.players[id];if(!p)return;const r=await ask('Nuova skill per '+p.username,SKF,{c:0,dt:'d6'});if(r&&r.n)U(id,{skills:[...(p.skills||[]),skD(r)]})});
