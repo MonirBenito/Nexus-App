@@ -664,7 +664,7 @@ function tick(){
   const w=document.getElementById('tb-clockw');if(w){w.style.cursor=masterOK?'pointer':'';w.title=masterOK?'Modifica data e ora (Master)':''}
 }
 function screenName(){
-  if(masterOK&&view.name==='master'){const T={profile:'Player',ego:'EGO',npcs:'Incontri',quests:'Obiettivi',party:'Party',msgs:'Messaggi',map:'Mappa'};return 'Pannello Master'+(tab&&T[tab]?' — '+T[tab]:'')}
+  if(masterOK&&view.name==='master'){const T={profile:'Player',ego:'EGO',npcs:'Incontri',quests:'Obiettivi',party:'Party',msgs:'Messaggi',map:'Mappa'};return 'Pannello Master'+(tab&&T[tab]?' — '+T[tab]:'')+' · build ego-notify 2'}
   if(!authed||!me())return 'Nexus Connection';
   if(view.name==='npc'){const n=S.npcs[view.id];return 'Incontro'+(n?' — '+n.name:'')}
   const N={home:'Home',profile:'Profilo',ego:'EGO',npcs:'Incontri',quests:'Obiettivi',party:'Party',inv:'Inventario',msgs:'Messaggi',map:'Mappa'};
