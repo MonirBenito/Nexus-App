@@ -824,3 +824,24 @@ html.dv-tablet #hud{padding-left:20px;padding-right:20px}
   15%{opacity:1}
   100%{opacity:0;transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) rotate(var(--r)) scale(1)}}
 @keyframes notifhurt{0%{background-color:rgba(200,0,30,.85)}100%{}}
+
+
+/* =====================================================================
+   v27: notifica "nuovo obiettivo"
+   ===================================================================== */
+.qnotif>:nth-child(3){animation-delay:.55s}
+.qnotif>.qtype{display:inline-block;font-weight:800;letter-spacing:3px;border:2px solid;padding:2px 12px;
+  animation:qstamp .45s cubic-bezier(.2,.9,.3,1.4) .6s both}
+.qnotif .qobjs{margin-top:10px}
+.qnotif .qo{text-align:left;margin:4px 0;padding:6px 10px;border-left:3px solid var(--nc,var(--acc));background:rgba(255,255,255,.05);
+  animation:qoin .4s cubic-bezier(.2,.9,.3,1) both}
+.pill.qp{animation:qpop .45s cubic-bezier(.2,.9,.3,1.4) both}
+.pill.qp.qdl{animation:qpop .45s cubic-bezier(.2,.9,.3,1.4) both,qpulse 1.4s ease-in-out 2.2s infinite}
+.modal.qmain{animation:qflash 1s ease-out both}
+.modal.qmain.notif-out,.modal.notif-m.hurt.notif-out{animation:notifbgout .22s ease-in both}
+@keyframes qstamp{0%{opacity:0;transform:scale(3) rotate(-14deg)}100%{opacity:1;transform:rotate(-3deg)}}
+@keyframes qoin{from{opacity:0;transform:translateX(-26px)}to{opacity:1;transform:none}}
+@keyframes qpop{from{opacity:0;transform:scale(.2)}to{opacity:1;transform:none}}
+@keyframes qpulse{50%{transform:scale(1.07)}}
+@keyframes qflash{0%{background-color:rgba(255,196,60,.7)}100%{}}
+.qnotif>h3{font-size:1.35em;line-height:1.5;margin:12px 0 4px;color:var(--tx)}
