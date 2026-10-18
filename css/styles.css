@@ -667,3 +667,55 @@ details.card>summary{font-size:11px;letter-spacing:.5px;text-shadow:1px 1px 0 va
 @media (max-width:340px){
   .vitals{grid-template-columns:minmax(0,1fr)}
 }
+
+
+/* =====================================================================
+   v23: adattamento al dispositivo
+   (le classi dv-phone / dv-tablet / dv-desk / dv-land / dv-narrow / dv-short /
+   dv-touch le mette js/app.js in base allo schermo vero)
+   ===================================================================== */
+#desk{height:var(--vh,100dvh)}
+.modal>div{max-height:calc(var(--vh,100dvh)*.88)}
+html.dv-phone #winwrap{padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+
+/* TOUCH: nessuno stato :hover "appiccicoso" (era quello che spostava un'icona del menu rispetto alle altre) */
+@media (hover:none){
+  .tile:hover{transform:none;border-color:var(--line);background:var(--card);box-shadow:0 0 0 3px var(--ink),5px 5px 0 3px var(--ink),inset 3px 3px 0 rgba(255,255,255,.1),inset -3px -3px 0 rgba(0,0,0,.3)}
+  .item:hover{transform:none;border-color:var(--line);box-shadow:0 0 0 3px var(--ink),5px 5px 0 3px var(--ink),inset 3px 3px 0 rgba(255,255,255,.08),inset -3px -3px 0 rgba(0,0,0,.3)}
+  .card[data-npc]:hover{transform:none;border-color:var(--line);box-shadow:0 0 0 3px var(--ink),6px 6px 0 3px var(--ink),inset 3px 3px 0 rgba(255,255,255,.08),inset -3px -3px 0 rgba(0,0,0,.3)}
+  button:hover{filter:none}
+  #tb-start:hover,#tb-back:hover{filter:none}
+  button.g:hover{background:var(--card-2);box-shadow:inset 0 0 0 2px var(--line),inset 0 -4px 0 rgba(0,0,0,.32),0 4px 0 var(--ink)}
+  .tb-btn:hover{background:var(--card-2);box-shadow:inset 0 0 0 2px var(--line),inset 0 -4px 0 rgba(0,0,0,.35),0 4px 0 var(--ink)}
+  .chipb:hover{background:var(--card-2);box-shadow:inset 0 0 0 2px var(--line),inset 0 -3px 0 rgba(0,0,0,.3),0 4px 0 var(--ink)}
+  .chipb.sel:hover{background:var(--acc);box-shadow:inset 3px 3px 0 rgba(255,255,255,.5),inset -3px -4px 0 var(--acc-d),0 4px 0 var(--ink)}
+  .stb:hover{background:var(--card-2)}
+}
+
+/* TOUCH: bersagli più comodi, niente zoom automatico di iOS sui campi */
+html.dv-touch button{min-height:40px}
+html.dv-touch button.mini{min-height:34px;padding:3px 12px 4px}
+html.dv-touch .tabs button{min-height:38px}
+html.dv-touch input:not([type=checkbox]):not([type=range]),html.dv-touch select,html.dv-touch textarea{font-size:16px}
+html.dv-touch input[type=checkbox]{width:22px;height:22px}
+
+/* TELEFONO: icone del menu un po' più basse (più densità), e ancora di più se lo schermo è basso */
+html.dv-phone .tile{aspect-ratio:1/.92}
+html.dv-phone.dv-short .tile{aspect-ratio:1/.8}
+html.dv-phone.dv-short .tile span{width:38px;height:38px;font-size:19px}
+html.dv-narrow .tiles{gap:10px 8px}
+html.dv-narrow .vitals{gap:8px}
+
+/* TELEFONO IN ORIZZONTALE: 4 colonne */
+html.dv-land .tiles{grid-template-columns:repeat(4,minmax(0,1fr))}
+html.dv-land .tile{aspect-ratio:auto;min-height:92px}
+html.dv-land .tile:last-child:nth-child(3n+1){grid-column:auto;flex-direction:column;aspect-ratio:auto}
+html.dv-land .shopgrid{grid-template-columns:repeat(3,minmax(0,1fr))}
+
+/* TABLET: console più larga, menu a 4 colonne */
+html.dv-tablet #win{max-width:760px;max-height:1100px}
+html.dv-tablet .tiles{grid-template-columns:repeat(4,minmax(0,1fr))}
+html.dv-tablet .tile:last-child:nth-child(3n+1){grid-column:auto;flex-direction:column;aspect-ratio:1}
+html.dv-tablet .shopgrid{grid-template-columns:repeat(3,minmax(0,1fr))}
+html.dv-tablet #app{padding-left:20px;padding-right:20px}
+html.dv-tablet #hud{padding-left:20px;padding-right:20px}
