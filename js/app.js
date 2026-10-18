@@ -167,10 +167,10 @@ const abHtml=p=>{const a=abOf(p);return `<div class="card"><h3>🎯 ABILITÀ</h3
 const statsCard=p=>`<div class="card stats" style="grid-template-columns:repeat(2,1fr)"><div><b style="color:var(--ok)">🪙 ${p.currency}</b><span class="mut">Nummus</span></div><div><b style="color:var(--red2)">${p.blood&&p.blood!=='Non indicato'?esc(p.blood):'—'}</b><span class="mut">Gruppo sanguigno</span></div></div>`;
 const av=n=>`<div class="avatar">${n.photo?`<img class="avatar" src="${esc(n.photo)}">`:'🩸'}</div>`;
 const hdr=(t,back)=>`<div class="bar"><div class="row">${back?'<button class="g" id="bk">‹</button>':''}<h2>${t}</h2></div><div class="row">${masterOK&&view.name==='master'?'':'<button class="g" id="thm" title="Tema colore">🎨</button>'}<button class="g" id="out">${masterOK&&view.name==='master'?'Esci':'⎋'}</button></div></div>`;
-function ask(title,fields,init={}){return new Promise(res=>{
+function ask(title,fields,init={},okL){return new Promise(res=>{
  const m=document.createElement('div');m.className='modal';
  const inp=f=>f.t==='select'?`<select name="${f.n}">${f.o.filter(o=>o!=='xp').map(o=>`<option ${init[f.n]==o?'selected':''}>${o}</option>`).join('')}</select>`:f.t==='area'?`<textarea name="${f.n}" rows="3">${esc(init[f.n])}</textarea>`:f.t==='file'?`<input name="${f.n}" type="file" accept="image/jpeg,image/png,image/webp">`:f.t==='multi'?(f.o.length?f.o.map(([v,l])=>`<label class="row" style="margin:6px 0"><input type="checkbox" name="${f.n}" value="${esc(v)}" style="width:auto;margin:0" ${(init[f.n]||[]).includes(v)?'checked':''}>${esc(l)}</label>`).join(''):'<p class="mut">'+(f.e||'Nessun player registrato.')+'</p>'):`<input name="${f.n}" type="${f.t||'text'}" value="${esc(init[f.n])}">`;
- m.innerHTML=`<div><h3>${esc(title)}</h3>${fields.map(f=>`<label class="mut">${esc(f.l.replace('(monete/xp)','(Nummus)'))}</label>`+inp(f)).join('')}<div class="row"><button class="g grow" data-x>Annulla</button><button class="grow" data-ok>Salva</button></div></div>`;
+ m.innerHTML=`<div><h3>${esc(title)}</h3>${fields.map(f=>`<label class="mut">${esc(f.l.replace('(monete/xp)','(Nummus)'))}</label>`+inp(f)).join('')}<div class="row"><button class="g grow" data-x>Annulla</button><button class="grow" data-ok>${esc(okL||'Salva')}</button></div></div>`;
  document.body.append(m);
  m.onclick=e=>{if(e.target.dataset.x!==undefined||e.target===m){m.remove();res(null)}
   if(e.target.dataset.ok!==undefined){const o={};for(const f of fields){if(f.t==='file'){o[f.n]=m.querySelector(`[name=${f.n}]`).files[0]||null;continue}if(f.t==='multi'){o[f.n]=[...m.querySelectorAll(`[name=${f.n}]:checked`)].map(x=>x.value);continue}const v=m.querySelector(`[name=${f.n}]`).value;o[f.n]=f.t==='number'?Math.max(0,parseInt(v)||0):v.trim()}m.remove();res(o)}};
@@ -483,7 +483,7 @@ function rebindMP(){
   app.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>{selP=b.dataset.open;render()});
   app.querySelectorAll('[data-pe]').forEach(b=>b.onclick=()=>editPlayer(b.dataset.pe));
   app.querySelectorAll('[data-msg]').forEach(b=>b.onclick=()=>composeMsg(b.dataset.msg));
-  app.querySelectorAll('[data-short]').forEach(b=>b.onclick=()=>{const id=b.dataset.short,pl=S.players[id];if(!pl)return;if(!confirm('Mandare in cortocircuito il dispositivo di '+pl.username+'?'))return;guard(db.collection('players').doc(id).update({short:Date.now()}));toast('⚡ Cortocircuito inviato a '+pl.username)});
+  app.querySelectorAll('[data-short]').forEach(b=>b.onclick=async()=>{const id=b.dataset.short,pl=S.players[id];if(!pl)return;const r=await ask('⚡ Cortocircuito: '+pl.username,[{l:'Scritta che vedrà '+pl.username+' (viene ricordata per la prossima volta)',n:'t',t:'area'}],{t:pl.shortMsg||SHORT_DEF},'⚡ Lancia');if(!r)return;const msg=(r.t||'').slice(0,200)||SHORT_DEF;guard(db.collection('players').doc(id).update({short:Date.now(),shortMsg:msg}));toast('⚡ Cortocircuito inviato a '+pl.username)});
   app.querySelectorAll('[data-part]').forEach(g=>g.onclick=()=>{if(selP)woundDlg(selP,g.dataset.part)});
   if($('#newMsg'))$('#newMsg').onclick=()=>composeMsg();
   app.querySelectorAll('[data-md]').forEach(b=>b.onclick=async()=>{if(await askYes('Eliminare il messaggio?'))guard(db.collection('msgs').doc(b.dataset.md).delete())});
@@ -2037,16 +2037,16 @@ function useItem(id){
 }
 
 /* ===== v20: cortocircuito del dispositivo (lo lancia il Master) ===== */
-let shortDone=null,shortOpen=false;
+let shortDone=null,shortOpen=false;const SHORT_DEF='IL NEXUS STA INONDANDO IL CIRCUITO';
 function checkShort(){
   const p=me();if(!p||!authed||!LD.players)return;
   const t=+p.short||0;
   if(!shortDone||shortDone.u!==uid){shortDone={u:uid,t};return} /* al primo accesso non rigioca i vecchi */
   if(shortOpen||t<=shortDone.t)return;
-  shortDone.t=t;runShort();
+  shortDone.t=t;runShort(p.shortMsg);
 }
-function runShort(){
-  shortOpen=true;
+function runShort(msg){
+  shortOpen=true;const msgT=String(msg||'').trim().slice(0,200)||SHORT_DEF;
   if(!document.getElementById('scstyle')){
     const st=document.createElement('style');st.id='scstyle';
     st.textContent=`.shortc{position:fixed;inset:0;z-index:200;overflow:hidden;background:transparent}
@@ -2065,16 +2065,14 @@ html.sc-shake #desk{filter:hue-rotate(160deg) saturate(2.4) contrast(1.3);animat
 @keyframes scoff{0%{opacity:1;transform:scale(1,1)}60%{opacity:1;transform:scale(1,.01)}100%{opacity:0;transform:scale(0,.01)}}
 .scmsg{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;gap:30px}
 .shortc.p3 .scmsg{display:flex}
-.sct{font:400 clamp(13px,4.2vw,26px)/1.7 var(--f-px);color:var(--acc-2);text-shadow:3px 0 #ff2a55,-3px 0 #2affea,0 0 24px var(--acc);letter-spacing:2px;max-width:92%;min-height:3.4em}
+.sct{font:400 clamp(13px,4.2vw,26px)/1.7 var(--f-px);color:var(--acc-2);text-shadow:3px 0 #ff2a55,-3px 0 #2affea,0 0 24px var(--acc);letter-spacing:2px;max-width:92%;min-height:3.4em;white-space:pre-wrap;overflow-wrap:anywhere}
 .shortc.p3 .sct{animation:scgl 1.4s steps(1) infinite}
 @keyframes scgl{0%{transform:translate(0)}10%{transform:translate(-4px,2px) skewX(6deg)}20%{transform:none}55%{transform:translate(5px,-2px);opacity:.7}60%{transform:none;opacity:1}}
-.sch{font:400 9px/1.6 var(--f-px);color:var(--mut);opacity:0;letter-spacing:2px}
-.shortc.p4 .sch{opacity:1;animation:blink 1s steps(1) infinite}
 .shortc.out{opacity:0;transition:opacity .5s}`;
     document.head.append(st);
   }
   const ov=document.createElement('div');ov.className='shortc p1';
-  ov.innerHTML='<canvas></canvas><div class="scflash"></div><div class="scline"></div><div class="scmsg"><div class="sct"></div><div class="sch">▌ TOCCA PER RIPRISTINARE</div></div>';
+  ov.innerHTML='<canvas></canvas><div class="scflash"></div><div class="scline"></div><div class="scmsg"><div class="sct"></div></div>';
   document.body.append(ov);
   document.documentElement.classList.add('sc-shake');
   SND.play('short',1);
@@ -2092,7 +2090,7 @@ html.sc-shake #desk{filter:hue-rotate(160deg) saturate(2.4) contrast(1.3);animat
     for(let i=0;i<14;i++){c.fillStyle=Math.random()<.5?'#ffcb3d':'#fff';c.fillRect(Math.random()*cv.width,Math.random()*cv.height,2+Math.random()*4,2+Math.random()*4)}
   };
   const bi=setInterval(bolt,90);bolt();
-  let ty=null,ph=1,closed=false;
+  let ty=null,ph=1,closed=false;const nch=Array.from(msgT).length,tdur=nch*Math.max(12,Math.min(32,Math.floor(4200/nch)));
   const T=[];
   T.push(setTimeout(()=>{ /* lo schermo si spegne come un vecchio CRT */
     clearInterval(bi);c.clearRect(0,0,cv.width,cv.height);
@@ -2101,9 +2099,9 @@ html.sc-shake #desk{filter:hue-rotate(160deg) saturate(2.4) contrast(1.3);animat
   },2600));
   T.push(setTimeout(()=>{ /* messaggio */
     ov.classList.remove('p2');ov.classList.add('p3');ph=3;
-    ty=typeInto(ov.querySelector('.sct'),'IL NEXUS STA INONDANDO IL CIRCUITO');
+    ty=typeInto(ov.querySelector('.sct'),msgT);
   },3500));
-  T.push(setTimeout(()=>{ov.classList.add('p4');ph=4},7000));
+  T.push(setTimeout(()=>{ov.classList.add('p4');ph=4},3500+tdur+1500));
   const close=()=>{
     if(closed)return;closed=true;T.forEach(clearTimeout);clearInterval(bi);
     if(ty)ty.stop();
