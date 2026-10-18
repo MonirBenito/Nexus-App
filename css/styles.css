@@ -778,3 +778,49 @@ html.dv-tablet #hud{padding-left:20px;padding-right:20px}
 
 /* notifiche */
 .toast{animation:toastin .22s ease-out}
+
+
+/* =====================================================================
+   v25: animazione delle notifiche (messaggi, EGO, ferite, Nummus, obiettivi, inviti)
+   ===================================================================== */
+.modal.notif-m{animation:fadeIn .25s ease-out both}
+.modal.notif-m.hurt{animation:notifhurt .8s ease-out both}
+.modal>div.notif{position:relative;overflow-x:hidden;overflow-y:auto;
+  animation:notifin .6s cubic-bezier(.22,.9,.3,1) both,notifglow 1.3s ease-out .55s 2}
+.modal>div.notif.shake{animation:notifin .6s cubic-bezier(.22,.9,.3,1) both,shake .4s .55s 3 steps(2),notifglow 1.3s ease-out .55s 2}
+/* riflesso che attraversa la finestra */
+.modal>div.notif::after{content:'';position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(105deg,transparent 42%,rgba(255,255,255,.2) 50%,transparent 58%) 0 0/250% 100% no-repeat;
+  animation:notifshine .9s ease-out .4s both}
+/* gli elementi entrano uno dopo l'altro */
+.notif>*:not(.nparts){animation:notifup .45s cubic-bezier(.2,.9,.3,1) both}
+.notif>:nth-child(1){animation:notiftitle .5s cubic-bezier(.2,.9,.3,1) .28s both,notifblink .5s .85s 2 steps(2)}
+.notif>:nth-child(2){animation:npcpop .7s .4s both,notifbob 2.4s ease-in-out 1.2s infinite alternate}
+.notif>:nth-child(3){animation-delay:.55s}
+.notif>:nth-child(4){animation-delay:.65s}
+.notif>:nth-child(5){animation-delay:.8s}
+/* scintille */
+.nparts{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:2}
+.nparts i{position:absolute;font-style:normal;font-size:var(--s,16px);line-height:1;opacity:0;
+  animation:notifburst var(--t,1.1s) cubic-bezier(.2,.8,.3,1) var(--d,.45s) both}
+/* chiusura */
+.modal.notif-out{animation:notifbgout .22s ease-in both}
+.modal.notif-out>div.notif{animation:notifout .22s ease-in both}
+.modal.notif-out>div.notif::after,.modal.notif-out .notif>*{animation:none}
+
+@keyframes notifin{0%{opacity:0;transform:translateY(70px) scale(.55) rotate(-5deg)}55%{opacity:1;transform:translateY(-10px) scale(1.05) rotate(1.5deg)}100%{opacity:1;transform:none}}
+@keyframes notifout{to{opacity:0;transform:translateY(24px) scale(.85)}}
+@keyframes notifbgout{to{opacity:0}}
+@keyframes notifup{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes notiftitle{from{opacity:0;transform:scale(1.6);letter-spacing:8px}to{opacity:1;transform:none;letter-spacing:1px}}
+@keyframes notifblink{50%{opacity:.3}}
+@keyframes notifbob{from{transform:translateY(0)}to{transform:translateY(-5px)}}
+@keyframes notifshine{from{background-position:150% 0}to{background-position:-50% 0}}
+@keyframes notifglow{
+  0%{box-shadow:0 0 0 4px var(--ink),9px 9px 0 4px var(--ink),inset 4px 4px 0 rgba(255,255,255,.1),inset -4px -4px 0 rgba(0,0,0,.3),0 0 0 0 var(--nc,var(--acc))}
+  100%{box-shadow:0 0 0 4px var(--ink),9px 9px 0 4px var(--ink),inset 4px 4px 0 rgba(255,255,255,.1),inset -4px -4px 0 rgba(0,0,0,.3),0 0 0 36px color-mix(in srgb,var(--nc,var(--acc)) 0%,transparent)}}
+@keyframes notifburst{
+  0%{opacity:0;transform:translate(-50%,-50%) scale(.3)}
+  15%{opacity:1}
+  100%{opacity:0;transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) rotate(var(--r)) scale(1)}}
+@keyframes notifhurt{0%{background-color:rgba(200,0,30,.85)}100%{}}
