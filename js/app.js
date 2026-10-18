@@ -436,8 +436,8 @@ const PARTS=[['head','<circle cx="100" cy="38" r="26"/>'],['torso','<rect x="62"
 const sil=(w,click)=>`<svg viewBox="0 0 200 340" style="width:100%;max-width:210px;margin:0 auto;display:block">${PARTS.map(([k,s])=>`<g data-part="${k}" fill="${WC[w[k]||0]}" stroke="#5b6478" stroke-width="2" style="${click?'cursor:pointer':''}">${s}</g>`).join('')}</svg>`;
 const woundCard=(p,M)=>{const w=p.wounds||{},ks=Object.keys(w).filter(k=>w[k]>0);if(!M&&!ks.length)return '';return `<div class="card"><h3>🩹 ${M?'SAGOMA':'FERITE'}</h3>${M?'<div class="mut" style="text-align:center">Tocca un arto per segnalare una ferita al player</div>':''}${sil(w,M)}<div class="row" style="flex-wrap:wrap;gap:6px;margin-top:8px;justify-content:center">${ks.map(k=>`<span class="pill" style="border-color:${WC[w[k]]};color:${WC[w[k]]}">${PN[k]} · ${LV[w[k]]}</span>`).join('')||'<span class="pill eu">Nessuna ferita</span>'}</div></div>`};
 const msgFrom=m=>m.from&&m.from.t==='npc'?'🧙 '+esc(m.from.name):m.from&&m.from.t==='pl'?'💸 '+esc(m.from.name):'⚙️ SISTEMA';
-const msgText=m=>m.kind==='obiettivo'?'🏆 Obiettivo completato: «'+esc(m.text)+'»':m.kind==='invite'?'🏕️ Invito al party «'+esc(m.text)+'»':m.kind==='ferita'?(m.lv?`🩹 ${PN[m.part]}: ferita ${LV[m.lv].toLowerCase()}`:`💚 ${PN[m.part]}: guarito`)+(m.text?' — '+esc(m.text):''):m.kind==='money'?`🪙 +${m.v}`+(m.text?' — '+esc(m.text):''):esc(m.text);
-const msgAv=m=>m.from&&m.from.photo?`<img class="avatar" src="${esc(m.from.photo)}">`:`<div class="avatar">${m.kind==='ferita'?'🩹':m.kind==='money'?'🪙':m.kind==='obiettivo'?'🏆':m.from&&m.from.t==='npc'?'🧙':'⚙️'}</div>`;
+const msgText=m=>m.kind==='ego'?'⚡ '+esc(m.text):m.kind==='obiettivo'?'🏆 Obiettivo completato: «'+esc(m.text)+'»':m.kind==='invite'?'🏕️ Invito al party «'+esc(m.text)+'»':m.kind==='ferita'?(m.lv?`🩹 ${PN[m.part]}: ferita ${LV[m.lv].toLowerCase()}`:`💚 ${PN[m.part]}: guarito`)+(m.text?' — '+esc(m.text):''):m.kind==='money'?`🪙 +${m.v}`+(m.text?' — '+esc(m.text):''):esc(m.text);
+const msgAv=m=>m.from&&m.from.photo?`<img class="avatar" src="${esc(m.from.photo)}">`:`<div class="avatar">${m.kind==='ferita'?'🩹':m.kind==='money'?'🪙':m.kind==='obiettivo'?'🏆':m.kind==='ego'?'⚡':m.from&&m.from.t==='npc'?'🧙':'⚙️'}</div>`;
 const openMsgs=new Set();
 const msgReward=(m,force)=>{
   if(!force&&!openMsgs.has(m.id))return `<button class="mini" style="margin-top:10px" data-mopen="${m.id}">🎁 Apri ricompense</button>`;
@@ -447,7 +447,7 @@ const msgReward=(m,force)=>{
 };
 const myMsgs=()=>Object.values(S.msgs).filter(m=>!(m.to&&m.to.length)||m.to.includes(uid));
 const msgBoard=p=>hdr('✉️ Messaggi',1)+(myMsgs().sort((a,b)=>b.ts-a.ts).map(m=>{const c=m.kind==='ferita'?(m.lv?'var(--red2)':'var(--ok)'):m.kind==='money'?'var(--ok)':m.kind==='obiettivo'?'var(--gold)':'var(--acc)';return `<div class="card" style="border-left:4px solid ${c}"><div class="row" style="gap:10px">${msgAv(m)}<div class="grow"><b>${msgFrom(m)}</b><div class="mut">${new Date(m.ts).toLocaleString('it-IT')}</div></div></div><p style="white-space:pre-wrap;margin:8px 0 0">${msgText(m)}</p>${m.kind==='obiettivo'?msgReward(m):''}</div>`}).join('')||'<p class="mut">Nessun messaggio.</p>');
-const masterMsgs=()=>hdr('✉️ Messaggi',1)+'<button id="newMsg" style="width:100%">✉️ Nuovo messaggio</button>'+(Object.values(S.msgs).sort((a,b)=>b.ts-a.ts).map(m=>`<div class="card"><div class="row sp"><b>${msgFrom(m)}</b><button class="d mini" data-md="${m.id}">🗑</button></div><div class="mut">A: ${m.to&&m.to.length?m.to.map(i=>esc(S.players[i]?S.players[i].username:'?')).join(', '):'tutti i player'} · ${new Date(m.ts).toLocaleString('it-IT')}</div><p style="white-space:pre-wrap;margin:6px 0 0">${msgText(m)}</p>${m.kind==='obiettivo'?msgReward(m,true):''}</div>`).join('')||'<p class="mut">Nessun messaggio inviato.</p>');
+const masterMsgs=()=>hdr('✉️ Messaggi',1)+'<button id="newMsg" style="width:100%">✉️ Nuovo messaggio</button>'+(Object.values(S.msgs).sort((a,b)=>b.ts-a.ts).map(m=>`<div class="card"><div class="row sp"><b>${msgFrom(m)}</b><div class="row" style="gap:4px">${m.kind==='msg'||m.kind==='ego'?`<button class="g mini" data-mxe="${m.id}">✎</button>`:''}<button class="d mini" data-md="${m.id}">🗑</button></div></div><div class="mut">A: ${m.to&&m.to.length?m.to.map(i=>esc(S.players[i]?S.players[i].username:'?')).join(', '):'tutti i player'} · ${new Date(m.ts).toLocaleString('it-IT')}</div><p style="white-space:pre-wrap;margin:6px 0 0">${msgText(m)}</p>${m.kind==='obiettivo'?msgReward(m,true):''}</div>`).join('')||'<p class="mut">Nessun messaggio inviato.</p>');
 const invBoard=p=>{
   const tabs=[['arma','⚔️ Armi'],['armatura','🛡️ Armature'],['oggetto','🎁 Item'],['soldi','🪙 Soldi']];
   const head=hdr('🎒 Inventario',1)+`<div class="tabs">${tabs.map(([k,l])=>`<button class="${invTab===k?'on':''}" data-it="${k}">${l}</button>`).join('')}</div>`;
@@ -529,14 +529,14 @@ function checkM(){
   const mine=myMsgs().sort((a,b)=>a.ts-b.ts),seen=p.seenM;
   if(!Array.isArray(seen)){guard(db.collection('players').doc(uid).update({seenM:mine.map(m=>m.id)}));return}
   const m=mine.find(x=>!seen.includes(x.id));if(!m)return;
-  encOpen=true;SND.play(m.kind==='ferita'?(m.lv?'hurt':'heal'):m.kind==='money'?'coin':m.kind==='obiettivo'?'fanfare':m.kind==='invite'?'enc':'msg',1);const w=m.kind==='ferita',h=w&&m.lv>0,c=w?(m.lv?WC[m.lv]:'var(--ok)'):m.kind==='money'?'var(--ok)':m.kind==='obiettivo'?'var(--gold)':'var(--acc)';
-  const title=w?(m.lv?'SEI STATO FERITO':'FERITA GUARITA'):m.kind==='money'?'HAI RICEVUTO NUMMUS':m.kind==='invite'?'INVITO AL PARTY':m.kind==='obiettivo'?'OBIETTIVO COMPLETATO':'NUOVO MESSAGGIO';
-  const av=m.from&&m.from.photo?`<img src="${esc(m.from.photo)}">`:(w?'🩹':m.kind==='money'?'🪙':m.kind==='invite'?'🏕️':m.kind==='obiettivo'?'🏆':m.from&&m.from.t==='npc'?'🧙':'⚙️');
+  encOpen=true;SND.play(m.kind==='ferita'?(m.lv?'hurt':'heal'):m.kind==='money'?'coin':m.kind==='obiettivo'?'fanfare':m.kind==='invite'?'enc':m.kind==='ego'?'skill':'msg',1);const w=m.kind==='ferita',h=w&&m.lv>0,c=w?(m.lv?WC[m.lv]:'var(--ok)'):m.kind==='money'?'var(--ok)':m.kind==='obiettivo'?'var(--gold)':'var(--acc)';
+  const title=w?(m.lv?'SEI STATO FERITO':'FERITA GUARITA'):m.kind==='money'?'HAI RICEVUTO NUMMUS':m.kind==='invite'?'INVITO AL PARTY':m.kind==='obiettivo'?'OBIETTIVO COMPLETATO':m.kind==='ego'?'EGO SVELATO':'NUOVO MESSAGGIO';
+  const av=m.from&&m.from.photo?`<img src="${esc(m.from.photo)}">`:(w?'🩹':m.kind==='money'?'🪙':m.kind==='invite'?'🏕️':m.kind==='obiettivo'?'🏆':m.kind==='ego'?'⚡':m.from&&m.from.t==='npc'?'🧙':'⚙️');
   const el=document.createElement('div');el.className='modal';
-  el.innerHTML=`<div class="${h&&m.lv>=3?'shake':''}" style="text-align:center;border:2px solid ${c}"><h2 class="newenc" style="color:${c};font-size:1.6em">${title}</h2><div class="encav" style="border-color:${c}">${av}</div><h3>${msgFrom(m)}</h3><p style="white-space:pre-wrap">${m.kind==='obiettivo'?'«'+esc(m.text)+'»<br><span class="mut">Apri il messaggio per leggere le ricompense.</span>':msgText(m)}</p><div class="row" style="margin-top:14px">${m.kind==='invite'?'<button class="g grow" data-c>Dopo</button><button class="d grow" data-no>Rifiuta</button><button class="grow" data-yes>Accetta</button>':'<button class="g grow" data-c>Chiudi</button><button class="grow" data-i>'+(m.kind==='obiettivo'?'Apri messaggio':'Apri messaggi')+'</button>'}</div></div>`;
+  el.innerHTML=`<div class="${h&&m.lv>=3?'shake':''}" style="text-align:center;border:2px solid ${c}"><h2 class="newenc" style="color:${c};font-size:1.6em">${title}</h2><div class="encav" style="border-color:${c}">${av}</div><h3>${msgFrom(m)}</h3><p style="white-space:pre-wrap">${m.kind==='obiettivo'?'«'+esc(m.text)+'»<br><span class="mut">Apri il messaggio per leggere le ricompense.</span>':msgText(m)}</p><div class="row" style="margin-top:14px">${m.kind==='invite'?'<button class="g grow" data-c>Dopo</button><button class="d grow" data-no>Rifiuta</button><button class="grow" data-yes>Accetta</button>':'<button class="g grow" data-c>Chiudi</button><button class="grow" data-i>'+(m.kind==='obiettivo'?'Apri messaggio':m.kind==='ego'?'Vedi EGO':'Apri messaggi')+'</button>'}</div></div>`;
   document.body.append(el);
   if(h&&navigator.vibrate)try{navigator.vibrate(m.lv>=3?[300,100,300]:[150])}catch(e){}
-  const done=async go=>{el.remove();encOpen=false;await guard(db.collection('players').doc(uid).update({seenM:[...seen,m.id]}));if(go){if(m.kind==='obiettivo')openMsgs.add(m.id);view={name:'msgs'};render()}};
+  const done=async go=>{el.remove();encOpen=false;await guard(db.collection('players').doc(uid).update({seenM:[...seen,m.id]}));if(go){if(m.kind==='obiettivo')openMsgs.add(m.id);view={name:m.kind==='ego'?'ego':'msgs'};render()}};
   el.onclick=e=>{if(e.target.dataset.c!==undefined)done(0);if(e.target.dataset.i!==undefined)done(1);if(e.target.dataset.yes!==undefined){done(0);respondInvite(true)}if(e.target.dataset.no!==undefined){done(0);respondInvite(false)}};
 }
 /* ===== v8: schermata iniziale, accesso, skill ===== */
@@ -2212,9 +2212,20 @@ function rebindMX(){
   const skD=r=>({n:r.n.slice(0,60),c:r.c,e:r.e.slice(0,600),dmg:r.dmg.slice(0,60),dur:r.dur.slice(0,60),...dmgClean({...r,dfix:0},true)});
   on('xego',async id=>{const p=S.players[id];if(!p)return;const r=await ask('EGO di '+p.username,[{l:'Titolo',n:'t'},{l:'Effetto',n:'e',t:'area'}],egoOf(p));if(r)U(id,{ego:{t:r.t.slice(0,80),e:r.e.slice(0,1500)}})});
   const XF=[{l:'Nome categoria',n:'t'},{l:'Testo',n:'e',t:'area'},{l:'Visibile al player',n:'vis',t:'select',o:['sì','no']}],hv=r=>r.vis==='no'?{h:1}:{};
-  on('xxa',async id=>{const p=S.players[id];if(!p)return;const r=await ask('Nuova categoria EGO',XF,{vis:'sì'});if(r&&r.t)U(id,{egoX:[...(p.egoX||[]),{id:uid8(),t:r.t.slice(0,80),e:r.e.slice(0,1500),...hv(r)}]})});
-  on('xxe',async k=>{const [id,xid]=k.split('|'),p=S.players[id],x=p&&(p.egoX||[]).find(z=>z.id===xid);if(!x)return;const r=await ask('Modifica categoria EGO',XF,{...x,vis:x.h?'no':'sì'});if(r&&r.t)U(id,{egoX:p.egoX.map(z=>z.id===xid?{id:z.id,t:r.t.slice(0,80),e:r.e.slice(0,1500),...hv(r)}:z)})});
-  on('xxh',k=>{const [id,xid]=k.split('|'),p=S.players[id];if(!p)return;U(id,{egoX:(p.egoX||[]).map(z=>{if(z.id!==xid)return z;const {h,...rest}=z;return z.h?rest:{...rest,h:1}})})});
+  /* quando una parte dell'EGO diventa visibile: notifica al player, con testo modificabile dal Master (o niente notifica) */
+  const egoNotify=async(pid,name)=>{
+    const p=S.players[pid];if(!p)return;
+    const def='Una nuova parte del tuo EGO è stata svelata: «'+name+'»';
+    const r=await ask('🔔 Notifica a '+p.username,[{l:'Invia una notifica al player',n:'send',t:'select',o:['sì','no']},{l:'Testo della notifica (modificabile)',n:'text',t:'area'}],{send:'sì',text:def},'Conferma');
+    if(!r||r.send==='no')return;
+    const id=uid8();
+    await guard(db.collection('msgs').doc(id).set({id,to:[pid],from:{t:'sys',name:'SISTEMA'},kind:'ego',text:(r.text||'').slice(0,600)||def,ts:Date.now()}));
+    toast('🔔 Notifica inviata a '+p.username);
+  };
+  on('xxa',async id=>{const p=S.players[id];if(!p)return;const r=await ask('Nuova categoria EGO',XF,{vis:'sì'});if(!r||!r.t)return;const t=r.t.slice(0,80);await U(id,{egoX:[...(p.egoX||[]),{id:uid8(),t,e:r.e.slice(0,1500),...hv(r)}]});if(r.vis!=='no')egoNotify(id,t)});
+  on('xxe',async k=>{const [id,xid]=k.split('|'),p=S.players[id],x=p&&(p.egoX||[]).find(z=>z.id===xid);if(!x)return;const r=await ask('Modifica categoria EGO',XF,{...x,vis:x.h?'no':'sì'});if(!r||!r.t)return;const t=r.t.slice(0,80);await U(id,{egoX:p.egoX.map(z=>z.id===xid?{id:z.id,t,e:r.e.slice(0,1500),...hv(r)}:z)});if(x.h&&r.vis!=='no')egoNotify(id,t)});
+  on('xxh',async k=>{const [id,xid]=k.split('|'),p=S.players[id],x=p&&(p.egoX||[]).find(z=>z.id===xid);if(!x)return;await U(id,{egoX:p.egoX.map(z=>{if(z.id!==xid)return z;const {h,...rest}=z;return z.h?rest:{...rest,h:1}})});if(x.h)egoNotify(id,x.t)});
+  on('mxe',async id=>{const m=S.msgs[id];if(!m)return;const r=await ask('Modifica messaggio',[{l:'Testo',n:'text',t:'area'}],{text:m.text});if(r&&r.text)guard(db.collection('msgs').doc(id).update({text:r.text.slice(0,600)}))});
   on('xxd',async k=>{const [id,xid]=k.split('|'),p=S.players[id];if(p&&await askYes('Eliminare questa categoria EGO?'))U(id,{egoX:(p.egoX||[]).filter(z=>z.id!==xid)})});
   on('xpd',async id=>{const p=S.players[id];if(!p)return;const r=await ask('Descrizione di '+p.username,[{l:'Descrizione',n:'pdesc',t:'area'}],p);if(r)U(id,{pdesc:r.pdesc.slice(0,600)})});
   on('xsa',async id=>{const p=S.players[id];if(!p)return;const r=await ask('Nuova skill per '+p.username,SKF,{c:0,dt:'d6'});if(r&&r.n)U(id,{skills:[...(p.skills||[]),skD(r)]})});
