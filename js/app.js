@@ -66,7 +66,12 @@ const SND=(()=>{
     place:()=>{t(300,.06,{v:.16,w:'triangle',to:200});n(.04,{f:900,v:.1})},
     erase:()=>n(.07,{f:2500,to:800,v:.12}),
     pin:()=>{t(880,.05,{v:.14});t(1320,.09,{v:.14,at:.05})},
-    type:()=>t(1200+Math.random()*300,.018,{v:.06})
+    type:()=>t(1200+Math.random()*300,.018,{v:.06}),
+    short:()=>{
+      for(let i=0;i<8;i++){n(.12,{f:3000+Math.random()*3000,v:.32,at:i*.3+Math.random()*.1});t(90+Math.random()*80,.22,{w:'sawtooth',v:.2,to:40,at:i*.3})}
+      t(900,1.1,{w:'sawtooth',v:.2,to:30,at:2.6});n(.5,{f:2000,to:100,v:.3,at:2.6});
+      t(55,1.6,{w:'square',v:.2,at:3.6})
+    }
   };
   const FREE={type:1,dice:1};
   function play(k,sp){
@@ -176,7 +181,7 @@ function render(){
   $('#mbtn').style.display=M?'none':'block';
   if(!db){app.innerHTML=`<div class="splash"><h2>Dati non raggiungibili</h2><p class="mut">Connessione ai dati non disponibile. Controlla js/config.js e la connessione a internet.</p></div>`;return}
   autoLogin();if(M){renderMaster();rebindItems();rebindDel();rebindMP();rebindV9();rebindNI();return}
-  if(!authed||!me())return renderSplash();
+  if(!authed||!me())return renderSplash();checkShort();
   if(v==='npc')return renderNpc();
   (v==='home'?renderHome():renderBoard());checkEnc();checkQ();checkM();rebindDel();rebindV9();
 }
@@ -391,7 +396,7 @@ const masterPlayers=()=>{
   const p=S.players[selP],t=trOf(p),v=vit(p),md=modOf(p),COLS=Array(5).fill('var(--acc)');
   return hdr('👤 '+esc(p.username),1)+
   `<div class="hero"><div class="grow"><div class="row sp"><h2 style="margin:0">${esc(p.username)}</h2><div class="row"><button class="g" data-msg="${selP}">✉️</button><button class="g" data-pe="${selP}">✎ Modifica</button><button class="d" data-pd="${selP}">🗑</button></div></div><div class="row" style="margin-top:8px;flex-wrap:wrap"><span class="pill eu">🪙 ${p.currency}</span><span class="pill bl">🩸 ${bl(p)}</span><span class="pill">Punti tratti ${p.points||0}</span><span class="pill">Punti abilità ${p.pointsAb||0}</span></div></div></div>`+
-  `<div class="card"><div class="mut">❤️ HP</div>${bar(v.h,v.hm,'hp')}<div class="mut">🔷 NEXUS</div>${bar(v.n,v.nm,'nx')}</div>`+
+  `<button class="d" style="width:100%;margin:6px 0 10px" data-short="${selP}">⚡ CORTOCIRCUITO</button><div class="card"><div class="mut">❤️ HP</div>${bar(v.h,v.hm,'hp')}<div class="mut">🔷 NEXUS</div>${bar(v.n,v.nm,'nx')}</div>`+
   woundCard(p,true)+`<div class="card"><h3>🧬 TRATTI</h3>${TR.map(([k,l],i)=>`<div style="margin-top:10px"><div class="row sp"><b>${l}</b><b style="color:${COLS[i]}">${t[k]}${md.tr[k]?` <span style="color:var(--ok)">+${md.tr[k]}</span>`:''}</b></div><div class="meter"><i style="width:${Math.min(100,t[k]*20)}%;background:${COLS[i]}"></i></div></div>`).join('')}</div>`+
   `<div class="card"><h3>🗡️ SKILL</h3>${(p.skills||[]).map(s=>skillCard(s,-1,null)).join('')||'<p class="mut">Nessuna skill per ora.</p>'}</div>`+invRO(p);
 };
@@ -478,6 +483,7 @@ function rebindMP(){
   app.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>{selP=b.dataset.open;render()});
   app.querySelectorAll('[data-pe]').forEach(b=>b.onclick=()=>editPlayer(b.dataset.pe));
   app.querySelectorAll('[data-msg]').forEach(b=>b.onclick=()=>composeMsg(b.dataset.msg));
+  app.querySelectorAll('[data-short]').forEach(b=>b.onclick=()=>{const id=b.dataset.short,pl=S.players[id];if(!pl)return;if(!confirm('Mandare in cortocircuito il dispositivo di '+pl.username+'?'))return;guard(db.collection('players').doc(id).update({short:Date.now()}));toast('⚡ Cortocircuito inviato a '+pl.username)});
   app.querySelectorAll('[data-part]').forEach(g=>g.onclick=()=>{if(selP)woundDlg(selP,g.dataset.part)});
   if($('#newMsg'))$('#newMsg').onclick=()=>composeMsg();
   app.querySelectorAll('[data-md]').forEach(b=>b.onclick=async()=>{if(await askYes('Eliminare il messaggio?'))guard(db.collection('msgs').doc(b.dataset.md).delete())});
@@ -2028,6 +2034,85 @@ function useItem(id){
   if(e.uses!=null){if(e.uses<=1)inv.splice(i,1);else inv[i]={...e,uses:e.uses-1};d.inv=inv}
   if(Object.keys(d).length)guard(db.collection('players').doc(uid).update(d));
   SND.play('use',1);toast('Usato: '+e.name+(costTxt(e)?' ('+costTxt(e)+')':''));
+}
+
+/* ===== v20: cortocircuito del dispositivo (lo lancia il Master) ===== */
+let shortDone=null,shortOpen=false;
+function checkShort(){
+  const p=me();if(!p||!authed||!LD.players)return;
+  const t=+p.short||0;
+  if(!shortDone||shortDone.u!==uid){shortDone={u:uid,t};return} /* al primo accesso non rigioca i vecchi */
+  if(shortOpen||t<=shortDone.t)return;
+  shortDone.t=t;runShort();
+}
+function runShort(){
+  shortOpen=true;
+  if(!document.getElementById('scstyle')){
+    const st=document.createElement('style');st.id='scstyle';
+    st.textContent=`.shortc{position:fixed;inset:0;z-index:200;overflow:hidden;background:transparent}
+.shortc canvas{position:absolute;inset:0;width:100%;height:100%}
+.scflash{position:absolute;inset:0;background:#fff;opacity:0}
+.shortc.p1 .scflash{animation:scfl .2s steps(2) infinite}
+@keyframes scfl{0%{opacity:0}30%{opacity:.8}60%{opacity:.05}100%{opacity:.45}}
+html.sc-shake #win,html.sc-shake #taskbar{animation:scshake .1s steps(2) infinite!important}
+@keyframes scshake{0%{transform:translate(-6px,3px) skewX(2deg)}50%{transform:translate(7px,-4px) skewX(-3deg)}100%{transform:translate(-3px,-5px)}}
+html.sc-shake #desk{filter:hue-rotate(160deg) saturate(2.4) contrast(1.3);animation:scflick .14s steps(2) infinite}
+@keyframes scflick{50%{filter:invert(1) hue-rotate(90deg) brightness(1.4)}}
+.shortc.p2,.shortc.p3{background:#000}
+.shortc.p2 .scflash,.shortc.p3 .scflash{display:none}
+.scline{position:absolute;left:0;right:0;top:0;height:100%;background:#fff;box-shadow:0 0 30px 8px #4db3ff;transform-origin:50% 50%;opacity:0}
+.shortc.p2 .scline{animation:scoff .7s steps(8) forwards}
+@keyframes scoff{0%{opacity:1;transform:scale(1,1)}60%{opacity:1;transform:scale(1,.01)}100%{opacity:0;transform:scale(0,.01)}}
+.scmsg{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;gap:30px}
+.shortc.p3 .scmsg{display:flex}
+.sct{font:400 clamp(13px,4.2vw,26px)/1.7 var(--f-px);color:var(--acc-2);text-shadow:3px 0 #ff2a55,-3px 0 #2affea,0 0 24px var(--acc);letter-spacing:2px;max-width:92%;min-height:3.4em}
+.shortc.p3 .sct{animation:scgl 1.4s steps(1) infinite}
+@keyframes scgl{0%{transform:translate(0)}10%{transform:translate(-4px,2px) skewX(6deg)}20%{transform:none}55%{transform:translate(5px,-2px);opacity:.7}60%{transform:none;opacity:1}}
+.sch{font:400 9px/1.6 var(--f-px);color:var(--mut);opacity:0;letter-spacing:2px}
+.shortc.p4 .sch{opacity:1;animation:blink 1s steps(1) infinite}
+.shortc.out{opacity:0;transition:opacity .5s}`;
+    document.head.append(st);
+  }
+  const ov=document.createElement('div');ov.className='shortc p1';
+  ov.innerHTML='<canvas></canvas><div class="scflash"></div><div class="scline"></div><div class="scmsg"><div class="sct"></div><div class="sch">▌ TOCCA PER RIPRISTINARE</div></div>';
+  document.body.append(ov);
+  document.documentElement.classList.add('sc-shake');
+  SND.play('short',1);
+  if(navigator.vibrate)try{navigator.vibrate([120,60,120,60,400,100,900])}catch(e){}
+  /* fulmini */
+  const cv=ov.querySelector('canvas'),c=cv.getContext('2d');cv.width=innerWidth;cv.height=innerHeight;
+  const bolt=()=>{
+    c.clearRect(0,0,cv.width,cv.height);
+    const k=1+Math.floor(Math.random()*3);
+    for(let i=0;i<k;i++){
+      let x=Math.random()*cv.width,y=0;c.beginPath();c.moveTo(x,y);
+      while(y<cv.height){y+=15+Math.random()*40;x+=(Math.random()-.5)*110;c.lineTo(x,y)}
+      c.lineWidth=2+Math.random()*3;c.strokeStyle='#fff';c.shadowColor='#4db3ff';c.shadowBlur=18;c.stroke();
+    }
+    for(let i=0;i<14;i++){c.fillStyle=Math.random()<.5?'#ffcb3d':'#fff';c.fillRect(Math.random()*cv.width,Math.random()*cv.height,2+Math.random()*4,2+Math.random()*4)}
+  };
+  const bi=setInterval(bolt,90);bolt();
+  let ty=null,ph=1,closed=false;
+  const T=[];
+  T.push(setTimeout(()=>{ /* lo schermo si spegne come un vecchio CRT */
+    clearInterval(bi);c.clearRect(0,0,cv.width,cv.height);
+    document.documentElement.classList.remove('sc-shake');
+    ov.classList.remove('p1');ov.classList.add('p2');ph=2;
+  },2600));
+  T.push(setTimeout(()=>{ /* messaggio */
+    ov.classList.remove('p2');ov.classList.add('p3');ph=3;
+    ty=typeInto(ov.querySelector('.sct'),'IL NEXUS STA INONDANDO IL CIRCUITO');
+  },3500));
+  T.push(setTimeout(()=>{ov.classList.add('p4');ph=4},7000));
+  const close=()=>{
+    if(closed)return;closed=true;T.forEach(clearTimeout);clearInterval(bi);
+    if(ty)ty.stop();
+    document.documentElement.classList.remove('sc-shake');
+    SND.play('login',1);ov.classList.add('out');
+    setTimeout(()=>{ov.remove();shortOpen=false},520);
+  };
+  ov.onclick=()=>{if(ph>=4)close()};
+  T.push(setTimeout(close,40000));
 }
 
 $('#mbtn').onclick=async()=>{
