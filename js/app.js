@@ -2036,6 +2036,40 @@ function useItem(id){
   SND.play('use',1);toast('Usato: '+e.name+(costTxt(e)?' ('+costTxt(e)+')':''));
 }
 
+/* ===== v21: adattamento al dispositivo =====
+   Riconosce telefono / tablet / desktop, orientamento, schermo stretto o basso, touch,
+   e mette le classi dv-* su <html> (usate da styles.css). Usa la visualViewport reale
+   (barra del browser, tastiera). In più "fitApp" misura i contenuti: se qualcosa sfora
+   in larghezza su uno schermo piccolo, rimpicciolisce l'interfaccia fino a farla stare. */
+const DEV={base:1,k:1};
+function adaptDevice(){
+  const de=document.documentElement,vv=window.visualViewport,w=Math.round(vv?vv.width:innerWidth),h=Math.round(vv?vv.height:innerHeight);
+  const land=w>h,low=h<520,phone=w<600||(land&&low),set=(c,on)=>de.classList.toggle(c,!!on);
+  set('dv-phone',phone);set('dv-tablet',!phone&&w<1024);set('dv-desk',!phone&&w>=1024);
+  set('dv-land',land&&low);set('dv-narrow',w<360);set('dv-short',h<700);
+  try{set('dv-touch',matchMedia('(pointer:coarse)').matches)}catch(e){}
+  de.style.setProperty('--vh',h+'px');
+  /* il disegno è pensato per ~390px di larghezza: sotto, scala in proporzione */
+  DEV.base=(phone&&!(land&&low))?Math.max(.8,Math.min(1,w/390)):1;
+  fitApp();
+}
+function fitApp(){
+  if(!(window.CSS&&CSS.supports&&CSS.supports('zoom','1')))return;
+  const hd=document.getElementById('hud'),zs=[app,hd],ap=v=>zs.forEach(e=>{if(e)e.style.zoom=v===1?'':String(v)});
+  if(document.getElementById('mapcv')){ap(1);DEV.k=1;return} /* le mappe misurano il puntatore: niente zoom */
+  let k=DEV.base;ap(k);let n=0;
+  while(n++<12&&k>.7&&app.scrollWidth>app.clientWidth+1){k=+(k-.03).toFixed(3);ap(k)}
+  DEV.k=k;
+}
+(()=>{
+  let r=0;const go=()=>{if(!r)r=requestAnimationFrame(()=>{r=0;adaptDevice()})};
+  addEventListener('resize',go);addEventListener('orientationchange',go);
+  if(window.visualViewport)visualViewport.addEventListener('resize',go);
+  let f=0;new MutationObserver(()=>{if(!f)f=requestAnimationFrame(()=>{f=0;fitApp()})}).observe(app,{childList:true});
+  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(go);
+  adaptDevice();
+})();
+
 /* ===== v20: cortocircuito del dispositivo (lo lancia il Master) ===== */
 let shortDone=null,shortOpen=false;const SHORT_DEF='IL NEXUS STA INONDANDO IL CIRCUITO',SHORT_O=['Riavvia il sistema','Resisti'];
 let ansSeen=null;
