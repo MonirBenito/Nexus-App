@@ -184,6 +184,7 @@ function render(){
   if(!authed||!me())return renderSplash();checkShort();
   if(v!=='npc'){npcAnim=null;if(npcTy){npcTy.stop();npcTy=null}app.classList.remove('npcfx')}
   if(v==='npc')return renderNpc();
+  if(welcomeRun&&v==='home')return; /* animazione di benvenuto in corso: non ricostruire la home */
   (v==='home'?renderHome():renderBoard());checkEnc();checkQ();checkM();rebindDel();rebindV9();
 }
 function bind(){
@@ -192,7 +193,51 @@ function bind(){
   const o=$('#out');if(o)o.onclick=()=>{if(masterOK&&view.name==='master'){masterOK=false;view={name:'home'}}else{authed=false;view={name:'home'};try{localStorage.removeItem('nx_pid')}catch(e){}}render()};
   const k=$('#bk');if(k)k.onclick=()=>{if(masterOK&&view.name==='master')tab=null;else view={name:view.name==='npc'?'npcs':'home'};render()};
 }
-function renderHome(){const p=me();app.innerHTML=hdr('🏠 Home')+homeCard(p)+tiles();bind()}
+let welcomeNew=null,welcomeRun=null;
+function renderHome(){
+  const p=me();app.innerHTML=hdr('🏠 Home')+homeCard(p)+tiles();bind();
+  const first=welcomeNew===uid;welcomeNew=null;
+  if(first&&!REDM())welcomeFx();
+}
+/* ===== animazione "il menu si costruisce" (solo al primo ingresso di un account appena creato; tocca per saltarla) ===== */
+function welcomeFx(){
+  const A=app,W=welcomeRun={t:[],iv:[],ty:null,sk:null};
+  const T=(f,ms)=>W.t.push(setTimeout(f,ms));
+  const bar=A.querySelector('.bar'),hi=A.querySelector('.hero .hi'),nm=A.querySelector('.hero .hname'),
+        vts=[...A.querySelectorAll('.vt')],tl=[...A.querySelectorAll('.tile')],pill=A.querySelector('.hero .pill.eu');
+  A.classList.add('wl');
+  /* tessere: una dopo l'altra, riga per riga */
+  tl.forEach((e,i)=>e.style.setProperty('--d',(2.3+i*.13)+'s'));
+  if(hi)hi.textContent='Benvenuto';
+  const nameTxt=nm?nm.textContent:'';if(nm)nm.textContent='';
+  /* contatori e barre */
+  const cnt=(to,set,dur,at)=>T(()=>{const s=performance.now(),iv=setInterval(()=>{const k=Math.min(1,(performance.now()-s)/dur);set(Math.round(to*k));if(k>=1)clearInterval(iv)},40);W.iv.push(iv)},at);
+  const fills=[];
+  vts.forEach(v=>{
+    const i=v.querySelector('.vbar i'),sp=v.querySelector('.vl span'),n=sp&&sp.firstChild;
+    if(i){fills.push([i,i.style.width]);i.style.width='0%'}
+    if(n&&n.nodeType===3){const to=parseInt(n.nodeValue)||0;n.nodeValue='0';cnt(to,x=>{n.nodeValue=String(x)},900,1700)}
+  });
+  if(pill){const to=parseInt(pill.textContent.replace(/\D/g,''))||0;pill.textContent='🪙 0';cnt(to,x=>{pill.textContent='🪙 '+x},700,1250)}
+  /* sequenza: titolo → scheda eroe → nome scritto → barre → tessere → lampo finale */
+  T(()=>SND.play('open',1),350);
+  T(()=>{if(nm)W.ty=typeInto(nm,nameTxt)},950);
+  T(()=>SND.play('pin',1),1300);T(()=>SND.play('pin',1),1450);
+  T(()=>fills.forEach(([i,w])=>i.style.width=w),1700);
+  tl.forEach((_,i)=>T(()=>SND.play(i%2?'tile':'place',1),2300+i*130+250));
+  T(()=>{SND.play('fanfare',1);const sw=document.createElement('div');sw.className='wl-sweep';A.append(sw);if(navigator.vibrate)try{navigator.vibrate([30,40,60])}catch(e){}},3900);
+  T(()=>finish(),4800);
+  function finish(){
+    if(welcomeRun!==W)return;
+    W.t.forEach(clearTimeout);W.iv.forEach(clearInterval);if(W.ty)W.ty.stop();
+    A.removeEventListener('click',W.sk,true);A.classList.remove('wl');
+    const sw=A.querySelector('.wl-sweep');if(sw)sw.remove();
+    welcomeRun=null;render();
+  }
+  /* tocca per saltare */
+  W.sk=e=>{e.stopPropagation();e.preventDefault();finish()};
+  A.addEventListener('click',W.sk,true);
+}
 function renderBoard(){
   const p=me(),v=view.name;let b='';
   if(v==='profile')b=profileHtml(p);else if(0)b=hdr('👤 Profilo',1)+`<div class="card"><div class="row sp"><b>${esc(p.username)}</b><button class="g" id="ren">✎</button></div></div>`+statsCard(p)+`<div class="card"><label class="mut">🩸 Gruppo sanguigno</label><select id="bld" style="margin-bottom:0">${BLOODS.map(o=>`<option ${p.blood===o?'selected':''}>${o}</option>`).join('')}</select></div><div class="card" style="border:2px solid var(--acc2)"><div class="row sp"><h3 style="color:var(--acc2)">⚡ EGO</h3><button class="g" id="egoE">✎</button></div>${egoHtml(p)}</div>${traitsHtml(p)}${abHtml(p)}<div class="card" style="border-color:var(--acc)"><div class="row sp"><h3 style="color:var(--acc)">🗡️ SKILL</h3><button id="skA">+ Mossa</button></div>${(p.skills||[]).map((s,i)=>`<div class="row sp" style="margin-top:10px"><div><b>${esc(s.n)}</b><div class="mut" style="white-space:pre-wrap">${esc(s.d)}</div></div><button class="d" data-sk="${i}">✕</button></div>`).join('')||'<p class="mut">Nessuna mossa per ora.</p>'}</div><h3>Ultimi riscatti</h3>`+((p.history||[]).slice(0,5).map(h=>`<div class="mut">${esc(h.n)} · −${h.p}</div>`).join('')||'<p class="mut">Nessun riscatto.</p>');
@@ -610,9 +655,9 @@ async function register(){
   const pid=uid8()+uid8(),salt=uid8()+uid8(),h=await hash(r.pw,salt);
   if(!(await guard(ad.set({pid,salt,hash:h}).then(()=>1))))return;
   if(!(await guard(db.collection('players').doc(pid).set({username:r.username.slice(0,32),currency:100,blood:'Non indicato',ego:'',skills:[],history:[],created:Date.now()}).then(()=>1))))return;
-  uid=pid;authed=true;view={name:'home'};SND.play('login',1);
+  uid=pid;authed=true;view={name:'home'};welcomeNew=pid;SND.play('login',1);
   try{localStorage.setItem('nx_pid',pid)}catch(e){}
-  toast('Benvenuto, '+r.username+'!');render();
+  render();
 }
 async function loginPlayer(){
   const r=await ask('🔑 Accedi',[{l:'Email',n:'email',t:'email'},{l:'Password',n:'pw',t:'password'}]);
