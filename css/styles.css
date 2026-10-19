@@ -845,3 +845,38 @@ html.dv-tablet #hud{padding-left:20px;padding-right:20px}
 @keyframes qpulse{50%{transform:scale(1.07)}}
 @keyframes qflash{0%{background-color:rgba(255,196,60,.7)}100%{}}
 .qnotif>h3{font-size:1.35em;line-height:1.5;margin:12px 0 4px;color:var(--tx)}
+
+/* ===== animazione di benvenuto: il menu si costruisce (primo ingresso) ===== */
+.wl{pointer-events:auto}
+.wl .tile,.wl .vt,.wl .hero,.wl .bar{will-change:transform,opacity,clip-path}
+.wl .bar{animation:wl-bar .6s steps(14) backwards}
+.wl .hero{animation:wl-hero .8s cubic-bezier(.2,1.2,.4,1) .4s backwards}
+.wl .hero::after{content:'';position:absolute;inset:-3px;border:3px dashed var(--acc);pointer-events:none;animation:wl-wire .7s steps(7) .4s backwards}
+.wl .hero{position:relative}
+.wl .vt{position:relative}
+.wl .vt:nth-child(1){animation:wl-l .6s cubic-bezier(.2,1.3,.4,1) 1.3s backwards}
+.wl .vt:nth-child(2){animation:wl-r .6s cubic-bezier(.2,1.3,.4,1) 1.45s backwards}
+.wl .vbar i{transition:width 1s steps(18)}
+.wl .tile{animation:wl-tile .7s cubic-bezier(.2,1.3,.4,1) var(--d,2.3s) backwards}
+.wl .tile::before{content:'';position:absolute;inset:-6px;border:3px dashed var(--acc);pointer-events:none;animation:wl-wire .7s steps(7) var(--d,2.3s) backwards}
+.wl .tile::after{content:'';position:absolute;inset:-4px;border:3px solid var(--acc);pointer-events:none;opacity:0;animation:wl-ring .55s steps(6) calc(var(--d,2.3s) + .35s) backwards}
+.wl .tile span{animation:wl-ico .6s cubic-bezier(.2,1.5,.4,1) calc(var(--d,2.3s) + .3s) backwards}
+.wl .bdg{animation:wl-bdg .45s cubic-bezier(.2,1.6,.4,1) 3.9s backwards}
+@keyframes wl-bar{0%{clip-path:inset(0 100% 0 0);transform:translateY(-14px);opacity:0}30%{opacity:1}100%{clip-path:inset(0 0 0 0);transform:none}}
+@keyframes wl-hero{0%{opacity:0;clip-path:inset(0 50% 0 50%);transform:scaleY(.2)}45%{opacity:1;clip-path:inset(-16px);transform:scaleY(1.06);filter:brightness(2.2)}100%{transform:none;filter:none}}
+@keyframes wl-l{0%{opacity:0;transform:translateX(-120%) skewX(-12deg)}100%{opacity:1;transform:none}}
+@keyframes wl-r{0%{opacity:0;transform:translateX(120%) skewX(12deg)}100%{opacity:1;transform:none}}
+@keyframes wl-tile{
+  0%{opacity:0;clip-path:inset(0 0 100% 0);transform:translateY(-70px) scale(.3) rotate(-10deg)}
+  35%{opacity:1;clip-path:inset(-14px);transform:translateY(8px) scale(1.12) rotate(3deg);filter:brightness(1.9)}
+  65%{transform:translateY(-3px) scale(.97) rotate(0);filter:none}
+  100%{opacity:1;transform:none}
+}
+@keyframes wl-wire{0%{opacity:1;transform:scale(1.5)}70%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1)}}
+@keyframes wl-ring{0%{opacity:.95;transform:scale(1)}100%{opacity:0;transform:scale(1.5)}}
+@keyframes wl-ico{0%{opacity:0;transform:scale(0) rotate(-360deg)}100%{opacity:1;transform:none}}
+@keyframes wl-bdg{0%{opacity:0;transform:scale(0)}100%{opacity:1;transform:none}}
+.wl-sweep{position:fixed;inset:0;z-index:45;pointer-events:none;overflow:hidden}
+.wl-sweep::before{content:'';position:absolute;top:-10%;bottom:-10%;left:0;width:38%;background:linear-gradient(100deg,transparent,color-mix(in srgb,var(--acc) 40%,#fff) 50%,transparent);opacity:.55;transform:translateX(-130%) skewX(-18deg);animation:wl-sw .85s ease-out forwards}
+@keyframes wl-sw{to{transform:translateX(340%) skewX(-18deg)}}
+@media (prefers-reduced-motion:reduce){.wl-sweep{display:none}}
