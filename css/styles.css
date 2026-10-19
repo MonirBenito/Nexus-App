@@ -880,3 +880,36 @@ html.dv-tablet #hud{padding-left:20px;padding-right:20px}
 .wl-sweep::before{content:'';position:absolute;top:-10%;bottom:-10%;left:0;width:38%;background:linear-gradient(100deg,transparent,color-mix(in srgb,var(--acc) 40%,#fff) 50%,transparent);opacity:.55;transform:translateX(-130%) skewX(-18deg);animation:wl-sw .85s ease-out forwards}
 @keyframes wl-sw{to{transform:translateX(340%) skewX(-18deg)}}
 @media (prefers-reduced-motion:reduce){.wl-sweep{display:none}}
+
+/* ===== animazioni di attacco ===== */
+.atkfx{position:fixed;inset:0;z-index:70;pointer-events:none;overflow:hidden;--c:var(--acc)}
+.atkfx *{position:absolute;display:block;margin:0}
+.atkfx.contundente{--c:#ffb13b}.atkfx.sparo{--c:#ffd34d}.atkfx.distanza{--c:var(--ok)}.atkfx.magia{--c:var(--nx)}
+.atkfx .wpn{top:13%;left:50%;display:flex;align-items:center;gap:8px;padding:8px 14px;font:400 11px/1.3 var(--f-px);color:#fff;white-space:nowrap;background:var(--ink);border:3px solid var(--c);box-shadow:0 0 0 3px var(--ink),0 0 18px var(--c);transform:translateX(-50%);animation:atk-wpn .95s steps(10) both}
+.atkfx .wpn img{width:24px;height:24px;object-fit:cover;position:static}
+.atkfx .fl{inset:0;background:radial-gradient(circle at 50% 50%,#fff,rgba(255,255,255,0) 72%);opacity:0;animation:atk-fl .35s ease-out var(--fd,.3s) both}
+.atkfx .spk{left:var(--x);top:var(--y);width:9px;height:9px;background:#fff;box-shadow:0 0 0 2px var(--c);opacity:0;animation:atk-spk .55s steps(7) both}
+.atkfx .sl{left:-25%;top:50%;width:150%;height:9px;background:linear-gradient(90deg,transparent,#fff 30%,var(--c) 70%,transparent);transform:translateY(var(--y)) rotate(var(--r));animation:atk-sl .38s cubic-bezier(.2,.8,.3,1) both}
+.atkfx .bm{left:50%;top:50%;font-size:34vmin;line-height:1;opacity:0;transform:translate(-50%,-50%);animation:atk-bm .6s steps(6) .1s both}
+.atkfx .rg{left:50%;top:50%;width:60px;height:60px;margin:-30px;border:6px solid var(--c);opacity:0;animation:atk-rg .6s ease-out both}
+.atkfx .tp{left:0;top:50%;width:70%;height:16px;margin-top:-8px;background:linear-gradient(90deg,transparent,#fff 80%,var(--c));clip-path:polygon(0 35%,92% 40%,100% 50%,92% 60%,0 65%);animation:atk-tp .5s cubic-bezier(.2,.9,.3,1) both}
+.atkfx .pr{left:0;top:62%;width:150px;height:5px;background:linear-gradient(90deg,transparent,var(--c) 60%,#fff);box-shadow:0 0 10px var(--c);animation:atk-pr .5s linear both}
+.atkfx .mz{left:2%;top:80%;width:110px;height:110px;margin:-55px 0 0 -20px;border-radius:50%;background:radial-gradient(circle,#fff 0 25%,#ffd34d 26% 55%,rgba(255,120,0,0) 70%);opacity:0;animation:atk-mz .22s steps(3) both}
+.atkfx .bl{left:0;top:80%;width:90px;height:3px;background:linear-gradient(90deg,transparent,#ffe27a,#fff);box-shadow:0 0 8px #ffd34d;animation:atk-bl .22s linear .08s both}
+.atkfx .mr{left:50%;top:50%;width:var(--s);height:var(--s);margin:calc(var(--s)/-2);border:4px dashed var(--c);border-radius:50%;opacity:0;animation:atk-mr .9s ease-out both}
+.atkfx .ob{left:50%;top:50%;width:120px;height:120px;margin:-60px;border-radius:50%;background:radial-gradient(circle,#fff 0 20%,var(--c) 50%,transparent 72%);opacity:0;animation:atk-ob .9s ease-in both}
+@keyframes atk-wpn{0%{opacity:0;transform:translate(-50%,-14px)}15%,70%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,0)}}
+@keyframes atk-fl{0%{opacity:0}15%{opacity:.85}100%{opacity:0}}
+@keyframes atk-spk{0%{opacity:0;transform:rotate(var(--a)) translateX(0)}10%{opacity:1}100%{opacity:0;transform:rotate(var(--a)) translateX(var(--r))}}
+@keyframes atk-sl{0%{clip-path:inset(0 100% 0 0);opacity:1}40%{clip-path:inset(0 0 0 0);opacity:1}100%{clip-path:inset(0 0 0 100%);opacity:0}}
+@keyframes atk-bm{0%{opacity:0;transform:translate(-50%,-50%) scale(.2)}25%{opacity:1;transform:translate(-50%,-50%) scale(1.2)}100%{opacity:0;transform:translate(-50%,-50%) scale(1.5) rotate(10deg)}}
+@keyframes atk-rg{0%{opacity:0;transform:scale(.2) rotate(45deg)}10%{opacity:1}100%{opacity:0;transform:scale(7) rotate(45deg)}}
+@keyframes atk-tp{0%{transform:translateX(-110%);opacity:1}35%{transform:translateX(18%)}55%{transform:translateX(14%);opacity:1}100%{transform:translateX(14%);opacity:0}}
+@keyframes atk-pr{0%{transform:translate(-160px,60px) rotate(-12deg)}50%{transform:translate(40vw,-20px) rotate(0)}100%{transform:translate(78vw,40px) rotate(10deg);opacity:1}}
+@keyframes atk-mz{0%{opacity:0;transform:scale(.3)}30%{opacity:1;transform:scale(1.2)}100%{opacity:0;transform:scale(1.6)}}
+@keyframes atk-bl{0%{transform:translateX(-120px)}100%{transform:translateX(105vw)}}
+@keyframes atk-mr{0%{opacity:0;transform:scale(0) rotate(0)}30%{opacity:1;transform:scale(1) rotate(120deg)}70%{opacity:1;transform:scale(1.05) rotate(240deg)}100%{opacity:0;transform:scale(2.4) rotate(360deg)}}
+@keyframes atk-ob{0%{opacity:0;transform:scale(0)}50%{opacity:1;transform:scale(.8)}75%{opacity:1;transform:scale(1.1)}100%{opacity:0;transform:scale(3.5)}}
+#win.atk-shake{animation:atk-shk .4s steps(8)}
+@keyframes atk-shk{0%,100%{transform:none}12%{transform:translate(-7px,4px)}25%{transform:translate(6px,-5px)}38%{transform:translate(-5px,-3px)}50%{transform:translate(5px,5px)}62%{transform:translate(-4px,2px)}75%{transform:translate(3px,-2px)}88%{transform:translate(-2px,1px)}}
+@media (prefers-reduced-motion:reduce){.atkfx{display:none}}
