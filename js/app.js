@@ -311,7 +311,7 @@ function renderMaster(){
   if(tab==='ego')b=hdr('⚡ EGO',1)+(Object.entries(S.players).map(([id,p])=>`<h3 style="margin-top:14px">${esc(p.username)}</h3>`+egoMasterCard(id,p)).join('')||'<p class="mut">Nessun player registrato.</p>');
   app.innerHTML=b;bind();
   const on=(a,fn)=>app.querySelectorAll(`[data-${a}]`).forEach(x=>x.onclick=()=>fn(x.dataset[a]));
-  on('pe',async id=>{const p=S.players[id],t=trOf(p),r=await ask('Player',[{l:'Username',n:'username'},{l:'Nummus',n:'currency',t:'number'},{l:'Gruppo sanguigno',n:'blood',t:'select',o:BLOODS},{l:'Punti tratti',n:'points',t:'number'},{l:'Punti abilità',n:'pointsAb',t:'number'},{l:'HP massimi',n:'hpMax',t:'number'},{l:'HP attuali',n:'hp',t:'number'},{l:'NEXUS massimo',n:'nxMax',t:'number'},{l:'NEXUS attuale',n:'nx',t:'number'},...TR.map(([k,l])=>({l:l+' (valore)',n:k,t:'number'}))],{...p,points:p.points||0,pointsAb:p.pointsAb||0,...t,hpMax:vit(p).hm,hp:vit(p).h,nxMax:vit(p).nm,nx:vit(p).n});if(r){const vf=vigFix(p,Math.min(99,r.vigore),r.hpMax,r.hp);if(vf.gain)toast('💪 VIGORE: HP massimi '+(vf.gain>0?'+':'')+vf.gain+' → '+vf.hpMax);guard(C('players').doc(id).update({vigRolls:vf.vigRolls,username:r.username||p.username,currency:r.currency,blood:r.blood,points:r.points,pointsAb:r.pointsAb,hpMax:vf.hpMax,hp:vf.hp,nxMax:r.nxMax,nx:Math.min(r.nx,r.nxMax),traits:Object.fromEntries(TR.map(([k])=>[k,Math.min(99,r[k])]))}))}});
+  on('pe',async id=>{const p=S.players[id],t=trOf(p),r=await ask('Player',[{l:'Username',n:'username'},{l:'Nummus',n:'currency',t:'number'},{l:'Gruppo sanguigno',n:'blood',t:'select',o:BLOODS},{l:'Punti tratti',n:'points',t:'number'},{l:'Punti abilità',n:'pointsAb',t:'number'},{l:'HP massimi',n:'hpMax',t:'number'},{l:'HP attuali',n:'hp',t:'number'},{l:'NEXUS massimo',n:'nxMax',t:'number'},{l:'NEXUS attuale',n:'nx',t:'number'},...TR.map(([k,l])=>({l:l+' (valore)',n:k,t:'number'}))],{...p,points:p.points||0,pointsAb:p.pointsAb||0,...t,hpMax:vit(p).hm,hp:vit(p).h,nxMax:vit(p).nm,nx:vit(p).n});if(r){const vf=vigFix(p,Math.min(99,r.vigore),r.hpMax,r.hp);if(vf.gain)toast('💪 VIGORE: HP massimi '+(vf.gain>0?'+':'')+vf.gain+' → '+vf.hpMax);moneyNote(id,(r.currency||0)-(p.currency||0));guard(C('players').doc(id).update({vigRolls:vf.vigRolls,username:r.username||p.username,currency:r.currency,blood:r.blood,points:r.points,pointsAb:r.pointsAb,hpMax:vf.hpMax,hp:vf.hp,nxMax:r.nxMax,nx:Math.min(r.nx,r.nxMax),traits:Object.fromEntries(TR.map(([k])=>[k,Math.min(99,r[k])]))}))}});
   on('pa',async id=>{const p=S.players[id],r=await ask('Abilità',AB.map(([k,l])=>({l,n:k,t:'number'})),abOf(p));if(r)guard(C('players').doc(id).update({abilities:Object.fromEntries(AB.map(([k])=>[k,Math.min(99,r[k])]))}))});
   on('pd',id=>{if(confirm('Eliminare il player?'))guard(C('players').doc(id).delete())});
   const npcF=()=>[{l:'Nome',n:'name'},{l:'Descrizione',n:'desc',t:'area'},{l:'Frasi di approccio (una per riga: se ce ne sono più di una, ne esce una a caso)',n:'keys',t:'area'},{l:'Tipo',n:'kind',t:'select',o:['mercante','combattente']},{l:'Atteggiamento',n:'att',t:'select',o:['neutrale','ostile','buono']},{l:'Visibile',n:'vis',t:'select',o:['sì','no']},{l:'Chi lo vede (nessuno selezionato = tutti i player)',n:'to',t:'multi',o:Object.entries(S.players).map(([i,p])=>[i,p.username])},{l:'Foto (max 2 MB)',n:'photo',t:'file'}];
@@ -551,6 +551,11 @@ const invBoard=p=>{
   if(invTab==='soldi')return head+`<div class="wallet"><span>SALDO</span><b>🪙 ${p.currency}</b></div><h3>Movimenti</h3>`+((p.tx||[]).map(x=>`<div class="move" style="border-left-color:${x.t==='in'?'var(--ok)':'var(--danger)'}"><div class="grow"><b>${x.t==='in'?'Ricevuti da ':'Inviati a '}${esc(x.n)}</b><div class="mut">${new Date(x.ts).toLocaleString('it-IT')}</div></div><b style="color:${x.t==='in'?'var(--ok)':'var(--danger)'}">${x.t==='in'?'+':'−'}🪙 ${x.v}</b></div>`).join('')||'<p class="mut">Nessun movimento. Puoi inviare Nummus ai membri dalla bacheca Party.</p>');
   return head+`<button id="addItem" style="width:100%;margin:6px 0">+ Aggiungi ${CATL[invTab]}</button>`+((p.inv||[]).filter(e=>(e.cat||'oggetto')===invTab).map(invRow2).join('')||'<p class="mut">Nessun elemento in questa sezione.</p>');
 };
+/* notifica al player quando il Master gli aggiunge Nummus */
+function moneyNote(pid,v){
+  if(!(v>0))return;const id=uid8();
+  guard(db.collection('msgs').doc(id).set({id,to:[pid],from:{t:'sys',name:'SISTEMA'},kind:'money',v,text:'',ts:Date.now()}));
+}
 async function sendMoney(toId){
   const p=me(),to=S.players[toId];if(!p||!to)return;
   const r=await ask('Invia Nummus a '+to.username,[{l:'Importo (Nummus)',n:'v',t:'number'},{l:'Messaggio (opzionale)',n:'note'}]);
@@ -583,6 +588,7 @@ function editPlayer(id){
 function saveDraft(){
   const d=draft,id=selP,p=S.players[id];
   const vf=vigFix(p,Math.min(99,d.t_vigore),d.hpMax,d.hp);
+  moneyNote(id,(d.currency||0)-(p.currency||0));
   guard(db.collection('players').doc(id).update({vigRolls:vf.vigRolls,username:(d.username||'').trim()||p.username,currency:d.currency,blood:d.blood,points:d.points,pointsAb:d.pointsAb,hpMax:vf.hpMax,hp:vf.hp,nxMax:d.nxMax,nx:Math.min(d.nx,d.nxMax),traits:Object.fromEntries(TR.map(([k])=>[k,Math.min(99,d['t_'+k])])),abilities:Object.fromEntries(AB.map(([k])=>[k,Math.min(99,d['a_'+k])]))}));
   editing=false;toast(vf.gain?'Salvato · VIGORE: HP massimi '+(vf.gain>0?'+':'')+vf.gain+' → '+vf.hpMax:'Modifiche salvate');render();
 }
