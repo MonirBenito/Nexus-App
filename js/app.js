@@ -193,6 +193,25 @@ function bind(){
   const o=$('#out');if(o)o.onclick=()=>{if(masterOK&&view.name==='master'){masterOK=false;view={name:'home'}}else{authed=false;view={name:'home'};try{localStorage.removeItem('nx_pid')}catch(e){}}render()};
   const k=$('#bk');if(k)k.onclick=()=>{if(masterOK&&view.name==='master')tab=null;else view={name:view.name==='npc'?'npcs':'home'};render()};
 }
+/* ===== VIGORE → HP massimi =====
+   O = 10 · OO = 20 (base) · OOO = 20 + 1d8 (min 4) · OOOO = +1d10 (min 5) · OOOOO = +1d12 (min 6)
+   I tiri si fanno una volta sola quando il livello sale e restano salvati in vigRolls. */
+const VIG_ROLL={3:[8,4],4:[10,5],5:[12,6]};
+let vigBusy=false;
+function vigFix(p,nv,hpMax,hp){
+  const old=trOf(p).vigore;
+  if(nv===old||hpMax!==vit(p).hm)return {hpMax,hp:Math.min(hp,hpMax),vigRolls:p.vigRolls||{},gain:0,dice:[]};
+  const rolls={...(p.vigRolls||{})},dice=[];let gain=0;
+  if(nv>old){for(let l=old+1;l<=nv;l++){
+    if(l===2)gain+=10;
+    else if(VIG_ROLL[l]){const [d,m]=VIG_ROLL[l],g=Math.max(m,1+Math.floor(Math.random()*d));rolls[l]=g;gain+=g;dice.push(l+'°: +'+g)}
+  }}else{for(let l=old;l>nv;l--){
+    if(l===2)gain-=10;
+    else if(VIG_ROLL[l]){gain-=rolls[l]!=null?rolls[l]:VIG_ROLL[l][1];delete rolls[l]}
+  }}
+  const hm=Math.max(1,hpMax+gain);
+  return {hpMax:hm,hp:Math.min(hm,gain>0?hp+gain:hp),vigRolls:rolls,gain:hm-hpMax,dice};
+}
 let welcomeNew=null,welcomeRun=null;
 function renderHome(){
   const p=me();app.innerHTML=hdr('🏠 Home')+homeCard(p)+tiles();bind();
@@ -248,7 +267,20 @@ function renderBoard(){
   const U=d=>guard(db.collection('players').doc(uid).update(d));
   if($('#bld'))$('#bld').onchange=e=>U({blood:e.target.value});
   if($('#egoE'))$('#egoE').onclick=async()=>{const g=egoOf(p),r=await ask('EGO',[{l:'Titolo',n:'t'},{l:'Effetto',n:'e',t:'area'}],g);if(r)U({ego:{t:r.t.slice(0,80),e:r.e.slice(0,1500)}})};
-  app.querySelectorAll('[data-tr]').forEach(x=>x.onclick=()=>{const t=trOf(p),k=x.dataset.tr;if((p.points||0)<1||t[k]>=5)return;U({traits:{...t,[k]:t[k]+1},points:p.points-1})});
+  app.querySelectorAll('[data-tr]').forEach(x=>x.onclick=()=>{
+    const t=trOf(p),k=x.dataset.tr;if((p.points||0)<1||t[k]>=5||vigBusy)return;
+    const upd={traits:{...t,[k]:t[k]+1},points:p.points-1};
+    if(k==='vigore'){
+      const nv=t[k]+1,v=vit(p),vr=VIG_ROLL[nv];let gain=0,raw=0;const rolls={...(p.vigRolls||{})};
+      if(nv===2)gain=10;
+      else if(vr){raw=1+Math.floor(Math.random()*vr[0]);gain=Math.max(vr[1],raw);rolls[nv]=gain}
+      Object.assign(upd,{hpMax:v.hm+gain,hp:v.h+gain,vigRolls:rolls});
+      vigBusy=true;setTimeout(()=>{vigBusy=false},1200);
+      if(vr)rollDice({title:'💪 VIGORE '+nv+'/5',n:1,die:vr[0],fix:0,min:vr[1],pre:[raw],lab:'HP MASSIMI IN PIÙ'});
+      else toast('💪 VIGORE '+nv+'/5 · HP massimi +'+gain);
+    }
+    U(upd);
+  });
   app.querySelectorAll('[data-ab]').forEach(x=>x.onclick=()=>{const a=abOf(p),k=x.dataset.ab;if((p.pointsAb||0)<1)return;U({abilities:{...a,[k]:a[k]+1},pointsAb:p.pointsAb-1})});
   app.querySelectorAll('[data-use]').forEach(x=>x.onclick=()=>useItem(x.dataset.use));
   app.querySelectorAll('[data-atk]').forEach(x=>x.onclick=()=>attack(x.dataset.atk));const vi=vit(p);
@@ -279,7 +311,7 @@ function renderMaster(){
   if(tab==='ego')b=hdr('⚡ EGO',1)+(Object.entries(S.players).map(([id,p])=>`<h3 style="margin-top:14px">${esc(p.username)}</h3>`+egoMasterCard(id,p)).join('')||'<p class="mut">Nessun player registrato.</p>');
   app.innerHTML=b;bind();
   const on=(a,fn)=>app.querySelectorAll(`[data-${a}]`).forEach(x=>x.onclick=()=>fn(x.dataset[a]));
-  on('pe',async id=>{const p=S.players[id],t=trOf(p),r=await ask('Player',[{l:'Username',n:'username'},{l:'Nummus',n:'currency',t:'number'},{l:'Gruppo sanguigno',n:'blood',t:'select',o:BLOODS},{l:'Punti tratti',n:'points',t:'number'},{l:'Punti abilità',n:'pointsAb',t:'number'},{l:'HP massimi',n:'hpMax',t:'number'},{l:'HP attuali',n:'hp',t:'number'},{l:'NEXUS massimo',n:'nxMax',t:'number'},{l:'NEXUS attuale',n:'nx',t:'number'},...TR.map(([k,l])=>({l:l+' (valore)',n:k,t:'number'}))],{...p,points:p.points||0,pointsAb:p.pointsAb||0,...t,hpMax:vit(p).hm,hp:vit(p).h,nxMax:vit(p).nm,nx:vit(p).n});if(r)guard(C('players').doc(id).update({username:r.username||p.username,currency:r.currency,blood:r.blood,points:r.points,pointsAb:r.pointsAb,hpMax:r.hpMax,hp:Math.min(r.hp,r.hpMax),nxMax:r.nxMax,nx:Math.min(r.nx,r.nxMax),traits:Object.fromEntries(TR.map(([k])=>[k,Math.min(99,r[k])]))}))});
+  on('pe',async id=>{const p=S.players[id],t=trOf(p),r=await ask('Player',[{l:'Username',n:'username'},{l:'Nummus',n:'currency',t:'number'},{l:'Gruppo sanguigno',n:'blood',t:'select',o:BLOODS},{l:'Punti tratti',n:'points',t:'number'},{l:'Punti abilità',n:'pointsAb',t:'number'},{l:'HP massimi',n:'hpMax',t:'number'},{l:'HP attuali',n:'hp',t:'number'},{l:'NEXUS massimo',n:'nxMax',t:'number'},{l:'NEXUS attuale',n:'nx',t:'number'},...TR.map(([k,l])=>({l:l+' (valore)',n:k,t:'number'}))],{...p,points:p.points||0,pointsAb:p.pointsAb||0,...t,hpMax:vit(p).hm,hp:vit(p).h,nxMax:vit(p).nm,nx:vit(p).n});if(r){const vf=vigFix(p,Math.min(99,r.vigore),r.hpMax,r.hp);if(vf.gain)toast('💪 VIGORE: HP massimi '+(vf.gain>0?'+':'')+vf.gain+' → '+vf.hpMax);guard(C('players').doc(id).update({vigRolls:vf.vigRolls,username:r.username||p.username,currency:r.currency,blood:r.blood,points:r.points,pointsAb:r.pointsAb,hpMax:vf.hpMax,hp:vf.hp,nxMax:r.nxMax,nx:Math.min(r.nx,r.nxMax),traits:Object.fromEntries(TR.map(([k])=>[k,Math.min(99,r[k])]))}))}});
   on('pa',async id=>{const p=S.players[id],r=await ask('Abilità',AB.map(([k,l])=>({l,n:k,t:'number'})),abOf(p));if(r)guard(C('players').doc(id).update({abilities:Object.fromEntries(AB.map(([k])=>[k,Math.min(99,r[k])]))}))});
   on('pd',id=>{if(confirm('Eliminare il player?'))guard(C('players').doc(id).delete())});
   const npcF=()=>[{l:'Nome',n:'name'},{l:'Descrizione',n:'desc',t:'area'},{l:'Frasi di approccio (una per riga: se ce ne sono più di una, ne esce una a caso)',n:'keys',t:'area'},{l:'Tipo',n:'kind',t:'select',o:['mercante','combattente']},{l:'Atteggiamento',n:'att',t:'select',o:['neutrale','ostile','buono']},{l:'Visibile',n:'vis',t:'select',o:['sì','no']},{l:'Chi lo vede (nessuno selezionato = tutti i player)',n:'to',t:'multi',o:Object.entries(S.players).map(([i,p])=>[i,p.username])},{l:'Foto (max 2 MB)',n:'photo',t:'file'}];
@@ -419,7 +451,7 @@ const qRec=q=>q.to&&q.to.length?q.to.filter(i=>S.players[i]):Object.keys(S.playe
 const qAllDone=q=>{const r=qRec(q);return r.length>0&&r.every(i=>(q.doneBy||[]).includes(i))};
 const questCard=q=>{const M=masterOK&&view.name==='master',dby=q.doneBy||[],dn=M?dby.length>0:dby.includes(uid),who=M?dby.map(i=>esc(S.players[i]?.username||'?')).join(', '):'',exp=false,dt=dlStr(q.dl);return `<div class="quest ${q.qt==='principale'?'main':''} ${exp?'exp':''} ${dn&&!M?'done':''}"><div class="row sp"><b style="font-size:1.1em">${esc(q.title)}</b>${qBadge(q)}</div>${(q.objs||[]).length?`<div class="mut" style="margin-top:8px;letter-spacing:2px">COMPITI</div>${q.objs.map(o=>`<div class="obj">◇ ${esc(o)}</div>`).join('')}`:''}<div class="row" style="margin-top:10px;flex-wrap:wrap;gap:6px">${dn?`<span class="pill eu">✔ Completato${who?' da '+who:''}</span>`:''}<span class="pill eu">🪙 +${q.coins||0}</span>${q.rw?`<span class="pill">🎁 ${esc(q.rw)}</span>`:''}${(q.ri||[]).map(id=>S.items[id]).filter(Boolean).map(i=>`<span class="pill">${CATI[i.cat||'oggetto']||'🎁'} ${esc(i.name)}</span>`).join('')}${dt?`<span class="pill" style="border-color:var(--gold);color:var(--gold)">⏳ ${esc(dt)}</span>`:'<span class="pill">∞ Nessun limite</span>'}</div></div>`};
 const questBoard=()=>{const qs=Object.values(S.quests).filter(visQ),isD=q=>(q.doneBy||[]).includes(uid),act=qs.filter(q=>!isD(q)),sec=(t,l)=>l.length?`<h3>${t}</h3>`+l.map(q=>questCard(q)).join(''):'';return hdr('📜 Obiettivi',1)+(qs.length?sec('★ Principali',act.filter(q=>q.qt==='principale'))+sec('Secondari',act.filter(q=>q.qt!=='principale'))+sec('✔ Completati',qs.filter(isD)):'<p class="mut">Nessun obiettivo per te al momento.</p>')};
-const vit=p=>{const hm=p.hpMax??50,nm=p.nxMax??1000;return {hm,nm,h:Math.min(hm,p.hp??hm),n:Math.min(nm,p.nx??nm)}};
+const vit=p=>{const hm=p.hpMax??20,nm=p.nxMax??1000;return {hm,nm,h:Math.min(hm,p.hp??hm),n:Math.min(nm,p.nx??nm)}};
 const bar=(v,m,c)=>`<div class="vbar ${c}"><i style="width:${m?Math.max(0,Math.min(100,v/m*100)):0}%"></i><span>${v} / ${m}</span></div>`;
 const vitalsHtml=p=>{const t=vit(p),st=(a,k)=>`<div class="steps">${a.map(d=>`<button class="mini ${d<0?'d':''}" data-${k}="${d}">${d>0?'+':''}${d}</button>`).join('')}</div>`,cu=k=>`<div class="row" style="margin-top:4px"><input id="${k}c" type="number" min="0" placeholder="Quantità personalizzata" style="margin:0"><button class="d mini" data-${k}c="-1">−</button><button class="mini" data-${k}c="1">+</button></div>`;return `<div class="card"><b style="color:var(--hp)">❤️ HP</b>${bar(t.h,t.hm,'hp')}${st([-10,-5,-1,1,5,10],'hp')}${cu('hp')}<div style="height:14px"></div><b style="color:var(--nx)">🔷 NEXUS</b>${bar(t.n,t.nm,'nx')}${st([-250,-100,-50,50,100,250],'nx')}${cu('nx')}${armLine(p)}</div>`};
 const memCard=(m,mine)=>{const v=vit(m);return `<div class="pcard ${mine?'me':''}"><div class="row sp"><b style="font-size:1.15em">${esc(m.username)}</b>${mine?'<button class="g mini" id="pdE">✎ Descrizione</button>':(masterOK&&view.name==='master'?'':`<button class="mini" data-send="${Object.keys(S.players).find(k=>S.players[k]===m)}">💸 Invia Nummus</button>`)}</div><p class="mut" style="white-space:pre-wrap;margin:6px 0">${m.pdesc?esc(m.pdesc):'Nessuna descrizione.'}</p><div class="mut">❤️ HP</div>${bar(v.h,v.hm,'hp')}<div class="mut">🔷 NEXUS</div>${bar(v.n,v.nm,'nx')}</div>`};
@@ -550,8 +582,9 @@ function editPlayer(id){
 }
 function saveDraft(){
   const d=draft,id=selP,p=S.players[id];
-  guard(db.collection('players').doc(id).update({username:(d.username||'').trim()||p.username,currency:d.currency,blood:d.blood,points:d.points,pointsAb:d.pointsAb,hpMax:d.hpMax,hp:Math.min(d.hp,d.hpMax),nxMax:d.nxMax,nx:Math.min(d.nx,d.nxMax),traits:Object.fromEntries(TR.map(([k])=>[k,Math.min(99,d['t_'+k])])),abilities:Object.fromEntries(AB.map(([k])=>[k,Math.min(99,d['a_'+k])]))}));
-  editing=false;toast('Modifiche salvate');render();
+  const vf=vigFix(p,Math.min(99,d.t_vigore),d.hpMax,d.hp);
+  guard(db.collection('players').doc(id).update({vigRolls:vf.vigRolls,username:(d.username||'').trim()||p.username,currency:d.currency,blood:d.blood,points:d.points,pointsAb:d.pointsAb,hpMax:vf.hpMax,hp:vf.hp,nxMax:d.nxMax,nx:Math.min(d.nx,d.nxMax),traits:Object.fromEntries(TR.map(([k])=>[k,Math.min(99,d['t_'+k])])),abilities:Object.fromEntries(AB.map(([k])=>[k,Math.min(99,d['a_'+k])]))}));
+  editing=false;toast(vf.gain?'Salvato · VIGORE: HP massimi '+(vf.gain>0?'+':'')+vf.gain+' → '+vf.hpMax:'Modifiche salvate');render();
 }
 async function composeMsg(pre){
   const nn=Object.values(S.npcs);
@@ -654,7 +687,7 @@ async function register(){
   if(ex||(cred&&cred.email===email))return toast('Email già registrata: usa Accedi');
   const pid=uid8()+uid8(),salt=uid8()+uid8(),h=await hash(r.pw,salt);
   if(!(await guard(ad.set({pid,salt,hash:h}).then(()=>1))))return;
-  if(!(await guard(db.collection('players').doc(pid).set({username:r.username.slice(0,32),currency:100,blood:'Non indicato',ego:'',skills:[],history:[],created:Date.now()}).then(()=>1))))return;
+  if(!(await guard(db.collection('players').doc(pid).set({username:r.username.slice(0,32),currency:100,blood:'Non indicato',ego:'',skills:[],history:[],hpMax:20,hp:20,created:Date.now()}).then(()=>1))))return;
   uid=pid;authed=true;view={name:'home'};welcomeNew=pid;SND.play('login',1);
   try{localStorage.setItem('nx_pid',pid)}catch(e){}
   render();
@@ -2040,12 +2073,12 @@ const dmgHtml=e=>(e.cat==='arma'&&hasDmg(e)?` · <span style="color:var(--danger
 /* tiro di dadi con animazione: tocca per saltarla. Il minimo vale sul danno totale (dadi + fisso). */
 function rollDice(o){
   const n=Math.max(0,o.n|0),die=Math.max(2,o.die|0)||6,fix=o.fix|0,min=o.min|0;
-  const dice=Array.from({length:n},()=>1+Math.floor(Math.random()*die));
+  const dice=Array.isArray(o.pre)?o.pre.slice(0,n):Array.from({length:n},()=>1+Math.floor(Math.random()*die));
   const raw=dice.reduce((a,b)=>a+b,0)+fix,tot=Math.max(min,raw);
   const sub=(n?n+'d'+die:'')+(fix?(n?' + ':'')+fix:'')+(min?' · minimo '+min:'');
   const brk=(n?dice.join(' + '):'')+(fix?(n?' + ':'')+fix:'')+(raw<min?' → minimo '+min:'');
   const m=document.createElement('div');m.className='modal';
-  m.innerHTML=`<div class="rolldlg"><h3>${esc(o.title)}</h3><div class="mut">${esc(sub)}</div><div class="dice">${dice.map(()=>'<div class="die rolling"><b>?</b></div>').join('')}</div><div class="rres" style="visibility:hidden"><div class="mut">DANNO</div><div class="rtot">${tot}</div><div class="mut">${esc(brk)}</div></div><div class="row" style="margin-top:14px"><button class="grow" data-c>Chiudi</button></div></div>`;
+  m.innerHTML=`<div class="rolldlg"><h3>${esc(o.title)}</h3><div class="mut">${esc(sub)}</div><div class="dice">${dice.map(()=>'<div class="die rolling"><b>?</b></div>').join('')}</div><div class="rres" style="visibility:hidden"><div class="mut">${esc(o.lab||'DANNO')}</div><div class="rtot">${tot}</div><div class="mut">${esc(brk)}</div></div><div class="row" style="margin-top:14px"><button class="grow" data-c>Chiudi</button></div></div>`;
   document.body.append(m);
   const els=[...m.querySelectorAll('.die')],res=m.querySelector('.rres');let done=false,iv=0,q=false;SND.play('dice',1);
   const land=(d,i)=>{d.className='die land'+(dice[i]===die?' max':dice[i]===1?' min':'');d.firstChild.textContent=dice[i];if(!q)SND.play('land',1)};
