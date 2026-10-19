@@ -63,6 +63,12 @@ const SND=(()=>{
     ko:()=>arp([330,262,196,147],.14,.25,{v:.2,w:'sawtooth'}),
     loot:()=>{arp([784,988,1175,1568,1976],.07,.16,{v:.15});n(.2,{f:7000,ft:'highpass',v:.08,at:.1})},
     paint:()=>n(.05,{f:700,v:.12}),
+    slash:()=>{n(.2,{f:1500,to:7000,v:.3});t(900,.14,{w:'sawtooth',to:300,v:.1});n(.15,{f:2500,to:8000,v:.25,at:.14});n(.15,{f:2000,to:6000,v:.25,at:.28})},
+    smash:()=>{t(130,.3,{w:'square',v:.3,to:40,at:.08});n(.25,{f:400,to:80,v:.4,at:.08});t(60,.4,{w:'sine',v:.3,to:30,at:.1})},
+    stab:()=>{n(.1,{f:3500,to:900,v:.25});t(800,.08,{w:'triangle',v:.15,to:200,at:.12});n(.08,{f:1200,v:.25,at:.14})},
+    shot:()=>{n(.14,{f:1800,to:5000,v:.2});t(320,.45,{w:'triangle',v:.1,to:900});t(180,.08,{v:.22,at:.45});n(.08,{f:1500,v:.2,at:.45})},
+    gun:()=>{n(.25,{f:6000,to:300,v:.45});t(110,.2,{w:'sawtooth',v:.3,to:40});n(.15,{f:1800,to:300,v:.3,at:.28})},
+    magic:()=>{arp([392,523,659,988],.07,.22,{v:.13,w:'sine'});t(200,.6,{w:'sine',v:.1,to:1100});n(.4,{f:800,to:5000,v:.18,at:.5});t(1568,.3,{v:.12,w:'triangle',at:.55})},
     place:()=>{t(300,.06,{v:.16,w:'triangle',to:200});n(.04,{f:900,v:.1})},
     erase:()=>n(.07,{f:2500,to:800,v:.12}),
     pin:()=>{t(880,.05,{v:.14});t(1320,.09,{v:.14,at:.05})},
@@ -2066,10 +2072,11 @@ function mapInit(){
 }
 /* ===== v16: dadi di danno, tiro animato, uso dell'arma ===== */
 const DICE=['d4','d6','d8','d10','d12','d20','d100'];
-const DMGF=[{l:'Danno fisso (si somma al tiro)',n:'dfix',t:'number'},{l:'Numero di dadi di danno (0 = nessun dado)',n:'dn',t:'number'},{l:'Tipo di dado',n:'dt',t:'select',o:DICE},{l:'Danno minimo (0 = nessun minimo)',n:'dmin',t:'number'}];
-const dmgClean=(r,on)=>on?{dfix:Math.min(9999,r.dfix||0),dn:Math.min(20,r.dn||0),dt:DICE.includes(r.dt)?r.dt:'d6',dmin:Math.min(9999,r.dmin||0)}:{dfix:0,dn:0,dt:'d6',dmin:0};
-const dmgCopy=o=>({dfix:o.dfix||0,dn:o.dn||0,dt:o.dt||'d6',dmin:o.dmin||0,cnx:o.cnx||0,chp:o.chp||0});
-const dmgInit=o=>({dfix:o.dfix||0,dn:o.dn||0,dt:o.dt||'d6',dmin:o.dmin||0});
+const ATK_KEYS=['taglio','contundente','perforante','distanza','sparo','magia'];
+const DMGF=[{l:'Tipo di attacco: taglio (spade, asce) · contundente (mazze, pugni) · perforante (lance, pugnali) · distanza (archi, lanci) · sparo (armi da fuoco) · magia — cambia l\'animazione',n:'atk',t:'select',o:ATK_KEYS},{l:'Danno fisso (si somma al tiro)',n:'dfix',t:'number'},{l:'Numero di dadi di danno (0 = nessun dado)',n:'dn',t:'number'},{l:'Tipo di dado',n:'dt',t:'select',o:DICE},{l:'Danno minimo (0 = nessun minimo)',n:'dmin',t:'number'}];
+const dmgClean=(r,on)=>on?{dfix:Math.min(9999,r.dfix||0),dn:Math.min(20,r.dn||0),dt:DICE.includes(r.dt)?r.dt:'d6',dmin:Math.min(9999,r.dmin||0),atk:ATK_KEYS.includes(r.atk)?r.atk:''}:{dfix:0,dn:0,dt:'d6',dmin:0,atk:''};
+const dmgCopy=o=>({dfix:o.dfix||0,dn:o.dn||0,dt:o.dt||'d6',dmin:o.dmin||0,atk:o.atk||'',cnx:o.cnx||0,chp:o.chp||0});
+const dmgInit=o=>({dfix:o.dfix||0,dn:o.dn||0,dt:o.dt||'d6',dmin:o.dmin||0,atk:atkOf(o)});
 const dieOf=o=>parseInt(String(o.dt||'d6').slice(1))||6;
 const hasDmg=o=>(o.dn|0)>0||(o.dfix|0)>0;
 const dmgTxt=o=>{const n=o.dn|0,f=o.dfix|0,m=o.dmin|0;let t=n>0?n+(o.dt||'d6'):'';if(f>0)t+=(t?'+':'')+f;if(m>0)t+=' (min '+m+')';return esc(t)};
@@ -2096,6 +2103,43 @@ function rollDice(o){
     else if(!done)fin();
   };
 }
+/* ===== animazioni di attacco (cambiano in base al tipo di arma) ===== */
+const ATK_SND={taglio:'slash',contundente:'smash',perforante:'stab',distanza:'shot',sparo:'gun',magia:'magic'};
+const ATK_WAIT={taglio:900,contundente:950,perforante:800,distanza:1050,sparo:900,magia:1200};
+/* se l'arma non ha un tipo scelto (armi create prima), lo deduco dal nome */
+function atkOf(e){
+  if(ATK_KEYS.includes(e.atk))return e.atk;
+  const n=String(e.name||'').toLowerCase();
+  if(/bastone magico|scettro|grimorio|tomo|bacchetta|incantes|stregon|magic/.test(n))return 'magia';
+  if(/pistola|fucile|revolver|mitra|carabina|moschetto|doppietta|shotgun|cannone|arma da fuoco/.test(n))return 'sparo';
+  if(/\barco\b|balestra|freccia|fionda|giavellott|shuriken|lancio|boomerang/.test(n))return 'distanza';
+  if(/lancia|pugnale|stocco|daga|stiletto|fioretto|tridente|picca|punteruolo|spillone/.test(n))return 'perforante';
+  if(/mazza|martello|clava|pugn|tirapugni|bastone|randello|maglio|manganello|mazzafrusto/.test(n))return 'contundente';
+  return 'taglio';
+}
+function atkFx(e){
+  const k=atkOf(e),el=document.createElement('div');el.className='atkfx '+k;
+  const spk=(x,y,n,d)=>Array.from({length:n},(_,i)=>`<i class="spk" style="--x:${x}%;--y:${y}%;--a:${Math.round(360/n*i+Math.random()*24)}deg;--r:${50+Math.floor(Math.random()*70)}px;animation-delay:${d}s"></i>`).join('');
+  const rg=d=>`<b class="rg" style="animation-delay:${d}s"></b>`;
+  const fl=d=>`<u class="fl" style="--fd:${d}s"></u>`;
+  const P={
+    taglio:()=>`<b class="sl" style="--r:-32deg;--y:-14vh"></b><b class="sl" style="--r:-48deg;--y:6vh;animation-delay:.14s"></b><b class="sl" style="--r:-20deg;--y:22vh;animation-delay:.28s"></b>`+fl(.3)+spk(50,50,12,.34),
+    contundente:()=>fl(.1)+`<b class="bm">💥</b>`+rg(.1)+rg(.22)+rg(.34)+spk(50,50,16,.12),
+    perforante:()=>`<b class="tp"></b>`+fl(.2)+spk(64,50,10,.2),
+    distanza:()=>`<b class="pr"></b>`+fl(.48)+spk(80,64,12,.48),
+    sparo:()=>`<b class="mz"></b><b class="bl"></b>`+fl(.3)+spk(90,80,14,.3),
+    magia:()=>`<b class="mr" style="--s:230px"></b><b class="mr" style="--s:160px;animation-delay:.1s"></b><b class="mr" style="--s:95px;animation-delay:.2s"></b><b class="ob"></b>`+fl(.55)+spk(50,50,18,.55)
+  };
+  const ph=e.photo?`<img src="${esc(e.photo)}" alt="">`:'⚔️';
+  el.innerHTML=`<div class="wpn">${ph} ${esc(e.name)}</div>`+P[k]();
+  document.body.append(el);
+  SND.play(ATK_SND[k],1);
+  const win=document.getElementById('win'),sh=k==='contundente'?100:k==='sparo'?300:k==='magia'?550:0;
+  if(sh&&win)setTimeout(()=>{win.classList.remove('atk-shake');void win.offsetWidth;win.classList.add('atk-shake');setTimeout(()=>win.classList.remove('atk-shake'),420)},sh);
+  if(navigator.vibrate)try{navigator.vibrate(k==='contundente'||k==='sparo'?[20,30,60]:[30])}catch(x){}
+  setTimeout(()=>el.remove(),1600);
+  return ATK_WAIT[k];
+}
 function attack(id){
   const p=me();if(!p)return;
   const inv=[...(p.inv||[])],i=inv.findIndex(e=>e.id===id);if(i<0)return;
@@ -2103,7 +2147,8 @@ function attack(id){
   if(!hasDmg(e))return toast('Questa arma non ha un danno impostato');
   if(e.uses!=null&&e.uses<1)return toast('Arma esaurita');
   const d=payCost(p,e);if(!d)return;
-  SND.play('attack',1);rollDice({title:'⚔️ '+e.name,n:e.dn,die:dieOf(e),fix:e.dfix,min:e.dmin});
+  const wait=REDM()?0:atkFx(e);if(REDM())SND.play('attack',1);
+  setTimeout(()=>rollDice({title:'⚔️ '+e.name,n:e.dn,die:dieOf(e),fix:e.dfix,min:e.dmin}),wait);
   if(e.uses!=null){if(e.uses<=1)inv.splice(i,1);else inv[i]={...e,uses:e.uses-1};d.inv=inv}
   if(Object.keys(d).length)guard(db.collection('players').doc(uid).update(d));
 }
