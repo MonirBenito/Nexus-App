@@ -117,7 +117,13 @@ const SND=(()=>{
   return {play,toggle,sp:()=>lastSp};
 })();
 const SND_ERR=/insufficien|non consentit|errat|non valid|esaurit|troppo|già registrata|non esiste|non disponibile|oltre|Limite|Max |non riconosciuto|non leggibile|Scegli|Scrivi|Salva prima|Fuori dalla|Nessun /i;
-function toast(t){SND.play(SND_ERR.test(String(t))?'error':'toast');const e=document.createElement('div');e.className='toast';e.textContent=t;document.body.append(e);setTimeout(()=>e.remove(),2200)}
+function toast(t){
+  SND.play(SND_ERR.test(String(t))?'error':'toast');
+  const k=document.querySelectorAll('.toast:not(.out)').length; /* più avvisi insieme: si impilano invece di sovrapporsi */
+  const e=document.createElement('div');e.className='toast'+(SND_ERR.test(String(t))?' err':'');e.style.setProperty('--k',k);
+  e.textContent=t;document.body.append(e);
+  setTimeout(()=>{e.classList.add('out');setTimeout(()=>e.remove(),REDM()?0:260)},2200);
+}
 
 /* ---- form modale generica ---- */
 
@@ -473,12 +479,17 @@ function checkEnc(){
   const vis=Object.values(S.npcs).filter(visN),seen=p.seen;
   if(!Array.isArray(seen)){guard(db.collection('players').doc(uid).update({seen:vis.map(n=>n.id)}));return}
   const n=vis.find(x=>!seen.includes(x.id));if(!n)return;
-  encOpen=true;const A=attOf(n);SND.play(n.att==='ostile'?'alarm':'enc',1);
-  const m=document.createElement('div');m.className='modal';
-  m.innerHTML=`<div class="${n.att==='ostile'?'shake':''}" style="text-align:center;border:2px solid ${A.c}"><div style="letter-spacing:4px">${A.i} ${A.i} ${A.i}</div><h2 class="newenc" style="color:${A.c}">NUOVO INCONTRO</h2><div style="color:${A.c};font-weight:800;letter-spacing:3px">${A.l.toUpperCase()}</div><div class="encav" style="border-color:${A.c}">${n.photo?`<img src="${esc(n.photo)}">`:'🩸'}</div><h3>${esc(n.name)}</h3><div class="mut">${KIND[kindOf(n)]}</div><div class="mut" style="margin-top:4px">${A.s}</div><div class="row" style="margin-top:14px"><button class="g grow" data-c>Più tardi</button><button class="grow" data-i>Ispeziona</button></div></div>`;
+  encOpen=true;const A=attOf(n),host=n.att==='ostile',good=n.att==='buono';SND.play(host?'alarm':'enc',1);
+  const m=document.createElement('div');m.className='modal notif-m enc-m'+(host?' hurt':'');
+  m.innerHTML=`<div class="notif encnotif ${host?'shake':''}" style="--nc:${A.c};text-align:center;border:2px solid ${A.c}"><h2 class="newenc" style="color:${A.c}">NUOVO INCONTRO</h2><div class="encav" style="border-color:${A.c}">${n.photo?`<img src="${esc(n.photo)}">`:'🩸'}</div><div class="encatt" style="color:${A.c};border-color:${A.c}">${A.i} ${A.l.toUpperCase()} ${A.i}</div><h3 class="encname">${esc(n.name)}</h3><div class="mut" style="animation-delay:.95s">${KIND[kindOf(n)]}</div><div class="mut" style="margin-top:4px;animation-delay:1.05s">${A.s}</div><div class="row" style="margin-top:14px;animation-delay:1.2s"><button class="g grow" data-c>Più tardi</button><button class="grow" data-i>Ispeziona</button></div></div>`;
   document.body.append(m);
-  if(n.att==='ostile'&&navigator.vibrate)try{navigator.vibrate([200,100,200])}catch(e){}
-  const done=async go=>{m.remove();encOpen=false;await guard(db.collection('players').doc(uid).update({seen:[...seen,n.id]}));if(go){view={name:'npc',id:n.id};render()}};
+  notifBurst(m.firstElementChild,host?'encostile':good?'encbuono':'enc');
+  if(navigator.vibrate)try{navigator.vibrate(host?[200,100,200,100,320]:[40,40,90])}catch(e){}
+  const done=async go=>{
+    if(m.dataset.closing)return;m.dataset.closing=1;m.classList.add('notif-out');
+    if(!REDM())await new Promise(r=>setTimeout(r,220));
+    m.remove();encOpen=false;await guard(db.collection('players').doc(uid).update({seen:[...seen,n.id]}));if(go){view={name:'npc',id:n.id};render()}
+  };
   m.onclick=e=>{if(e.target.dataset.c!==undefined)done(0);if(e.target.dataset.i!==undefined)done(1)};
 }
 const itImg=(u,sz)=>`<span class="iph" style="--s:${sz}px"><img src="${esc(u)}" alt="" loading="lazy"></span>`;
@@ -731,7 +742,7 @@ function rebindMP(){
 const REDM=()=>{try{return matchMedia('(prefers-reduced-motion: reduce)').matches}catch(e){return false}};
 function notifBurst(card,kind){
   if(REDM())return;
-  const E={quest:['📜','✨'],questmain:['⭐','📜','✨','🏆'],ego:['⚡','✨'],money:['🪙','✨'],obiettivo:['🏆','✨','⭐'],ferita:['🩸','💥'],cura:['💚','✨'],invite:['🏕️','✨'],msg:['✉️','✨']}[kind]||['✨'];
+  const E={quest:['📜','✨'],questmain:['⭐','📜','✨','🏆'],ego:['⚡','✨'],money:['🪙','✨'],obiettivo:['🏆','✨','⭐'],ferita:['🩸','💥'],cura:['💚','✨'],invite:['🏕️','✨'],msg:['✉️','✨'],enc:['🩸','✨','👁'],encostile:['💀','⚠️','💥','🩸'],encbuono:['💚','✨','⭐','🤝']}[kind]||['✨'];
   const a=card.querySelector('.encav');if(!a)return;
   const box=document.createElement('div');box.className='nparts';
   const cx=a.offsetLeft+a.offsetWidth/2,cy=a.offsetTop+a.offsetHeight/2,fall=kind==='money'?70:0;
