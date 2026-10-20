@@ -2,7 +2,7 @@
 const NX=window.NX_CONFIG||{};
 const $=s=>document.querySelector(s), app=$('#app');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let db,user,assets,uid,isMaster=false,masterOK=false,authed=false,cred=null,S={players:{},npcs:{},items:{},quests:{},party:{},msgs:{},maps:{}},view={name:'splash'},tab='players';
+let db,user,assets,uid,isMaster=false,masterOK=false,authed=false,cred=null,S={players:{},npcs:{},items:{},quests:{},party:{},msgs:{},maps:{},bestiary:{}},view={name:'splash'},tab='players';
 const DROP=`<svg viewBox="0 0 100 130" width="100%" height="100%"><defs><radialGradient id="g" cx="35%" cy="40%"><stop offset="0" stop-color="#ff4d5a"/><stop offset="1" stop-color="#8a0c16"/></radialGradient></defs><path d="M50 4C50 4 8 58 8 84a42 42 0 0 0 84 0C92 58 50 4 50 4Z" fill="url(#g)"/><ellipse cx="34" cy="86" rx="7" ry="15" fill="#fff" opacity=".25" transform="rotate(20 34 86)"/></svg>`;
 /* ===== suoni: sintetizzati con WebAudio (nessun file audio) ===== */
 const SN={u:null,hp:0,nx:0,cur:0};
@@ -151,14 +151,14 @@ async function boot(){
     if(!db||!user)return render();
     uid=await user.id();cuid=uid; isMaster=!!user.canEdit?.();
     try{const s=await credDoc().get();cred=s.exists?s.data():null}catch(e){cred=null}
-    for(const k of ['players','npcs','items','quests','party','msgs','maps'])
+    for(const k of ['players','npcs','items','quests','party','msgs','maps','bestiary'])
       db.collection(k).onSnapshot(s=>{S[k]={};s.docs.forEach(d=>S[k][d.id]=d.data());LD[k]=1;render()},e=>console.warn(k,e));
     render();
   }catch(e){console.warn(e);render()}
 }
 /* ===== v2: bacheche ===== */
 tab=null;
-const TILES=[['profile','👤','Profilo'],['ego','⚡','EGO'],['npcs','🧙','Incontri'],['quests','📜','Obiettivi'],['party','🏕️','Party'],['inv','🎒','Inventario'],['msgs','✉️','Messaggi'],['map','🗺️','Mappa']];
+const TILES=[['profile','👤','Profilo'],['ego','⚡','EGO'],['npcs','🧙','Incontri'],['scanner','🔍','Scanner'],['quests','📜','Obiettivi'],['party','🏕️','Party'],['inv','🎒','Inventario'],['msgs','✉️','Messaggi'],['map','🗺️','Mappa']];
 const KIND={mercante:'🛒 Mercante',combattente:'⚔️ Combattente'},kindOf=n=>n.kind||'mercante';
 const tiles=()=>{const M=masterOK&&view.name==='master';return `<div class="tiles">${TILES.filter(t=>!(M&&t[0]==='inv')).map(([k,i,l])=>{if(M&&k==='profile'){i='👥';l='Player'}return `<button class="tile" data-go="${k}"><span>${i}</span>${l}${badge(k,M)}</button>`}).join('')}</div>`};
 const BLOODS=['Non indicato','A+','A-','B+','B-','AB+','AB-','0+','0-'];
@@ -508,17 +508,17 @@ let selP=null;
 const bl=p=>p.blood&&p.blood!=='Non indicato'?esc(p.blood):'—';
 /* notifiche rosse del player: contano solo ciò che non ha ancora visto in quella bacheca.
    Quando apre la bacheca, gli elementi correnti vengono segnati come visti (salvato sul suo profilo). */
-const BIDS=k=>k==='npcs'?Object.values(S.npcs).filter(visN).map(x=>x.id):k==='quests'?Object.values(S.quests).filter(visQ).map(x=>x.id):k==='msgs'?myMsgs().map(x=>x.id):k==='map'?Object.values(S.maps||{}).filter(m=>m.pub!==false).map(x=>x.id):null;
+const BIDS=k=>k==='npcs'?Object.values(S.npcs).filter(visN).map(x=>x.id):k==='quests'?Object.values(S.quests).filter(visQ).map(x=>x.id):k==='msgs'?myMsgs().map(x=>x.id):k==='map'?Object.values(S.maps||{}).filter(m=>m.pub!==false).map(x=>x.id):k==='scanner'?scList().map(x=>x.id):null;
 const unread=k=>{const ids=BIDS(k);if(!ids)return 0;const p=me(),seen=(p&&p.viewed&&p.viewed[k])||[];return ids.filter(i=>!seen.includes(i)).length};
 function markViewed(k,one){
   const p=me();if(!p||!authed||!LD.players)return;
-  const need={npcs:'npcs',quests:'quests',msgs:'msgs',map:'maps'}[k];if(!need||!LD[need])return; /* dati non ancora caricati: non toccare nulla */
+  const need={npcs:'npcs',quests:'quests',msgs:'msgs',map:'maps',scanner:'bestiary'}[k];if(!need||!LD[need])return; /* dati non ancora caricati: non toccare nulla */
   const ids=BIDS(k);if(!ids)return;
   const seen=(p.viewed&&p.viewed[k])||[],add=one?[one]:ids;
   if(add.every(i=>seen.includes(i)))return;
   guard(db.collection('players').doc(uid).update({viewed:{...(p.viewed||{}),[k]:one?[...seen,one]:ids}}));
 }
-const badge=(k,M)=>{if(!M){const u=unread(k);return u?`<em class="bdg">${u}</em>`:''}let n=0;if(k==='npcs')n=Object.values(S.npcs).filter(x=>M||visN(x)).length;if(k==='quests')n=Object.values(S.quests).filter(x=>M||visQ(x)).length;if(k==='profile'&&M)n=Object.keys(S.players).length;if(k==='msgs')n=Object.values(S.msgs).filter(m=>M||!(m.to&&m.to.length)||m.to.includes(uid)).length;if(k==='map')n=Object.keys(S.maps||{}).length;return n?`<em class="bdg">${n}</em>`:''};
+const badge=(k,M)=>{if(!M){const u=unread(k);return u?`<em class="bdg">${u}</em>`:''}let n=0;if(k==='npcs')n=Object.values(S.npcs).filter(x=>M||visN(x)).length;if(k==='quests')n=Object.values(S.quests).filter(x=>M||visQ(x)).length;if(k==='profile'&&M)n=Object.keys(S.players).length;if(k==='msgs')n=Object.values(S.msgs).filter(m=>M||!(m.to&&m.to.length)||m.to.includes(uid)).length;if(k==='map')n=Object.keys(S.maps||{}).length;if(k==='scanner')n=Object.values(S.players).filter(x=>x.scan&&x.scan.t).length;return n?`<em class="bdg">${n}</em>`:''};
 const homeCard=p=>{const v=vit(p),pc=(a,b)=>b?Math.max(0,Math.min(100,a/b*100)):0;return `<div class="hero"><div class="grow"><div class="hi">Bentornato</div><h2 class="hname">${esc(p.username)}</h2><div class="row" style="margin-top:10px;flex-wrap:wrap"><span class="pill eu">🪙 ${p.currency}</span><span class="pill bl">🩸 ${bl(p)}</span></div></div></div><div class="vitals"><div class="vt hp"><div class="vl"><b>❤️ HP</b><span>${v.h}<small> / ${v.hm}</small></span></div><div class="vbar hp"><i style="width:${pc(v.h,v.hm)}%"></i></div></div><div class="vt nx"><div class="vl"><b>🔷 NEXUS</b><span>${v.n}<small> / ${v.nm}</small></span></div><div class="vbar nx"><i style="width:${pc(v.n,v.nm)}%"></i></div></div></div>`};
 const invRO=p=>`<div class="card"><h3>🎒 INVENTARIO</h3>${(p.inv||[]).map(e=>`<div class="move" style="border-left-color:var(--acc2)"><div style="font-size:1.6em">${e.photo?`${itImg(e.photo,44)}`:(CATI[e.cat]||'🎁')}</div><div class="grow"><b>${esc(e.name)}</b><div class="mut">${CATL[e.cat]||'Oggetto'} · ${e.uses==null?'♾ Infinito':e.uses+(e.uses===1?' uso':' usi')}${bonusesOf(e).length?` · <span style="color:var(--ok)">${bonusTxt(e)}</span>`:''}${e.cat==='armatura'&&e.arm?` · <span style="color:var(--ok)">🛡️ −${e.arm} danni</span>`:''}${dmgHtml(e)}</div></div></div>`).join('')||'<p class="mut">Inventario vuoto.</p>'}</div>`;
 const masterPlayers=()=>{
@@ -2418,6 +2418,167 @@ function rebindMX(){
   on('xie',async k=>{const [id,iid]=k.split('|'),p=S.players[id],e=p&&(p.inv||[]).find(x=>x.id===iid);if(!e)return;const r=await ask('Modifica oggetto',IF(),{...e,use:e.uses==null?'infinito':'utilizzabile',uses:e.uses||0,bks:bonusInit(e),...dmgInit(e)});if(r&&r.name){const o=await invSave(r,e);U(id,{inv:p.inv.map(x=>x.id===iid?{...x,...o}:x)})}});
   on('xid',async k=>{const [id,iid]=k.split('|'),p=S.players[id];if(p&&await askYes('Rimuovere questo oggetto dall\'inventario?'))U(id,{inv:(p.inv||[]).filter(x=>x.id!==iid)})});
 }
+/* ===== SCANNER: bestiario + animazione di scansione =====
+   Dati: collezione 'bestiary' (una creatura per documento, inserita dal Master).
+   Il player preme «Usa scanner» → scrive sul proprio profilo  scan:{t, known:[creature già note]}.
+   L'animazione resta finché il Master segna una creatura come «scannerizzata» (scanned:true):
+   a quel punto parte l'aggancio e poi la rivelazione progressiva delle informazioni. */
+const SC={mode:null,W:null,iv:null,t0:0,sel:null,fresh:null,req:new Set(),reqInit:false};
+const SC_SEC=[['tipo','🧬','TIPOLOGIA','t'],['bioma','🌍','BIOMA','t'],['carattere','🧠','CARATTERE / COMPORTAMENTO','p'],['forza','💪','PUNTI DI FORZA','l'],['deboli','🎯','PUNTI DEBOLI','w'],['drop','💎','MATERIALI / DROP','l'],['lore','📖','LORE','p']];
+const SC_COR='<i class="sc-cor a"></i><i class="sc-cor b"></i><i class="sc-cor c"></i><i class="sc-cor d"></i>';
+const scWeak=s=>splitL(s).map(l=>{const i=l.indexOf(':');return i>0?{z:l.slice(0,i).trim().slice(0,60),d:l.slice(i+1).trim().slice(0,200)}:{z:l.slice(0,60),d:''}});
+const scWeakTxt=a=>(a||[]).map(w=>w.d?w.z+': '+w.d:w.z).join('\n');
+const scSecs=c=>SC_SEC.map(([k,i,l,t])=>({k,i,l,t,v:c[k]})).filter(s=>Array.isArray(s.v)?s.v.length:s.v);
+const scU=d=>guard(db.collection('players').doc(uid).update(d));
+/* creature che il player può vedere (già scannerizzate dal Master), le più recenti per prime */
+function scList(){return Object.values(S.bestiary||{}).filter(c=>c.scanned&&(!(c.to&&c.to.length)||c.to.includes(uid))).sort((a,b)=>(b.scanAt||0)-(a.scanAt||0))}
+function scanList(){return scList()}
+const scBody=s=>s.t==='l'?`<ul class="scl">${s.v.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`
+  :s.t==='w'?`<ul class="scl scw">${s.v.map(w=>`<li><b>${esc(w.z)}</b>${w.d?`<span>${esc(w.d)}</span>`:''}</li>`).join('')}</ul>`
+  :`<p class="scv">${esc(s.v)}</p>`;
+const scSecHtml=(s,anim)=>`<div class="card scsec ${s.t}"${anim?'':' style="animation:none"'}><h3>${s.i} ${s.l}</h3>${scBody(s)}</div>`;
+const scPhoto=c=>`<div class="sc-ph st">${c.photo?`<img src="${esc(c.photo)}" alt="">`:'👾'}</div>`;
+const scDossier=c=>`<div class="card" style="text-align:center">${scPhoto(c)}<h2 style="margin:0">${esc(c.name)}</h2></div>`+(scSecs(c).map(s=>scSecHtml(s,0)).join('')||'<p class="mut">Nessun dato disponibile.</p>');
+
+/* macchina da scrivere veloce (max ~2 secondi a testo) */
+function scType(el,txt,cb){
+  const ch=Array.from(txt),per=Math.max(1,Math.ceil(ch.length/110));let i=0,k=0;
+  if(REDM()){el.textContent=txt;if(cb)cb();return{stop(){}}}
+  el.classList.add('typing');
+  const t=setInterval(()=>{i=Math.min(ch.length,i+per);el.textContent=ch.slice(0,i).join('');if(++k%3===0)SND.play('type');if(i>=ch.length){clearInterval(t);el.classList.remove('typing');if(cb)cb()}},22);
+  return{stop(){clearInterval(t);el.classList.remove('typing')}};
+}
+/* overlay a schermo intero (sopra l'app, sotto le finestre di dialogo) */
+function scOv(cls){const o0=document.getElementById('scov');if(o0)o0.remove();const o=document.createElement('div');o.id='scov';o.className=cls;document.body.append(o);return o}
+function scKill(){
+  const W=SC.W;if(W){W.t.forEach(clearTimeout);W.iv.forEach(clearInterval);if(W.ty)W.ty.stop()}
+  SC.W=null;if(SC.iv){clearInterval(SC.iv);SC.iv=null}SC.mode=null;
+  const o=document.getElementById('scov');if(o)o.remove();
+}
+
+/* ---- 1) animazione di scansione (finché il Master non risponde) ---- */
+function scScan(){
+  scKill();SC.mode='scan';SC.t0=Date.now();
+  const o=scOv('scov sc');
+  o.innerHTML=`${SC_COR}<div class="sc-in"><div class="sc-radar"><i class="sc-ring"></i><b class="sc-beam"></b><s class="sc-blip b1"></s><s class="sc-blip b2"></s><s class="sc-blip b3"></s><span class="sc-q">?</span></div><div class="sc-title">SCANSIONE IN CORSO</div><div class="sc-sig"><i></i></div><div class="sc-log" id="scLg"></div><p class="mut sc-wait">In attesa dei dati dal Master<span class="dots"></span></p><button class="g sc-cancel" id="scX">✕ Annulla scansione</button></div>`;
+  const L=['Calibrazione sensori NEXUS','Campionamento spettro biologico','Triangolazione del bersaglio','Mappatura della struttura corporea','Lettura della firma energetica','Interrogazione degli archivi','Decodifica del segnale','Analisi comportamentale','Ricerca punti di debolezza'];
+  const lg=o.querySelector('#scLg');let n=0;
+  const step=()=>{const d=document.createElement('div');lg.append(d);while(lg.children.length>4)lg.firstChild.remove();scType(d,'> '+L[n++%L.length]+'…');if(n%3===1)SND.play('nx',1)};
+  step();SC.iv=setInterval(step,1500);
+  o.querySelector('#scX').onclick=()=>{scKill();scU({scan:null})};
+  SND.play('open',1);
+}
+/* ---- 2) aggancio: il Master ha risposto ---- */
+function scLock(c){
+  SC.mode='lock';
+  const o=document.getElementById('scov');
+  if(o){o.classList.add('lock');const t=o.querySelector('.sc-title');if(t)t.textContent='▣ BERSAGLIO AGGANCIATO';const w=o.querySelector('.sc-wait');if(w)w.textContent='Segnale ricevuto';if(navigator.vibrate)try{navigator.vibrate([40,30,40])}catch(e){}}
+  SND.play('alarm',1);
+  setTimeout(()=>{if(SC.mode==='lock')scReveal(c)},1400);
+}
+/* ---- 3) rivelazione progressiva delle informazioni ---- */
+function scReveal(c,kind){
+  scKill();
+  const W=SC.W={t:[],iv:[],ty:null};SC.mode=kind==='preview'?'preview':'reveal';
+  const o=scOv('scov rv'),secs=scSecs(c),T=(f,ms)=>W.t.push(setTimeout(f,ms));
+  o.innerHTML=`${SC_COR}<div class="sc-flash"></div><div class="sc-in"><div class="sc-ok">✔ SCANSIONE COMPLETATA</div><div class="sc-ph">${c.photo?`<img src="${esc(c.photo)}" alt="">`:'👾'}</div><h2 class="sc-name" id="scNm"></h2><div id="scSecs"></div><div class="sc-act"><button class="g grow" id="scSk">⏭ Salta</button><button class="grow" id="scDn" style="display:none">${kind==='preview'||kind==='replay'?'✔ Chiudi':'📚 Apri nel Bestiario'}</button></div></div>`;
+  const box=o.querySelector('#scSecs'),nm=o.querySelector('#scNm'),sk=o.querySelector('#scSk'),dn=o.querySelector('#scDn');
+  const stop=()=>{W.t.forEach(clearTimeout);W.iv.forEach(clearInterval);if(W.ty)W.ty.stop()};
+  const stick=()=>{if(o.scrollHeight-o.scrollTop-o.clientHeight<240)o.scrollTop=o.scrollHeight};
+  W.iv.push(setInterval(stick,250));
+  const fin=()=>{stop();sk.style.display='none';dn.style.display='';SND.play('fanfare',1);if(navigator.vibrate)try{navigator.vibrate([30,40,60])}catch(e){}setTimeout(()=>{o.scrollTop=o.scrollHeight},60)};
+  let i=0;
+  const next=()=>{
+    if(i>=secs.length)return fin();
+    const s=secs[i++],card=document.createElement('div');
+    card.className='card scsec '+s.t;
+    card.innerHTML=`<h3>${s.i} ${s.l}</h3><div class="scdec"><span>DECIFRAZIONE</span><i></i></div>`;
+    box.append(card);SND.play('pin',1);
+    T(()=>{
+      const body=document.createElement('div');card.querySelector('.scdec').replaceWith(body);
+      if(s.t==='l'||s.t==='w'){
+        const ul=document.createElement('ul');ul.className='scl'+(s.t==='w'?' scw':'');body.append(ul);
+        s.v.forEach((x,j)=>T(()=>{const li=document.createElement('li');li.innerHTML=s.t==='w'?`<b>${esc(x.z)}</b>${x.d?`<span>${esc(x.d)}</span>`:''}`:esc(x);ul.append(li);SND.play(s.t==='w'?'alarm':'pin',1)},j*280));
+        T(next,s.v.length*280+550);
+      }else{
+        const p=document.createElement('p');p.className='scv';body.append(p);
+        W.ty=scType(p,s.v,()=>T(next,500));
+      }
+    },850);
+  };
+  SND.play('enc',1);T(()=>SND.play('nx',1),500);
+  T(()=>{W.ty=scType(nm,c.name)},1500);
+  T(next,2700+Math.min(900,c.name.length*30));
+  sk.onclick=()=>{stop();nm.textContent=c.name;box.innerHTML=secs.map(s=>scSecHtml(s,0)).join('');sk.style.display='none';dn.style.display=''};
+  dn.onclick=()=>{scKill();if(kind==='preview')return;SC.sel=c.id;view={name:'scanner'};render()};
+}
+
+/* ---- sincronizzazione: parte/si ferma l'animazione in base ai dati ---- */
+function scanSync(){
+  const M=masterOK&&view.name==='master';
+  if(M){
+    if(SC.mode&&SC.mode!=='preview')scKill();
+    const k=Object.entries(S.players).filter(([i,p])=>p.scan&&p.scan.t).map(([i,p])=>i+':'+p.scan.t);
+    const fresh=k.filter(x=>!SC.req.has(x));SC.req=new Set(k);
+    if(fresh.length&&SC.reqInit){toast('🔍 '+fresh.map(x=>(S.players[x.split(':')[0]]||{}).username||'?').join(', ')+' sta usando lo scanner');SND.play('msg',1)}
+    SC.reqInit=true;return;
+  }
+  SC.reqInit=false;SC.req=new Set();
+  if(SC.mode==='preview')scKill();
+  if(!db||!authed||!me()){if(SC.mode)scKill();return}
+  if(SC.mode==='lock'||SC.mode==='reveal')return;
+  const p=me(),s=p.scan;
+  if(s&&s.t){
+    const kn=s.known||[],c=scList().find(x=>!kn.includes(x.id));
+    if(c){
+      if(SC.mode!=='scan')scScan();
+      const seen=new Set([...((p.viewed&&p.viewed.scanner)||[]),...scList().map(x=>x.id)]);
+      scU({scan:null,viewed:{...(p.viewed||{}),scanner:[...seen]}});
+      scLock(c);return;
+    }
+    if(SC.mode!=='scan')scScan();
+  }else if(SC.mode==='scan'&&Date.now()-SC.t0>6000)scKill(); /* annullata altrove */
+}
+{const _r2=render;render=function(){_r2();scanSync()}}
+
+/* ---- schermata del player: bestiario + pulsante scanner ---- */
+function scanPlayer(){
+  const p=me(),L=scList(),sel=SC.sel&&L.find(c=>c.id===SC.sel);
+  if(sel){
+    app.innerHTML=hdr('🔍 '+esc(sel.name),1)+scDossier(sel)+`<button class="g" id="scRe" style="width:100%;margin-top:10px">▶ Rivedi la scansione</button>`;
+    bind();$('#bk').onclick=()=>{SC.sel=null;render()};$('#scRe').onclick=()=>scReveal(sel,'replay');return;
+  }
+  const seen=(p.viewed&&p.viewed.scanner)||[];SC.fresh=SC.fresh||new Set();L.forEach(c=>{if(!seen.includes(c.id))SC.fresh.add(c.id)});
+  app.innerHTML=hdr('🔍 Scanner',1)+`<div class="card scdev"><div class="sc-radar sm"><b class="sc-beam"></b><span class="sc-q">?</span></div><p class="mut" style="margin:12px 0">Davanti a una creatura sconosciuta? Attiva lo scanner e attendi i dati del Master.</p><button id="scGo" style="width:100%">📡 USA SCANNER</button></div><h3>📚 Bestiario · ${L.length}</h3>`+
+    (L.map(c=>`<div class="card row" data-bsc="${c.id}">${av(c)}<div class="grow"><b>${esc(c.name)}</b> ${SC.fresh.has(c.id)?'<span class="tag" style="color:var(--ok)">NUOVO</span>':''}<div class="mut">${esc(c.tipo||'—')} · ${esc(c.bioma||'—')}</div></div>›</div>`).join('')||'<p class="mut">Nessuna creatura scansionata finora.</p>');
+  bind();
+  app.querySelectorAll('[data-bsc]').forEach(x=>x.onclick=()=>{SC.sel=x.dataset.bsc;render()});
+  $('#scGo').onclick=()=>{if(SC.mode)return;scScan();scU({scan:{t:Date.now(),known:scList().map(x=>x.id)}})};
+  markViewed('scanner');
+}
+{const _rb=renderBoard;renderBoard=function(){if(view.name!=='scanner'){SC.sel=null;SC.fresh=null;return _rb()}return scanPlayer()}}
+
+/* ---- pannello Master: gestione creature ---- */
+const scF=()=>[{l:'Nome',n:'name'},{l:'Foto (max 2 MB)',n:'photo',t:'file'},{l:'Tipologia (es. Bestia, Non-morto, Costrutto…)',n:'tipo'},{l:'Bioma / habitat',n:'bioma'},{l:'Carattere e comportamento',n:'carattere',t:'area'},{l:'Punti di forza (uno per riga)',n:'forza',t:'area'},{l:'Punti deboli per zona del corpo (uno per riga, formato «Zona: dettaglio», es. «Zampa sinistra: fragile al fuoco»)',n:'deboli',t:'area'},{l:'Materiali / Drop (uno per riga)',n:'drop',t:'area'},{l:'Lore',n:'lore',t:'area'},{l:'Chi la vede una volta scannerizzata (nessuno selezionato = tutti i player)',n:'to',t:'multi',o:Object.entries(S.players).map(([i,p])=>[i,p.username])}];
+const scData=r=>({name:r.name.slice(0,80),tipo:r.tipo.slice(0,60),bioma:r.bioma.slice(0,60),carattere:r.carattere.slice(0,800),forza:splitL(r.forza).slice(0,12).map(x=>x.slice(0,160)),deboli:scWeak(r.deboli).slice(0,12),drop:splitL(r.drop).slice(0,15).map(x=>x.slice(0,160)),lore:r.lore.slice(0,1500),to:r.to||[]});
+function scanMaster(){
+  const C=db.collection('bestiary'),pend=Object.entries(S.players).filter(([i,p])=>p.scan&&p.scan.t),L=Object.values(S.bestiary||{}).sort((a,b)=>(b.scanAt||0)-(a.scanAt||0)||String(a.name).localeCompare(String(b.name)));
+  app.innerHTML=hdr('🔍 Scanner',1)+
+    (pend.length?`<div class="card sc-alert"><h3>📡 Scansione in corso</h3><div class="row" style="flex-wrap:wrap;gap:6px">${pend.map(([i,p])=>`<span class="pill">${esc(p.username)}</span>`).join('')}</div><p class="mut" style="margin:8px 0">Premi «Scannerizzata» su una creatura: ai player in attesa partirà la rivelazione.</p><button class="g mini" id="bsClr">✕ Annulla tutte le scansioni</button></div>`:'<p class="mut">Nessun player sta usando lo scanner.</p>')+
+    `<button id="bsAdd" style="width:100%">+ Nuova creatura</button>`+
+    (L.map(c=>`<div class="card"><div class="row">${av(c)}<div class="grow"><b>${esc(c.name)}</b> ${c.scanned?'<span class="tag" style="color:var(--ok)">✔ scannerizzata</span>':'<span class="tag">🔒 nascosta ai player</span>'}<div class="mut">${esc(c.tipo||'—')} · ${esc(c.bioma||'—')}</div><div class="mut">👁 ${c.to&&c.to.length?c.to.map(i=>esc(S.players[i]?.username||'?')).join(', '):'Tutti i player'}</div></div></div><div class="row" style="margin-top:8px;flex-wrap:wrap">${c.scanned?`<button class="g grow" data-bsh="${c.id}">↩ Nascondi</button>`:`<button class="grow" data-bsr="${c.id}">✅ Scannerizzata${pend.length?' ('+pend.length+' in attesa)':''}</button>`}<button class="g" data-bsp="${c.id}" title="Anteprima animazione">▶</button><button class="g" data-bse="${c.id}">Modifica</button><button class="d" data-bsd="${c.id}">✕</button></div></div>`).join('')||'<p class="mut">Nessuna creatura nel bestiario: creane una.</p>');
+  bind();
+  const on=(a,fn)=>app.querySelectorAll(`[data-${a}]`).forEach(x=>x.onclick=()=>fn(x.dataset[a]));
+  const clr=$('#bsClr');if(clr)clr.onclick=()=>pend.forEach(([i])=>guard(db.collection('players').doc(i).update({scan:null})));
+  $('#bsAdd').onclick=async()=>{const r=await ask('Nuova creatura',scF(),{to:[]});if(!r||!r.name)return;const id=uid8(),photo=r.photo?await uploadPhoto(r.photo):'';guard(C.doc(id).set({id,...scData(r),photo,scanned:false,scanAt:0}))};
+  on('bse',async id=>{const c=S.bestiary[id];if(!c)return;const r=await ask('Modifica creatura',scF(),{...c,forza:(c.forza||[]).join('\n'),deboli:scWeakTxt(c.deboli),drop:(c.drop||[]).join('\n'),to:c.to||[]});if(!r||!r.name)return;const ph=r.photo?await uploadPhoto(r.photo):'';guard(C.doc(id).update({...scData(r),...(ph?{photo:ph}:{})}))});
+  on('bsr',id=>{const n=pend.length;guard(C.doc(id).update({scanned:true,scanAt:Date.now()}));toast('✅ Scannerizzata'+(n?' · rivelazione in partenza per '+n+' player':''))});
+  on('bsh',id=>guard(C.doc(id).update({scanned:false})));
+  on('bsp',id=>{const c=S.bestiary[id];if(c)scReveal(c,'preview')});
+  on('bsd',async id=>{if(await askYes('Eliminare questa creatura dal bestiario?'))guard(C.doc(id).delete())});
+}
+{const _rm=renderMaster;renderMaster=function(){if(tab==='scanner')return scanMaster();return _rm()}}
+
 $('#mbtn').onclick=async()=>{
   if(masterOK){view={name:'master'};return render()}
   const r=await ask('Login Master',[{l:'Email',n:'email',t:'email'},{l:'Password',n:'pw',t:'password'}]);
