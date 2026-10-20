@@ -210,7 +210,7 @@ function render(){
   if(v!=='npc'){npcAnim=null;if(npcTy){npcTy.stop();npcTy=null}app.classList.remove('npcfx')}
   if(v==='npc')return renderNpc();
   if(welcomeRun&&v==='home')return; /* animazione di benvenuto in corso: non ricostruire la home */
-  (v==='home'?renderHome():renderBoard());checkEnc();checkQ();checkM();rebindDel();rebindV9();
+  (v==='home'?renderHome():renderBoard());checkEnc();checkQ();checkM();checkMap();rebindDel();rebindV9();
 }
 function bind(){
   const th=$('#thm');if(th)th.onclick=themePicker;
@@ -570,6 +570,28 @@ function checkQ(){
   };
   m.onclick=e=>{if(e.target.dataset.c!==undefined)done(0);if(e.target.dataset.i!==undefined)done(1)};
 }
+/* nuova mappa mostrata dal Master: stessa notifica animata degli incontri.
+   Il player salva per ogni mappa l'ultimo «shown» già visto (seenMp), così una mappa nascosta e poi rimostrata notifica di nuovo. */
+function checkMap(){
+  const p=me();if(!p||!authed||encOpen||!LD.maps||!LD.players)return;
+  const vis=Object.values(S.maps||{}).filter(x=>x.pub!==false),seen=p.seenMp;
+  if(!seen||typeof seen!=='object'||Array.isArray(seen)){guard(db.collection('players').doc(uid).update({seenMp:Object.fromEntries(vis.map(x=>[x.id,x.shown||0]))}));return}
+  const m=vis.find(x=>(x.shown||0)>(seen[x.id]||0));if(!m)return;
+  encOpen=true;SND.play('enc',1);
+  const tp=(MAP_TYPES.find(t=>t[0]===(m.gt||(m.cfg&&m.cfg.type)))||[0,'🗺️ Mappa'])[1],sz=m.n||(m.cfg&&m.cfg.size)||'?';
+  const el=document.createElement('div');el.className='modal notif-m enc-m map-m';
+  el.innerHTML=`<div class="notif encnotif" style="--nc:var(--acc);text-align:center;border:2px solid var(--acc)"><h2 class="newenc" style="color:var(--acc)">NUOVA MAPPA</h2><div class="encav" style="border-color:var(--acc)">🗺️</div><div class="encatt" style="color:var(--acc);border-color:var(--acc)">📍 ESPLORA 📍</div><h3 class="encname">${esc(m.name)}</h3><div class="mut" style="animation-delay:.95s">${esc(tp)} · ${sz}×${sz}</div><div class="mut" style="margin-top:4px;animation-delay:1.05s">Il Master ti ha svelato un nuovo luogo.</div><div class="row" style="margin-top:14px;animation-delay:1.2s"><button class="g grow" data-c>Più tardi</button><button class="grow" data-i>Apri mappa</button></div></div>`;
+  document.body.append(el);
+  notifBurst(el.firstElementChild,'map');
+  if(navigator.vibrate)try{navigator.vibrate([40,40,90])}catch(e){}
+  const done=async go=>{
+    if(el.dataset.closing)return;el.dataset.closing=1;el.classList.add('notif-out');
+    if(!REDM())await new Promise(r=>setTimeout(r,220));
+    el.remove();encOpen=false;await guard(db.collection('players').doc(uid).update({seenMp:{...seen,[m.id]:m.shown||0}}));
+    if(go){view={name:'map'};mapSel=m.id;mpScroll=null;render()}
+  };
+  el.onclick=e=>{if(e.target.dataset.c!==undefined)done(0);if(e.target.dataset.i!==undefined)done(1)};
+}
 /* ===== v6: UI, vista Master sui player ===== */
 let selP=null;
 const bl=p=>p.blood&&p.blood!=='Non indicato'?esc(p.blood):'—';
@@ -742,7 +764,7 @@ function rebindMP(){
 const REDM=()=>{try{return matchMedia('(prefers-reduced-motion: reduce)').matches}catch(e){return false}};
 function notifBurst(card,kind){
   if(REDM())return;
-  const E={quest:['📜','✨'],questmain:['⭐','📜','✨','🏆'],ego:['⚡','✨'],money:['🪙','✨'],obiettivo:['🏆','✨','⭐'],ferita:['🩸','💥'],cura:['💚','✨'],invite:['🏕️','✨'],msg:['✉️','✨'],enc:['🩸','✨','👁'],encostile:['💀','⚠️','💥','🩸'],encbuono:['💚','✨','⭐','🤝']}[kind]||['✨'];
+  const E={quest:['📜','✨'],questmain:['⭐','📜','✨','🏆'],ego:['⚡','✨'],money:['🪙','✨'],obiettivo:['🏆','✨','⭐'],ferita:['🩸','💥'],cura:['💚','✨'],invite:['🏕️','✨'],msg:['✉️','✨'],enc:['🩸','✨','👁'],encostile:['💀','⚠️','💥','🩸'],encbuono:['💚','✨','⭐','🤝'],map:['🗺️','🧭','📍','✨']}[kind]||['✨'];
   const a=card.querySelector('.encav');if(!a)return;
   const box=document.createElement('div');box.className='nparts';
   const cx=a.offsetLeft+a.offsetWidth/2,cy=a.offsetTop+a.offsetHeight/2,fall=kind==='money'?70:0;
@@ -1943,7 +1965,8 @@ function mpGenAct(){
 async function mpSave(asNew){
   let id=mapSel,name=(S.maps[id]&&S.maps[id].name)||'';
   if(asNew||!id){const r=await ask('Salva mappa',[{l:'Nome della mappa',n:'name'}],{name});if(!r||!r.name)return;name=r.name.slice(0,60);id=uid8()}
-  const ok=await guard(db.collection('maps').doc(id).set({id,name,ts:Date.now(),...mpToDoc(MP)}).then(()=>1));
+  const prevM=S.maps[id],shown=MP.pub!==false?((prevM&&prevM.pub!==false)?(prevM.shown||0):Date.now()):((prevM&&prevM.shown)||0); /* shown = quando è diventata visibile: serve a far scattare la notifica ai player */
+  const ok=await guard(db.collection('maps').doc(id).set({id,name,ts:Date.now(),shown,...mpToDoc(MP)}).then(()=>1));
   if(!ok)return;mapSel=id;mpDirty=false;toast('Mappa salvata'+(MP.pub?': i player la vedono nella bacheca Mappa':' (nascosta ai player)'));render();
 }
 function mpResize(nn){
@@ -1962,7 +1985,7 @@ const mpStat=()=>mpDirty?'● Modifiche non salvate':(mapSel?'✔ Salvata':'Mapp
 const MTOOLS=[['pan','✋','Muovi'],['brush','🖌️','Pennello'],['fill','🪣','Riempi'],['line','📏','Linea'],['rect','▭','Rettangolo'],['ellipse','⬭','Ellisse'],['stamp','🌲','Oggetti'],['sel','🔎','Seleziona'],['text','🔤','Testo'],['erase','🧽','Gomma'],['fog','🌫️','Nebbia'],['token','🧍','Segnalini']];
 const zoomBar=()=>`<div class="row zbar" style="gap:6px;margin-bottom:8px;flex:none"><button class="g mini" id="mpzo">−</button><span class="pill">🔍 ${Math.round(mpZoom*100)}%</span><button class="g mini" id="mpzi">+</button><span class="grow"></span>${mpFull&&masterOK&&view.name==='master'?`<button class="g mini" id="mpfst">🛠 ${mpFullTools?'Nascondi':'Strumenti'}</button>`:''}<button class="g mini" id="mpfsb">${mpFull?'✕ Esci':'⛶ Schermo intero'}</button></div>`;
 const mpCvW=()=>mpFull?`calc(${mpZoom} * min(100cqw,100cqh))`:(mpZoom*100)+'%';
-const mapList=(M,saved)=>{const l=M?saved:saved.filter(m=>m.pub!==false);return `<div class="card"><h3>${M?'Mappe salvate':'Mappe del Master'}</h3>${l.map(m=>`<div class="move"${m.id===mapSel?' style="border-left-color:var(--ok)"':''}><div class="grow"><b>${esc(m.name)}</b>${m.pub===false?' <span class="tag">nascosta</span>':''}<div class="mut">${esc(m.bg?'📷 Foto':(MAP_TYPES.find(t=>t[0]===(m.gt||(m.cfg&&m.cfg.type)))||[0,'🗺️ Mappa'])[1])} · ${m.n||(m.cfg&&m.cfg.size)||'?'}×${m.n||(m.cfg&&m.cfg.size)||'?'}</div></div><button class="mini" data-mo="${m.id}">${m.id===mapSel?'Aperta':'Apri'}</button>${M?`<button class="d mini" data-mdel="${m.id}">🗑</button>`:''}</div>`).join('')||'<p class="mut">Nessuna mappa salvata.</p>'}</div>`};
+const mapList=(M,saved)=>{const l=M?saved:saved.filter(m=>m.pub!==false);return `<div class="card"><h3>${M?'Mappe salvate':'Mappe del Master'}</h3>${l.map(m=>`<div class="move"${m.id===mapSel?' style="border-left-color:var(--ok)"':''}><div class="grow"><b>${esc(m.name)}</b>${m.pub===false?' <span class="tag">nascosta</span>':''}<div class="mut">${esc(m.bg?'📷 Foto':(MAP_TYPES.find(t=>t[0]===(m.gt||(m.cfg&&m.cfg.type)))||[0,'🗺️ Mappa'])[1])} · ${m.n||(m.cfg&&m.cfg.size)||'?'}×${m.n||(m.cfg&&m.cfg.size)||'?'}</div></div><button class="mini" data-mo="${m.id}">${m.id===mapSel?'Aperta':'Apri'}</button>${M?`<button class="${m.pub===false?'':'g '}mini" data-mvis="${m.id}">${m.pub===false?'👁 Mostra':'🙈 Nascondi'}</button><button class="d mini" data-mdel="${m.id}">🗑</button>`:''}</div>`).join('')||'<p class="mut">Nessuna mappa salvata.</p>'}</div>`};
 const terPal=()=>{const cl=terCols(PAL[MP.pal]||PAL.classica);return MGROUPS.map(g=>`<div class="mut" style="margin-top:8px">${g}</div><div class="chips">${TER.filter(t=>t[2]===g).map(t=>`<button class="chipb ${mpTer===t[0]?'sel':''}" data-ter="${t[0]}"><i class="sw" style="background:${cl[t[0]]}"></i>${t[1]}</button>`).join('')}</div>`).join('')+(MP.bg?`<div class="mut" style="margin-top:8px">Foto</div><div class="chips"><button class="chipb ${mpTer===255?'sel':''}" data-ter="255"><i class="sw" style="background:linear-gradient(135deg,#e8c36a,#4a7fb8)"></i>📷 Ripristina foto</button></div>`:'')};
 const slider=(id,l,v,a,b,st)=>`<div style="margin-top:8px"><div class="row sp"><span>${l}</span><b id="${id}v">${v}</b></div><input type="range" id="${id}" min="${a}" max="${b}" step="${st||1}" value="${v}"></div>`;
 const chk=(id,l,v)=>`<label class="row" style="gap:6px;margin-top:6px"><input type="checkbox" id="${id}" ${v?'checked':''}> ${l}</label>`;
@@ -2013,6 +2036,8 @@ function mapInit(){
   const M=masterOK&&view.name==='master',q=id=>document.getElementById(id);
   /* lista mappe: sempre collegata (prima, senza canvas, la funzione usciva e i player non potevano aprire nulla) */
   document.querySelectorAll('[data-mo]').forEach(b=>b.onclick=()=>{if(M){if(mpDirty&&b.dataset.mo!==mapSel&&!confirm('Hai modifiche non salvate: aprire un\'altra mappa le perde. Continuare?'))return;mpOpen(b.dataset.mo)}else{mapSel=b.dataset.mo;mpScroll=null;render()}});
+  /* nascondi / mostra una mappa ai player (quando la mostri, ai player arriva la notifica) */
+  document.querySelectorAll('[data-mvis]').forEach(b=>b.onclick=()=>{const id=b.dataset.mvis,m=S.maps[id];if(!m)return;const show=m.pub===false;if(MP&&mapSel===id)MP.pub=show;guard(db.collection('maps').doc(id).update(show?{pub:true,shown:Date.now()}:{pub:false}));toast(show?'🗺️ Mappa mostrata ai player':'🙈 Mappa nascosta ai player')});
   const cv=document.getElementById('mapcv');if(!cv)return;
   const w=q('mapwrap'),mp=M?MP:PMP;
   if(!mp)return;
