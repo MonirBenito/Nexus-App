@@ -1026,3 +1026,9 @@ html.dv-tablet #hud{padding-left:20px;padding-right:20px}
 .up-bar i{display:block;height:100%;width:0;background:repeating-linear-gradient(90deg,var(--nx) 0 8px,transparent 8px 12px)}
 .up-pct{margin:10px 0 0;text-align:center;font:400 12px var(--f-px);color:var(--nx);text-shadow:0 0 10px var(--nx),2px 2px 0 var(--ink)}
 .scov.up .sc-title{animation:none}
+
+/* abilità: una per riga, il nome non va mai a capo */
+.card .abg{grid-template-columns:1fr}
+.abg .chip{overflow-wrap:normal;word-break:normal}
+.abg .chip>span{white-space:nowrap;overflow:visible}
+.abg .chip .row{flex:none}
