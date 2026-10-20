@@ -160,7 +160,7 @@ async function boot(){
 tab=null;
 const TILES=[['profile','👤','Profilo'],['ego','⚡','EGO'],['npcs','🧙','Incontri'],['scanner','🔍','Scanner'],['quests','📜','Obiettivi'],['party','🏕️','Party'],['inv','🎒','Inventario'],['msgs','✉️','Messaggi'],['map','🗺️','Mappa']];
 const KIND={mercante:'🛒 Mercante',combattente:'⚔️ Combattente'},kindOf=n=>n.kind||'mercante';
-const tiles=()=>{const M=masterOK&&view.name==='master';return `<div class="tiles">${TILES.filter(t=>!(M&&t[0]==='inv')).map(([k,i,l])=>{if(M&&k==='profile'){i='👥';l='Player'}return `<button class="tile" data-go="${k}"><span>${i}</span>${l}${badge(k,M)}</button>`}).join('')}</div>`};
+const tiles=()=>{const M=masterOK&&view.name==='master';return `<div class="tiles">${TILES.filter(t=>!(M&&t[0]==='inv')&&!(!M&&t[0]==='scanner'&&!(me()&&me().scanner))).map(([k,i,l])=>{if(M&&k==='profile'){i='👥';l='Player'}return `<button class="tile" data-go="${k}"><span>${i}</span>${l}${badge(k,M)}</button>`}).join('')}</div>`};
 const BLOODS=['Non indicato','A+','A-','B+','B-','AB+','AB-','0+','0-'];
 const TR=[['vigore','VIGORE'],['agilita','AGILITÀ'],['acume','ACUME'],['panache','PANACHE'],['nexus','NEXUS']];
 const AB=[['mira','Mira'],['rissa','Rissa'],['mischia','Mischia'],['convincere','Convincere'],['intimidire','Intimidire'],['atletica','Atletica'],['velocita','Velocità'],['furtivita','Furtività'],['notare','Notare'],['istruzione','Istruzione'],['concentrazione','Concentrazione'],['empatia','Empatia'],['creativita','Creatività']];
@@ -2423,7 +2423,7 @@ function rebindMX(){
    Il player preme «Usa scanner» → scrive sul proprio profilo  scan:{t, known:[creature già note]}.
    L'animazione resta finché il Master segna una creatura come «scannerizzata» (scanned:true):
    a quel punto parte l'aggancio e poi la rivelazione progressiva delle informazioni. */
-const SC={mode:null,W:null,iv:null,t0:0,sel:null,fresh:null,req:new Set(),reqInit:false};
+const SC={had:null,mode:null,W:null,iv:null,t0:0,sel:null,fresh:null,req:new Set(),reqInit:false};
 const SC_SEC=[['tipo','🧬','TIPOLOGIA','t'],['bioma','🌍','BIOMA','t'],['carattere','🧠','CARATTERE / COMPORTAMENTO','p'],['forza','💪','PUNTI DI FORZA','l'],['deboli','🎯','PUNTI DEBOLI','w'],['drop','💎','MATERIALI / DROP','l'],['lore','📖','LORE','p']];
 const SC_COR='<i class="sc-cor a"></i><i class="sc-cor b"></i><i class="sc-cor c"></i><i class="sc-cor d"></i>';
 const scWeak=s=>splitL(s).map(l=>{const i=l.indexOf(':');return i>0?{z:l.slice(0,i).trim().slice(0,60),d:l.slice(i+1).trim().slice(0,200)}:{z:l.slice(0,60),d:''}});
@@ -2460,7 +2460,7 @@ function scKill(){
 function scScan(){
   scKill();SC.mode='scan';SC.t0=Date.now();
   const o=scOv('scov sc');
-  o.innerHTML=`${SC_COR}<div class="sc-in"><div class="sc-radar"><i class="sc-ring"></i><b class="sc-beam"></b><s class="sc-blip b1"></s><s class="sc-blip b2"></s><s class="sc-blip b3"></s><span class="sc-q">?</span></div><div class="sc-title">SCANSIONE IN CORSO</div><div class="sc-sig"><i></i></div><div class="sc-log" id="scLg"></div><p class="mut sc-wait">In attesa dei dati dal Master<span class="dots"></span></p><button class="g sc-cancel" id="scX">✕ Annulla scansione</button></div>`;
+  o.innerHTML=`${SC_COR}<div class="sc-in"><div class="sc-radar"><i class="sc-ring"></i><b class="sc-beam"></b><s class="sc-blip b1"></s><s class="sc-blip b2"></s><s class="sc-blip b3"></s><span class="sc-q">?</span></div><div class="sc-title">SCANSIONE IN CORSO</div><div class="sc-sig"><i></i></div><div class="sc-log" id="scLg"></div><p class="mut sc-wait">In attesa dei risultati<span class="dots"></span></p><button class="g sc-cancel" id="scX">✕ Annulla scansione</button></div>`;
   const L=['Calibrazione sensori NEXUS','Campionamento spettro biologico','Triangolazione del bersaglio','Mappatura della struttura corporea','Lettura della firma energetica','Interrogazione degli archivi','Decodifica del segnale','Analisi comportamentale','Ricerca punti di debolezza'];
   const lg=o.querySelector('#scLg');let n=0;
   const step=()=>{const d=document.createElement('div');lg.append(d);while(lg.children.length>4)lg.firstChild.remove();scType(d,'> '+L[n++%L.length]+'…');if(n%3===1)SND.play('nx',1)};
@@ -2525,7 +2525,12 @@ function scanSync(){
   }
   SC.reqInit=false;SC.req=new Set();
   if(SC.mode==='preview')scKill();
-  if(!db||!authed||!me()){if(SC.mode)scKill();return}
+  if(!db||!authed||!me()){if(SC.mode)scKill();SC.had=null;return}
+  if(SC.had==null)SC.had=!!me().scanner; /* primo accesso: nessun avviso */
+  const pp=me();
+  if(pp.scanner&&SC.had===false){toast('🔍 Hai sbloccato lo Scanner!');SND.play('quest',1)}
+  SC.had=!!pp.scanner;
+  if(!pp.scanner){if(SC.mode)scKill();return}
   if(SC.mode==='lock'||SC.mode==='reveal')return;
   const p=me(),s=p.scan;
   if(s&&s.t){
@@ -2549,14 +2554,14 @@ function scanPlayer(){
     bind();$('#bk').onclick=()=>{SC.sel=null;render()};$('#scRe').onclick=()=>scReveal(sel,'replay');return;
   }
   const seen=(p.viewed&&p.viewed.scanner)||[];SC.fresh=SC.fresh||new Set();L.forEach(c=>{if(!seen.includes(c.id))SC.fresh.add(c.id)});
-  app.innerHTML=hdr('🔍 Scanner',1)+`<div class="card scdev"><div class="sc-radar sm"><b class="sc-beam"></b><span class="sc-q">?</span></div><p class="mut" style="margin:12px 0">Davanti a una creatura sconosciuta? Attiva lo scanner e attendi i dati del Master.</p><button id="scGo" style="width:100%">📡 USA SCANNER</button></div><h3>📚 Bestiario · ${L.length}</h3>`+
+  app.innerHTML=hdr('🔍 Scanner',1)+`<div class="card scdev"><div class="sc-radar sm"><b class="sc-beam"></b><span class="sc-q">?</span></div><p class="mut" style="margin:12px 0">Davanti a una creatura sconosciuta? Attiva lo scanner e attendi i risultati dell'analisi.</p><button id="scGo" style="width:100%">📡 USA SCANNER</button></div><h3>📚 Bestiario · ${L.length}</h3>`+
     (L.map(c=>`<div class="card row" data-bsc="${c.id}">${av(c)}<div class="grow"><b>${esc(c.name)}</b> ${SC.fresh.has(c.id)?'<span class="tag" style="color:var(--ok)">NUOVO</span>':''}<div class="mut">${esc(c.tipo||'—')} · ${esc(c.bioma||'—')}</div></div>›</div>`).join('')||'<p class="mut">Nessuna creatura scansionata finora.</p>');
   bind();
   app.querySelectorAll('[data-bsc]').forEach(x=>x.onclick=()=>{SC.sel=x.dataset.bsc;render()});
   $('#scGo').onclick=()=>{if(SC.mode)return;scScan();scU({scan:{t:Date.now(),known:scList().map(x=>x.id)}})};
   markViewed('scanner');
 }
-{const _rb=renderBoard;renderBoard=function(){if(view.name!=='scanner'){SC.sel=null;SC.fresh=null;return _rb()}return scanPlayer()}}
+{const _rb=renderBoard;renderBoard=function(){if(view.name==='scanner'&&!(me()&&me().scanner)){view={name:'home'};return render()}if(view.name!=='scanner'){SC.sel=null;SC.fresh=null;return _rb()}return scanPlayer()}}
 
 /* ---- pannello Master: gestione creature ---- */
 const scF=()=>[{l:'Nome',n:'name'},{l:'Foto (max 2 MB)',n:'photo',t:'file'},{l:'Tipologia (es. Bestia, Non-morto, Costrutto…)',n:'tipo'},{l:'Bioma / habitat',n:'bioma'},{l:'Carattere e comportamento',n:'carattere',t:'area'},{l:'Punti di forza (uno per riga)',n:'forza',t:'area'},{l:'Punti deboli per zona del corpo (uno per riga, formato «Zona: dettaglio», es. «Zampa sinistra: fragile al fuoco»)',n:'deboli',t:'area'},{l:'Materiali / Drop (uno per riga)',n:'drop',t:'area'},{l:'Lore',n:'lore',t:'area'},{l:'Chi la vede una volta scannerizzata (nessuno selezionato = tutti i player)',n:'to',t:'multi',o:Object.entries(S.players).map(([i,p])=>[i,p.username])}];
@@ -2565,12 +2570,14 @@ function scanMaster(){
   const C=db.collection('bestiary'),pend=Object.entries(S.players).filter(([i,p])=>p.scan&&p.scan.t),L=Object.values(S.bestiary||{}).sort((a,b)=>(b.scanAt||0)-(a.scanAt||0)||String(a.name).localeCompare(String(b.name)));
   app.innerHTML=hdr('🔍 Scanner',1)+
     (pend.length?`<div class="card sc-alert"><h3>📡 Scansione in corso</h3><div class="row" style="flex-wrap:wrap;gap:6px">${pend.map(([i,p])=>`<span class="pill">${esc(p.username)}</span>`).join('')}</div><p class="mut" style="margin:8px 0">Premi «Scannerizzata» su una creatura: ai player in attesa partirà la rivelazione.</p><button class="g mini" id="bsClr">✕ Annulla tutte le scansioni</button></div>`:'<p class="mut">Nessun player sta usando lo scanner.</p>')+
+    `<div class="card"><h3>👥 Chi ha lo Scanner</h3><p class="mut" style="margin:0 0 6px">I player non lo hanno all'inizio: abilitalo tu quando vuoi.</p>${Object.entries(S.players).map(([i,p])=>`<div class="row sp" style="margin-top:8px"><b>${esc(p.username)}</b><button class="${p.scanner?'d':''} mini" data-bsg="${i}">${p.scanner?'Togli':'Dai lo scanner'}</button></div>`).join('')||'<p class="mut">Nessun player registrato.</p>'}</div>`+
     `<button id="bsAdd" style="width:100%">+ Nuova creatura</button>`+
     (L.map(c=>`<div class="card"><div class="row">${av(c)}<div class="grow"><b>${esc(c.name)}</b> ${c.scanned?'<span class="tag" style="color:var(--ok)">✔ scannerizzata</span>':'<span class="tag">🔒 nascosta ai player</span>'}<div class="mut">${esc(c.tipo||'—')} · ${esc(c.bioma||'—')}</div><div class="mut">👁 ${c.to&&c.to.length?c.to.map(i=>esc(S.players[i]?.username||'?')).join(', '):'Tutti i player'}</div></div></div><div class="row" style="margin-top:8px;flex-wrap:wrap">${c.scanned?`<button class="g grow" data-bsh="${c.id}">↩ Nascondi</button>`:`<button class="grow" data-bsr="${c.id}">✅ Scannerizzata${pend.length?' ('+pend.length+' in attesa)':''}</button>`}<button class="g" data-bsp="${c.id}" title="Anteprima animazione">▶</button><button class="g" data-bse="${c.id}">Modifica</button><button class="d" data-bsd="${c.id}">✕</button></div></div>`).join('')||'<p class="mut">Nessuna creatura nel bestiario: creane una.</p>');
   bind();
   const on=(a,fn)=>app.querySelectorAll(`[data-${a}]`).forEach(x=>x.onclick=()=>fn(x.dataset[a]));
   const clr=$('#bsClr');if(clr)clr.onclick=()=>pend.forEach(([i])=>guard(db.collection('players').doc(i).update({scan:null})));
   $('#bsAdd').onclick=async()=>{const r=await ask('Nuova creatura',scF(),{to:[]});if(!r||!r.name)return;const id=uid8(),photo=r.photo?await uploadPhoto(r.photo):'';guard(C.doc(id).set({id,...scData(r),photo,scanned:false,scanAt:0}))};
+  on('bsg',id=>{const p=S.players[id];if(!p)return;guard(db.collection('players').doc(id).update(p.scanner?{scanner:false,scan:null}:{scanner:true}));toast(p.scanner?'🔍 Scanner tolto a '+p.username:'🔍 Scanner dato a '+p.username)});
   on('bse',async id=>{const c=S.bestiary[id];if(!c)return;const r=await ask('Modifica creatura',scF(),{...c,forza:(c.forza||[]).join('\n'),deboli:scWeakTxt(c.deboli),drop:(c.drop||[]).join('\n'),to:c.to||[]});if(!r||!r.name)return;const ph=r.photo?await uploadPhoto(r.photo):'';guard(C.doc(id).update({...scData(r),...(ph?{photo:ph}:{})}))});
   on('bsr',id=>{const n=pend.length;guard(C.doc(id).update({scanned:true,scanAt:Date.now()}));toast('✅ Scannerizzata'+(n?' · rivelazione in partenza per '+n+' player':''))});
   on('bsh',id=>guard(C.doc(id).update({scanned:false})));
