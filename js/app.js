@@ -141,6 +141,18 @@ async function redeem(it){
 
 /* ---- pannello Master ---- */
 const uid8=()=>Math.random().toString(36).slice(2,10);
+/* Tiro di un dado a «faccia» facce: casuale vero (generatore crittografico del dispositivo),
+   senza distorsioni: ogni faccia da 1 a N ha esattamente la stessa probabilità. */
+function rollD(faces){
+  faces=Math.max(2,faces|0);
+  const c=window.crypto||window.msCrypto;
+  if(c&&c.getRandomValues){
+    const lim=Math.floor(4294967296/faces)*faces,b=new Uint32Array(1); /* scarta i valori che favorirebbero le facce basse */
+    do{c.getRandomValues(b)}while(b[0]>=lim);
+    return 1+b[0]%faces;
+  }
+  return 1+Math.floor(Math.random()*faces);
+}
 
 /* ---- avvio ---- */
 async function boot(){
@@ -210,7 +222,7 @@ function vigFix(p,nv,hpMax,hp){
   const rolls={...(p.vigRolls||{})},dice=[];let gain=0;
   if(nv>old){for(let l=old+1;l<=nv;l++){
     if(l===2)gain+=10;
-    else if(VIG_ROLL[l]){const [d,m]=VIG_ROLL[l],g=Math.max(m,1+Math.floor(Math.random()*d));rolls[l]=g;gain+=g;dice.push(l+'°: +'+g)}
+    else if(VIG_ROLL[l]){const [d,m]=VIG_ROLL[l],g=Math.max(m,rollD(d));rolls[l]=g;gain+=g;dice.push(l+'°: +'+g)}
   }}else{for(let l=old;l>nv;l--){
     if(l===2)gain-=10;
     else if(VIG_ROLL[l]){gain-=rolls[l]!=null?rolls[l]:VIG_ROLL[l][1];delete rolls[l]}
@@ -279,7 +291,7 @@ function renderBoard(){
     if(k==='vigore'){
       const nv=t[k]+1,v=vit(p),vr=VIG_ROLL[nv];let gain=0,raw=0;const rolls={...(p.vigRolls||{})};
       if(nv===2)gain=10;
-      else if(vr){raw=1+Math.floor(Math.random()*vr[0]);gain=Math.max(vr[1],raw);rolls[nv]=gain}
+      else if(vr){raw=rollD(vr[0]);gain=Math.max(vr[1],raw);rolls[nv]=gain}
       Object.assign(upd,{hpMax:v.hm+gain,hp:v.h+gain,vigRolls:rolls});
       vigBusy=true;setTimeout(()=>{vigBusy=false},1200);
       if(vr)rollDice({title:'💪 VIGORE '+nv+'/5',n:1,die:vr[0],fix:0,min:vr[1],pre:[raw],lab:'HP MASSIMI IN PIÙ'});
@@ -2086,7 +2098,7 @@ const dmgHtml=e=>(e.cat==='arma'&&hasDmg(e)?` · <span style="color:var(--danger
 /* tiro di dadi con animazione: tocca per saltarla. Il minimo vale sul danno totale (dadi + fisso). */
 function rollDice(o){
   const n=Math.max(0,o.n|0),die=Math.max(2,o.die|0)||6,fix=o.fix|0,min=o.min|0;
-  const dice=Array.isArray(o.pre)?o.pre.slice(0,n):Array.from({length:n},()=>1+Math.floor(Math.random()*die));
+  const dice=Array.isArray(o.pre)?o.pre.slice(0,n):Array.from({length:n},()=>rollD(die));
   const eff=dice.map(d=>Math.max(min,d)),raw=eff.reduce((a,b)=>a+b,0)+fix,tot=n?raw:Math.max(min,raw); /* il minimo vale per ogni dado: un 1 con minimo 2 conta 2 */
   const sub=(n?n+'d'+die:'')+(fix?(n?' + ':'')+fix:'')+(min?' · minimo '+min+(n>1?' per dado':''):'');
   const brk=(n?dice.map(d=>d<min?d+'→'+min:d).join(' + '):'')+(fix?(n?' + ':'')+fix:'')+(!n&&raw<min?' → minimo '+min:'');
