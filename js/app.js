@@ -2423,7 +2423,7 @@ function rebindMX(){
    Il player preme «Usa scanner» → scrive sul proprio profilo  scan:{t, known:[creature già note]}.
    L'animazione resta finché il Master segna una creatura come «scannerizzata» (scanned:true):
    a quel punto parte l'aggancio e poi la rivelazione progressiva delle informazioni. */
-const SC={had:null,mode:null,W:null,iv:null,t0:0,sel:null,fresh:null,req:new Set(),reqInit:false};
+const SC={mode:null,W:null,iv:null,t0:0,sel:null,fresh:null,req:new Set(),reqInit:false};
 const SC_SEC=[['tipo','🧬','TIPOLOGIA','t'],['bioma','🌍','BIOMA','t'],['carattere','🧠','CARATTERE / COMPORTAMENTO','p'],['forza','💪','PUNTI DI FORZA','l'],['deboli','🎯','PUNTI DEBOLI','w'],['drop','💎','MATERIALI / DROP','l'],['lore','📖','LORE','p']];
 const SC_COR='<i class="sc-cor a"></i><i class="sc-cor b"></i><i class="sc-cor c"></i><i class="sc-cor d"></i>';
 const scWeak=s=>splitL(s).map(l=>{const i=l.indexOf(':');return i>0?{z:l.slice(0,i).trim().slice(0,60),d:l.slice(i+1).trim().slice(0,200)}:{z:l.slice(0,60),d:''}});
@@ -2513,6 +2513,33 @@ function scReveal(c,kind){
   dn.onclick=()=>{scKill();if(kind==='preview')return;SC.sel=c.id;view={name:'scanner'};render()};
 }
 
+/* ---- animazione «dispositivo migliorato» (quando il Master abilita lo scanner) ---- */
+function scUpgrade(){
+  scKill();SC.mode='upgrade';
+  const W=SC.W={t:[],iv:[],ty:null},T=(f,ms)=>W.t.push(setTimeout(f,ms)),o=scOv('scov sc up');
+  o.innerHTML=`${SC_COR}<div class="sc-flash"></div><div class="sc-in"><div class="sc-title" id="upT">AGGIORNAMENTO DISPOSITIVO</div><div class="up-chip" id="upC">📟</div><div id="upW"><div class="up-bar"><i id="upB"></i></div><div class="up-pct" id="upP">0%</div><div class="sc-log" id="upL"></div></div><div id="upR" style="display:none"><div class="sc-radar sm"><b class="sc-beam"></b><span class="sc-q">?</span></div><div class="sc-ok" style="margin-top:16px">NUOVO MODULO SBLOCCATO</div><h2 class="sc-name" style="margin-bottom:6px">🔍 SCANNER</h2><p class="mut" style="text-align:center;margin:0 0 16px">Il tuo dispositivo è stato migliorato: ora puoi analizzare le creature sconosciute dalla tessera Scanner.</p></div><div class="sc-act"><button class="g grow" id="upS">⏭ Salta</button><button class="grow" id="upD" style="display:none">✔ Continua</button></div></div>`;
+  const B=o.querySelector('#upB'),P=o.querySelector('#upP'),L=o.querySelector('#upL'),S=o.querySelector('#upS'),D=o.querySelector('#upD');
+  const msgs=[[0,'Rilevato nuovo hardware'],[18,'Download modulo SCANNER'],[40,'Installazione driver'],[62,'Calibrazione sensori NEXUS'],[82,'Test del raggio di scansione'],[95,'Sincronizzazione dispositivo']];
+  let k=0,pc=0;
+  const done=()=>{
+    W.iv.forEach(clearInterval);W.t.forEach(clearTimeout);
+    B.style.width='100%';
+    o.querySelector('#upW').style.display='none';o.querySelector('#upR').style.display='';
+    o.querySelector('#upT').textContent='✔ DISPOSITIVO MIGLIORATO';o.querySelector('#upC').style.display='none';
+    S.style.display='none';D.style.display='';
+    const f=document.createElement('div');f.className='sc-flash';o.append(f);
+    SND.play('fanfare',1);if(navigator.vibrate)try{navigator.vibrate([30,40,60])}catch(e){}
+  };
+  SND.play('open',1);
+  const t0=performance.now(),DUR=4200;
+  W.iv.push(setInterval(()=>{
+    pc=Math.min(100,Math.round((performance.now()-t0)/DUR*100));B.style.width=pc+'%';P.textContent=pc+'%';
+    while(k<msgs.length&&pc>=msgs[k][0]){const d=document.createElement('div');L.append(d);while(L.children.length>4)L.firstChild.remove();scType(d,'> '+msgs[k][1]+'…');if(k%2===0)SND.play('pin',1);k++}
+    if(pc>=100){clearInterval(W.iv[0]);T(done,350)}
+  },60));
+  S.onclick=done;
+  D.onclick=()=>{scKill();render()};
+}
 /* ---- sincronizzazione: parte/si ferma l'animazione in base ai dati ---- */
 function scanSync(){
   const M=masterOK&&view.name==='master';
@@ -2525,12 +2552,11 @@ function scanSync(){
   }
   SC.reqInit=false;SC.req=new Set();
   if(SC.mode==='preview')scKill();
-  if(!db||!authed||!me()){if(SC.mode)scKill();SC.had=null;return}
-  if(SC.had==null)SC.had=!!me().scanner; /* primo accesso: nessun avviso */
+  if(!db||!authed||!me()){if(SC.mode)scKill();return}
   const pp=me();
-  if(pp.scanner&&SC.had===false){toast('🔍 Hai sbloccato lo Scanner!');SND.play('quest',1)}
-  SC.had=!!pp.scanner;
   if(!pp.scanner){if(SC.mode)scKill();return}
+  if(SC.mode==='upgrade')return;
+  if(!pp.scanUp){scUpgrade();scU({scanUp:true});return} /* prima volta con lo scanner: animazione di aggiornamento */
   if(SC.mode==='lock'||SC.mode==='reveal')return;
   const p=me(),s=p.scan;
   if(s&&s.t){
@@ -2577,7 +2603,7 @@ function scanMaster(){
   const on=(a,fn)=>app.querySelectorAll(`[data-${a}]`).forEach(x=>x.onclick=()=>fn(x.dataset[a]));
   const clr=$('#bsClr');if(clr)clr.onclick=()=>pend.forEach(([i])=>guard(db.collection('players').doc(i).update({scan:null})));
   $('#bsAdd').onclick=async()=>{const r=await ask('Nuova creatura',scF(),{to:[]});if(!r||!r.name)return;const id=uid8(),photo=r.photo?await uploadPhoto(r.photo):'';guard(C.doc(id).set({id,...scData(r),photo,scanned:false,scanAt:0}))};
-  on('bsg',id=>{const p=S.players[id];if(!p)return;guard(db.collection('players').doc(id).update(p.scanner?{scanner:false,scan:null}:{scanner:true}));toast(p.scanner?'🔍 Scanner tolto a '+p.username:'🔍 Scanner dato a '+p.username)});
+  on('bsg',id=>{const p=S.players[id];if(!p)return;guard(db.collection('players').doc(id).update(p.scanner?{scanner:false,scanUp:false,scan:null}:{scanner:true}));toast(p.scanner?'🔍 Scanner tolto a '+p.username:'🔍 Scanner dato a '+p.username)});
   on('bse',async id=>{const c=S.bestiary[id];if(!c)return;const r=await ask('Modifica creatura',scF(),{...c,forza:(c.forza||[]).join('\n'),deboli:scWeakTxt(c.deboli),drop:(c.drop||[]).join('\n'),to:c.to||[]});if(!r||!r.name)return;const ph=r.photo?await uploadPhoto(r.photo):'';guard(C.doc(id).update({...scData(r),...(ph?{photo:ph}:{})}))});
   on('bsr',id=>{const n=pend.length;guard(C.doc(id).update({scanned:true,scanAt:Date.now()}));toast('✅ Scannerizzata'+(n?' · rivelazione in partenza per '+n+' player':''))});
   on('bsh',id=>guard(C.doc(id).update({scanned:false})));
