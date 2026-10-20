@@ -163,6 +163,7 @@ async function boot(){
     if(!db||!user)return render();
     uid=await user.id();cuid=uid; isMaster=!!user.canEdit?.();
     try{const s=await credDoc().get();cred=s.exists?s.data():null}catch(e){cred=null}
+    try{const s=await mvDoc().get();const d=s.exists&&s.data().v;if(d)for(const k in d)MV[k]=[...new Set([...(MV[k]||[]),...(d[k]||[])])]}catch(e){}
     for(const k of ['players','npcs','items','quests','party','msgs','maps','bestiary'])
       db.collection(k).onSnapshot(s=>{S[k]={};s.docs.forEach(d=>S[k][d.id]=d.data());LD[k]=1;render()},e=>console.warn(k,e));
     render();
@@ -198,7 +199,7 @@ function render(){
   const v=view.name,M=masterOK&&v==='master';
   $('#mbtn').style.display=M?'none':'block';
   if(!db){app.innerHTML=`<div class="splash"><h2>Dati non raggiungibili</h2><p class="mut">Connessione ai dati non disponibile. Controlla js/config.js e la connessione a internet.</p></div>`;return}
-  autoLogin();if(M){checkShortAns();renderMaster();rebindItems();rebindDel();rebindMP();rebindV9();rebindNI();rebindMX();return}
+  autoLogin();if(M){checkShortAns();checkChatM();renderMaster();markViewedM(tab);rebindItems();rebindDel();rebindMP();rebindV9();rebindNI();rebindMX();return}
   if(!authed||!me())return renderSplash();checkShort();
   if(v!=='npc'){npcAnim=null;if(npcTy){npcTy.stop();npcTy=null}app.classList.remove('npcfx')}
   if(v==='npc')return renderNpc();
@@ -530,7 +531,22 @@ function markViewed(k,one){
   if(add.every(i=>seen.includes(i)))return;
   guard(db.collection('players').doc(uid).update({viewed:{...(p.viewed||{}),[k]:one?[...seen,one]:ids}}));
 }
-const badge=(k,M)=>{if(!M){const u=unread(k);return u?`<em class="bdg">${u}</em>`:''}let n=0;if(k==='npcs')n=Object.values(S.npcs).filter(x=>M||visN(x)).length;if(k==='quests')n=Object.values(S.quests).filter(x=>M||visQ(x)).length;if(k==='profile'&&M)n=Object.keys(S.players).length;if(k==='msgs')n=Object.values(S.msgs).filter(m=>M||!(m.to&&m.to.length)||m.to.includes(uid)).length;if(k==='map')n=Object.keys(S.maps||{}).length;if(k==='scanner')n=Object.values(S.players).filter(x=>x.scan&&x.scan.t).length;return n?`<em class="bdg">${n}</em>`:''};
+/* notifiche rosse del Master: come per i player, contano solo ciò che non ha ancora visto in quella bacheca.
+   Salvate sul dispositivo e nel suo spazio privato. Messaggi: solo quelli scritti dai player agli incontri (NPC). */
+let MV=(()=>{try{return JSON.parse(localStorage.getItem('nx_mview')||'{}')||{}}catch(e){return {}}})();
+const mvDoc=()=>db.collection('data/users/'+uid).doc('mview');
+const BIDM=k=>k==='profile'?Object.keys(S.players):k==='npcs'?Object.keys(S.npcs):k==='quests'?Object.keys(S.quests):k==='msgs'?Object.values(S.msgs).filter(m=>(m.to||[]).includes('@master')).map(x=>x.id):k==='map'?Object.keys(S.maps||{}):k==='scanner'?Object.entries(S.players).filter(([i,x])=>x.scan&&x.scan.t).map(([i,x])=>i+':'+x.scan.t):null;
+const unreadM=k=>{const ids=BIDM(k);return ids?ids.filter(i=>!(MV[k]||[]).includes(i)).length:0};
+function markViewedM(k){
+  if(!k||!db)return;
+  const need={profile:'players',npcs:'npcs',quests:'quests',msgs:'msgs',map:'maps',scanner:'players'}[k];if(!need||!LD[need])return;
+  const ids=BIDM(k);if(!ids)return;
+  const seen=MV[k]||[];if(ids.length===seen.length&&ids.every(i=>seen.includes(i)))return;
+  MV={...MV,[k]:ids};
+  try{localStorage.setItem('nx_mview',JSON.stringify(MV))}catch(e){}
+  try{mvDoc().set({v:MV}).catch(()=>{})}catch(e){}
+}
+const badge=(k,M)=>{const u=M?unreadM(k):unread(k);return u?`<em class="bdg">${u}</em>`:''};
 const homeCard=p=>{const v=vit(p),pc=(a,b)=>b?Math.max(0,Math.min(100,a/b*100)):0;return `<div class="hero"><div class="grow"><div class="hi">Bentornato</div><h2 class="hname">${esc(p.username)}</h2><div class="row" style="margin-top:10px;flex-wrap:wrap"><span class="pill eu">🪙 ${p.currency}</span><span class="pill bl">🩸 ${bl(p)}</span></div></div></div><div class="vitals"><div class="vt hp"><div class="vl"><b>❤️ HP</b><span>${v.h}<small> / ${v.hm}</small></span></div><div class="vbar hp"><i style="width:${pc(v.h,v.hm)}%"></i></div></div><div class="vt nx"><div class="vl"><b>🔷 NEXUS</b><span>${v.n}<small> / ${v.nm}</small></span></div><div class="vbar nx"><i style="width:${pc(v.n,v.nm)}%"></i></div></div></div>`};
 const invRO=p=>`<div class="card"><h3>🎒 INVENTARIO</h3>${(p.inv||[]).map(e=>`<div class="move" style="border-left-color:var(--acc2)"><div style="font-size:1.6em">${e.photo?`${itImg(e.photo,44)}`:(CATI[e.cat]||'🎁')}</div><div class="grow"><b>${esc(e.name)}</b><div class="mut">${CATL[e.cat]||'Oggetto'} · ${e.uses==null?'♾ Infinito':e.uses+(e.uses===1?' uso':' usi')}${bonusesOf(e).length?` · <span style="color:var(--ok)">${bonusTxt(e)}</span>`:''}${e.cat==='armatura'&&e.arm?` · <span style="color:var(--ok)">🛡️ −${e.arm} danni</span>`:''}${dmgHtml(e)}</div></div></div>`).join('')||'<p class="mut">Inventario vuoto.</p>'}</div>`;
 const masterPlayers=()=>{
@@ -550,9 +566,9 @@ const LV=['Sano','Lieve','Media','Grave'],WC=['#d3d9e6','#e0b100','#e07b1a','#d6
 const PARTS=[['head','<circle cx="100" cy="38" r="26"/>'],['torso','<rect x="62" y="70" width="76" height="112" rx="20"/>'],['armR','<rect x="24" y="74" width="32" height="124" rx="16"/>'],['armL','<rect x="144" y="74" width="32" height="124" rx="16"/>'],['legR','<rect x="64" y="188" width="34" height="140" rx="17"/>'],['legL','<rect x="102" y="188" width="34" height="140" rx="17"/>']];
 const sil=(w,click)=>`<svg viewBox="0 0 200 340" style="width:100%;max-width:210px;margin:0 auto;display:block">${PARTS.map(([k,s])=>`<g data-part="${k}" fill="${WC[w[k]||0]}" stroke="#5b6478" stroke-width="2" style="${click?'cursor:pointer':''}">${s}</g>`).join('')}</svg>`;
 const woundCard=(p,M)=>{const w=p.wounds||{},ks=Object.keys(w).filter(k=>w[k]>0);if(!M&&!ks.length)return '';return `<div class="card"><h3>🩹 ${M?'SAGOMA':'FERITE'}</h3>${M?'<div class="mut" style="text-align:center">Tocca un arto per segnalare una ferita al player</div>':''}${sil(w,M)}<div class="row" style="flex-wrap:wrap;gap:6px;margin-top:8px;justify-content:center">${ks.map(k=>`<span class="pill" style="border-color:${WC[w[k]]};color:${WC[w[k]]}">${PN[k]} · ${LV[w[k]]}</span>`).join('')||'<span class="pill eu">Nessuna ferita</span>'}</div></div>`};
-const msgFrom=m=>m.from&&m.from.t==='npc'?'🧙 '+esc(m.from.name):m.from&&m.from.t==='pl'?'💸 '+esc(m.from.name):'⚙️ SISTEMA';
+const msgFrom=m=>m.from&&m.from.t==='npc'?'🧙 '+esc(m.from.name):m.from&&m.from.t==='pl'?(m.kind==='chat'?'👤 ':'💸 ')+esc(m.from.name):'⚙️ SISTEMA';
 const msgText=m=>m.kind==='ego'?'⚡ '+esc(m.text):m.kind==='obiettivo'?'🏆 Obiettivo completato: «'+esc(m.text)+'»':m.kind==='invite'?'🏕️ Invito al party «'+esc(m.text)+'»':m.kind==='ferita'?(m.lv?`🩹 ${PN[m.part]}: ferita ${LV[m.lv].toLowerCase()}`:`💚 ${PN[m.part]}: guarito`)+(m.text?' — '+esc(m.text):''):m.kind==='money'?`🪙 +${m.v}`+(m.text?' — '+esc(m.text):''):esc(m.text);
-const msgAv=m=>m.from&&m.from.photo?`<img class="avatar" src="${esc(m.from.photo)}">`:`<div class="avatar">${m.kind==='ferita'?'🩹':m.kind==='money'?'🪙':m.kind==='obiettivo'?'🏆':m.kind==='ego'?'⚡':m.from&&m.from.t==='npc'?'🧙':'⚙️'}</div>`;
+const msgAv=m=>m.from&&m.from.photo?`<img class="avatar" src="${esc(m.from.photo)}">`:`<div class="avatar">${m.kind==='ferita'?'🩹':m.kind==='money'?'🪙':m.kind==='obiettivo'?'🏆':m.kind==='ego'?'⚡':m.from&&m.from.t==='npc'?'🧙':m.kind==='chat'?'👤':'⚙️'}</div>`;
 const openMsgs=new Set();
 const msgReward=(m,force)=>{
   if(!force&&!openMsgs.has(m.id))return `<button class="mini" style="margin-top:10px" data-mopen="${m.id}">🎁 Apri ricompense</button>`;
@@ -561,8 +577,26 @@ const msgReward=(m,force)=>{
   return `<div class="mut" style="letter-spacing:2px;margin-top:10px">RICOMPENSE</div>`+(rows||'<p class="mut">Nessuna ricompensa.</p>')+(force?'':`<button class="g mini" style="margin-top:6px" data-mopen="${m.id}">Chiudi</button>`);
 };
 const myMsgs=()=>Object.values(S.msgs).filter(m=>!(m.to&&m.to.length)||m.to.includes(uid));
-const msgBoard=p=>hdr('✉️ Messaggi',1)+(myMsgs().sort((a,b)=>b.ts-a.ts).map(m=>{const c=m.kind==='ferita'?(m.lv?'var(--red2)':'var(--ok)'):m.kind==='money'?'var(--ok)':m.kind==='obiettivo'?'var(--gold)':'var(--acc)';return `<div class="card" style="border-left:4px solid ${c}"><div class="row" style="gap:10px">${msgAv(m)}<div class="grow"><b>${msgFrom(m)}</b><div class="mut">${new Date(m.ts).toLocaleString('it-IT')}</div></div></div><p style="white-space:pre-wrap;margin:8px 0 0">${msgText(m)}</p>${m.kind==='obiettivo'?msgReward(m):''}</div>`}).join('')||'<p class="mut">Nessun messaggio.</p>');
-const masterMsgs=()=>hdr('✉️ Messaggi',1)+'<button id="newMsg" style="width:100%">✉️ Nuovo messaggio</button>'+(Object.values(S.msgs).sort((a,b)=>b.ts-a.ts).map(m=>`<div class="card"><div class="row sp"><b>${msgFrom(m)}</b><div class="row" style="gap:4px">${m.kind==='msg'||m.kind==='ego'?`<button class="g mini" data-mxe="${m.id}">✎</button>`:''}<button class="d mini" data-md="${m.id}">🗑</button></div></div><div class="mut">A: ${m.to&&m.to.length?m.to.map(i=>esc(S.players[i]?S.players[i].username:'?')).join(', '):'tutti i player'} · ${new Date(m.ts).toLocaleString('it-IT')}</div><p style="white-space:pre-wrap;margin:6px 0 0">${msgText(m)}</p>${m.kind==='obiettivo'?msgReward(m,true):''}</div>`).join('')||'<p class="mut">Nessun messaggio inviato.</p>');
+const msgTo=m=>{const a=(m.to||[]).filter(i=>i!=='@master').map(i=>esc(S.players[i]?S.players[i].username:'?')),n=(m.toNpc||[]).map(i=>'🧙 '+esc(S.npcs[i]?S.npcs[i].name:'?')),l=[...a,...n];return l.length?l.join(', '):'tutti i player'};
+const sentMsgs=()=>Object.values(S.msgs).filter(m=>m.kind==='chat'&&m.from&&m.from.id===uid);
+const sentHtml=()=>{const l=sentMsgs().sort((a,b)=>b.ts-a.ts);return l.length?'<h3>📤 Inviati</h3>'+l.map(m=>`<div class="card" style="border-left:4px solid var(--acc2);opacity:.85"><div class="mut">A: ${msgTo(m)} · ${new Date(m.ts).toLocaleString('it-IT')}</div><p style="white-space:pre-wrap;margin:6px 0 0">${esc(m.text)}</p></div>`).join(''):''};
+async function composePlMsg(){
+  const p=me();if(!p)return;
+  const ids=(pm().members||[]).filter(i=>i!==uid&&S.players[i]),nn=Object.values(S.npcs).filter(visN);
+  const r=await ask('✉️ Nuovo messaggio',[
+    {l:'Ai membri del party',n:'to',t:'multi',o:ids.map(i=>[i,S.players[i].username]),e:'Non ci sono altri membri nel tuo party.'},
+    {l:'Agli incontri (NPC)',n:'npc',t:'multi',o:nn.map(n=>[n.id,n.name]),e:'Nessun incontro disponibile.'},
+    {l:'Messaggio',n:'text',t:'area'}],{to:[],npc:[]},'Invia');
+  if(!r)return;
+  const text=(r.text||'').slice(0,600);
+  if(!text)return toast('Scrivi un messaggio');
+  if(!r.to.length&&!r.npc.length)return toast('Scegli almeno un destinatario');
+  const id=uid8();
+  await guard(db.collection('msgs').doc(id).set({id,to:[...r.to,...(r.npc.length?['@master']:[])],toNpc:r.npc,from:{t:'pl',id:uid,name:p.username,photo:p.photo||''},kind:'chat',text,ts:Date.now()}));
+  toast('Messaggio inviato');
+}
+const msgBoard=p=>hdr('✉️ Messaggi',1)+'<button id="plMsg" style="width:100%">✉️ Nuovo messaggio</button>'+(myMsgs().sort((a,b)=>b.ts-a.ts).map(m=>{const c=m.kind==='ferita'?(m.lv?'var(--red2)':'var(--ok)'):m.kind==='money'?'var(--ok)':m.kind==='obiettivo'?'var(--gold)':'var(--acc)';return `<div class="card" style="border-left:4px solid ${c}"><div class="row" style="gap:10px">${msgAv(m)}<div class="grow"><b>${msgFrom(m)}</b><div class="mut">${new Date(m.ts).toLocaleString('it-IT')}</div></div></div><p style="white-space:pre-wrap;margin:8px 0 0">${msgText(m)}</p>${m.kind==='obiettivo'?msgReward(m):''}</div>`}).join('')||'<p class="mut">Nessun messaggio.</p>')+sentHtml();
+const masterMsgs=()=>hdr('✉️ Messaggi',1)+'<button id="newMsg" style="width:100%">✉️ Nuovo messaggio</button>'+(Object.values(S.msgs).sort((a,b)=>b.ts-a.ts).map(m=>`<div class="card"><div class="row sp"><b>${msgFrom(m)}</b><div class="row" style="gap:4px">${m.kind==='chat'&&m.from&&m.from.id?`<button class="g mini" data-rep="${m.id}">↩</button>`:''}${m.kind==='msg'||m.kind==='ego'?`<button class="g mini" data-mxe="${m.id}">✎</button>`:''}<button class="d mini" data-md="${m.id}">🗑</button></div></div><div class="mut">A: ${msgTo(m)} · ${new Date(m.ts).toLocaleString('it-IT')}</div><p style="white-space:pre-wrap;margin:6px 0 0">${msgText(m)}</p>${m.kind==='obiettivo'?msgReward(m,true):''}</div>`).join('')||'<p class="mut">Nessun messaggio inviato.</p>');
 const invBoard=p=>{
   const tabs=[['arma','⚔️ Armi'],['armatura','🛡️ Armature'],['oggetto','🎁 Item'],['soldi','🪙 Soldi']];
   const head=hdr('🎒 Inventario',1)+`<div class="tabs">${tabs.map(([k,l])=>`<button class="${invTab===k?'on':''}" data-it="${k}">${l}</button>`).join('')}</div>`;
@@ -610,9 +644,9 @@ function saveDraft(){
   guard(db.collection('players').doc(id).update({vigRolls:vf.vigRolls,username:(d.username||'').trim()||p.username,currency:d.currency,blood:d.blood,points:d.points,pointsAb:d.pointsAb,hpMax:vf.hpMax,hp:vf.hp,nxMax:d.nxMax,nx:Math.min(d.nx,d.nxMax),traits:Object.fromEntries(TR.map(([k])=>[k,Math.min(99,d['t_'+k])])),abilities:Object.fromEntries(AB.map(([k])=>[k,Math.min(99,d['a_'+k])]))}));
   editing=false;toast(vf.gain?'Salvato · VIGORE: HP massimi '+(vf.gain>0?'+':'')+vf.gain+' → '+vf.hpMax:'Modifiche salvate');render();
 }
-async function composeMsg(pre){
+async function composeMsg(pre,from){
   const nn=Object.values(S.npcs);
-  const r=await ask('✉️ Nuovo messaggio',[{l:'Da parte di',n:'from',t:'select',o:['Sistema',...nn.map(n=>n.name)]},{l:'Destinatari (nessuno selezionato = tutti)',n:'to',t:'multi',o:Object.entries(S.players).map(([i,p])=>[i,p.username])},{l:'Messaggio',n:'text',t:'area'}],{from:'Sistema',to:pre?[pre]:[]});
+  const r=await ask('✉️ Nuovo messaggio',[{l:'Da parte di',n:'from',t:'select',o:['Sistema',...nn.map(n=>n.name)]},{l:'Destinatari (nessuno selezionato = tutti)',n:'to',t:'multi',o:Object.entries(S.players).map(([i,p])=>[i,p.username])},{l:'Messaggio',n:'text',t:'area'}],{from:from||'Sistema',to:pre?[pre]:[]});
   if(!r||!r.text)return;
   const n=nn.find(x=>x.name===r.from),id=uid8();
   guard(db.collection('msgs').doc(id).set({id,to:r.to,from:n?{t:'npc',name:n.name,photo:n.photo||''}:{t:'sys',name:'SISTEMA'},kind:'msg',text:r.text,ts:Date.now()}));
@@ -636,6 +670,7 @@ function rebindMP(){
   app.querySelectorAll('[data-short]').forEach(b=>b.onclick=async()=>{const id=b.dataset.short,pl=S.players[id];if(!pl)return;const r=await ask('⚡ Cortocircuito: '+pl.username,[{l:'Scritta che vedrà '+pl.username+' (scritta e opzioni vengono ricordate per la prossima volta)',n:'t',t:'area'},{l:'Opzione 1 (primo pulsante)',n:'o1'},{l:'Opzione 2 (secondo pulsante)',n:'o2'},{l:'🧬 Nuova parte EGO da svelare DOPO il cortocircuito: nome categoria (vuoto = nessuna)',n:'xt'},{l:'Testo della nuova parte EGO',n:'xe',t:'area'},{l:'Si svela SOLO se il player sceglie…',n:'xo',t:'select',o:['Opzione 1','Opzione 2','Qualsiasi risposta']},{l:'Testo della notifica al player (vuoto = automatico)',n:'xn',t:'area'}],{t:pl.shortMsg||SHORT_DEF,o1:(pl.shortO||[])[0]||SHORT_O[0],o2:(pl.shortO||[])[1]||SHORT_O[1],xt:(pl.shortEgo&&pl.shortEgo.t)||'',xe:(pl.shortEgo&&pl.shortEgo.e)||'',xo:['Opzione 1','Opzione 2','Qualsiasi risposta'][pl.shortEgo&&pl.shortEgo.o!=null?pl.shortEgo.o:0]||'Opzione 1',xn:(pl.shortEgo&&pl.shortEgo.n)||''},'⚡ Lancia');if(!r)return;const msg=(r.t||'').slice(0,200)||SHORT_DEF,xoI=Math.max(0,['Opzione 1','Opzione 2','Qualsiasi risposta'].indexOf(r.xo));guard(db.collection('players').doc(id).update({short:Date.now(),shortMsg:msg,shortO:[(r.o1||'').slice(0,40)||SHORT_O[0],(r.o2||'').slice(0,40)||SHORT_O[1]],shortEgo:{t:(r.xt||'').slice(0,80),e:(r.xe||'').slice(0,1500),n:(r.xn||'').slice(0,600),o:xoI}}));toast('⚡ Cortocircuito inviato a '+pl.username+(r.xt?' · EGO «'+r.xt.slice(0,40)+'» '+(xoI<2?'solo se sceglie «'+((xoI?r.o2:r.o1)||SHORT_O[xoI]).slice(0,40)+'»':'dopo qualsiasi risposta'):''))});
   app.querySelectorAll('[data-part]').forEach(g=>g.onclick=()=>{if(selP)woundDlg(selP,g.dataset.part)});
   if($('#newMsg'))$('#newMsg').onclick=()=>composeMsg();
+  app.querySelectorAll('[data-rep]').forEach(b=>b.onclick=()=>{const m=S.msgs[b.dataset.rep];if(!m||!m.from)return;const n=(m.toNpc||[]).map(i=>S.npcs[i]).find(Boolean);composeMsg(m.from.id,n?n.name:undefined)});
   app.querySelectorAll('[data-md]').forEach(b=>b.onclick=async()=>{if(await askYes('Eliminare il messaggio?'))guard(db.collection('msgs').doc(b.dataset.md).delete())});
   if(editing){
     const keep=fn=>()=>{const sc=document.getElementById('scr'),y=sc?sc.scrollTop:0;fn();render();if(sc)sc.scrollTop=y};
@@ -752,6 +787,7 @@ async function invSave(r,old){const o={name:r.name.slice(0,60),cat:r.cat,desc:(r
 const invRow2=e=>`<div class="move" style="border-left-color:var(--acc2)"><div style="font-size:1.6em">${e.photo?`${itImg(e.photo,48)}`:(CATI[e.cat]||'🎁')}</div><div class="grow"><b>${esc(e.name)}</b><div class="mut">${e.uses==null?'♾ Infinito':e.uses+(e.uses===1?' uso':' usi')}${bonusesOf(e).length?` · <span style="color:var(--ok)">${bonusTxt(e)}</span>`:''}${e.cat==='armatura'&&e.arm?` · <span style="color:var(--ok)">🛡️ −${e.arm} danni</span>`:''}${dmgHtml(e)}</div>${e.desc?`<div class="mut" style="white-space:pre-wrap;margin-top:4px">${esc(e.desc)}</div>`:''}</div><div class="row" style="gap:4px;flex-direction:column">${e.cat==='arma'&&hasDmg(e)?`<button class="mini" data-atk="${e.id}">⚔️ Attacca</button>`:((e.uses!=null||costTxt(e))?`<button class="mini" data-use="${e.id}">Usa</button>`:'')}<button class="g mini" data-ei="${e.id}">✎</button><button class="d mini" data-di="${e.id}">🗑</button></div></div>`;
 function rebindV9(){
   mapInit();
+  if($('#plMsg'))$('#plMsg').onclick=composePlMsg;
   app.querySelectorAll('[data-mopen]').forEach(b=>b.onclick=()=>{const id=b.dataset.mopen;if(openMsgs.has(id))openMsgs.delete(id);else openMsgs.add(id);render()});
   const pe=$('#pedit');if(pe)pe.onclick=editParty;
   const y=$('[data-pyes]'),n=$('[data-pno]');if(y)y.onclick=()=>respondInvite(true);if(n)n.onclick=()=>respondInvite(false);
@@ -2300,6 +2336,13 @@ function checkShortAns(){
   if(!LD.players)return;
   if(!ansSeen){ansSeen={};Object.entries(S.players).forEach(([id,p])=>ansSeen[id]=(p.shortAns&&p.shortAns.ts)||0);return}
   Object.entries(S.players).forEach(([id,p])=>{const t=(p.shortAns&&p.shortAns.ts)||0;if(t>(ansSeen[id]||0)){ansSeen[id]=t;SND.play('msg',1);toast('⚡ '+p.username+' ha scelto: '+p.shortAns.o)}});
+}
+let chatSeen=null;
+function checkChatM(){
+  if(!LD.msgs)return;
+  const l=Object.values(S.msgs).filter(m=>(m.to||[]).includes('@master'));
+  if(!chatSeen){chatSeen=new Set(l.map(m=>m.id));return}
+  l.forEach(m=>{if(chatSeen.has(m.id))return;chatSeen.add(m.id);SND.play('msg',1);toast('✉️ '+((m.from&&m.from.name)||'?')+' ha scritto a '+((m.toNpc||[]).map(i=>S.npcs[i]?S.npcs[i].name:'?').join(', ')||'?'))});
 }
 function checkShort(){
   const p=me();if(!p||!authed||!LD.players)return;
