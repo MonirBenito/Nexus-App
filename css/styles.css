@@ -1032,3 +1032,35 @@ html.dv-tablet #hud{padding-left:20px;padding-right:20px}
 .abg .chip{overflow-wrap:normal;word-break:normal}
 .abg .chip>span{white-space:nowrap;overflow:visible}
 .abg .chip .row{flex:none}
+
+
+/* =====================================================================
+   v28: notifiche ancora più animate — avvisi in basso (toast) e "nuovo incontro"
+   ===================================================================== */
+/* avvisi in basso: entrano con un rimbalzo, brillano un attimo, escono scivolando; più avvisi si impilano */
+.toast{
+  bottom:calc(84px + var(--k,0)*58px);overflow:hidden;
+  animation:toastbounce .5s cubic-bezier(.2,1.1,.3,1) both,toastglow 1s ease-out .35s 1}
+.toast::after{content:'';position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(105deg,transparent 40%,rgba(255,255,255,.28) 50%,transparent 60%) 0 0/250% 100% no-repeat;
+  animation:notifshine .8s ease-out .3s both}
+.toast.err{border-color:var(--danger);animation:toastbounce .5s cubic-bezier(.2,1.1,.3,1) both,shake .35s .3s 2 steps(2)}
+.toast.out{animation:toastout .26s ease-in both}
+@keyframes toastbounce{
+  0%{opacity:0;transform:translate(-50%,40px) scale(.6)}
+  60%{opacity:1;transform:translate(-50%,-8px) scale(1.07)}
+  100%{opacity:1;transform:translate(-50%,0) scale(1)}}
+@keyframes toastout{to{opacity:0;transform:translate(-50%,18px) scale(.9)}}
+@keyframes toastglow{
+  0%{box-shadow:0 0 0 3px var(--ink),5px 5px 0 3px var(--ink),0 0 0 0 var(--acc)}
+  100%{box-shadow:0 0 0 3px var(--ink),5px 5px 0 3px var(--ink),0 0 0 26px color-mix(in srgb,var(--acc) 0%,transparent)}}
+@media (max-width:700px){.toast{bottom:calc(76px + env(safe-area-inset-bottom,0px) + var(--k,0)*58px)}}
+
+/* nuovo incontro: stesso sistema delle altre notifiche, con timbro dell'atteggiamento e nome che sale */
+.encnotif>.encatt{display:inline-block;font-weight:800;letter-spacing:3px;border:2px solid;padding:2px 12px;
+  animation:qstamp .5s cubic-bezier(.2,.9,.3,1) .75s both}
+.encnotif>.encname{font-size:1.35em;line-height:1.5;margin:12px 0 4px;animation:notifup .5s cubic-bezier(.2,.9,.3,1) .85s both}
+.encnotif>.mut,.encnotif>.row{animation:notifup .45s cubic-bezier(.2,.9,.3,1) both}
+.modal.enc-m.hurt{animation:notifhurt .8s ease-out both}
+.modal.enc-m.notif-out{animation:notifbgout .22s ease-in both}
+@media (prefers-reduced-motion:reduce){.toast,.toast.err,.toast.out,.toast::after{animation:none}}
