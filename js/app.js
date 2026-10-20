@@ -669,7 +669,7 @@ function checkM(){
 }
 /* ===== v8: schermata iniziale, accesso, skill ===== */
 let cuid=null;
-const SKF=[{l:'Nome',n:'n'},{l:'Costo NEXUS',n:'c',t:'number'},{l:'Effetto',n:'e',t:'area'},{l:'Danno fisso (numero o testo libero)',n:'dmg'},{l:'Dadi di danno (0 = nessun dado)',n:'dn',t:'number'},{l:'Tipo di dado',n:'dt',t:'select',o:['d4','d6','d8','d10','d12','d20','d100']},{l:'Danno minimo (0 = nessun minimo)',n:'dmin',t:'number'},{l:'Durata',n:'dur'}];
+const SKF=[{l:'Nome',n:'n'},{l:'Costo NEXUS',n:'c',t:'number'},{l:'Effetto',n:'e',t:'area'},{l:'Danno fisso (numero o testo libero)',n:'dmg'},{l:'Dadi di danno (0 = nessun dado)',n:'dn',t:'number'},{l:'Tipo di dado',n:'dt',t:'select',o:['d4','d6','d8','d10','d12','d20','d100']},{l:'Minimo del dado (ogni dado vale almeno questo numero, es. 2: un 1 conta 2; 0 = nessun minimo)',n:'dmin',t:'number'},{l:'Durata',n:'dur'}];
 const skillCard=(s,i,p)=>{const c=s.c||0,eff=s.e??s.d??'',ok=p&&vit(p).n>=c;return `<div class="move" style="border-left-color:var(--nx);flex-direction:column;align-items:stretch"><div class="row sp"><b style="font-size:1.05em">${esc(s.n)}</b><span class="pill" style="border-color:var(--nx);color:var(--nx)">🔷 ${c}</span></div>${eff?`<div class="mut" style="white-space:pre-wrap">${esc(eff)}</div>`:''}<div class="row" style="flex-wrap:wrap;gap:6px">${s.dmg?`<span class="pill" style="border-color:var(--danger);color:var(--danger)">💥 ${esc(s.dmg)}</span>`:''}${(s.dn|0)>0?`<span class="pill" style="border-color:var(--danger);color:var(--danger)">🎲 ${dmgTxt(s)}</span>`:''}${s.dur?`<span class="pill" style="border-color:var(--gold);color:var(--gold)">⏳ ${esc(s.dur)}</span>`:''}</div>${p?`<div class="row" style="gap:6px"><button class="grow" data-su="${i}" ${ok?'':'disabled'}>⚡ Usa</button><button class="g mini" data-se="${i}">✎</button><button class="d mini" data-sk="${i}">✕</button></div>`:''}</div>`};
 function authSheet(){
   const m=document.createElement('div');m.className='modal';
@@ -2073,7 +2073,7 @@ function mapInit(){
 /* ===== v16: dadi di danno, tiro animato, uso dell'arma ===== */
 const DICE=['d4','d6','d8','d10','d12','d20','d100'];
 const ATK_KEYS=['taglio','contundente','perforante','distanza','sparo','magia'];
-const DMGF=[{l:'Tipo di attacco: taglio (spade, asce) · contundente (mazze, pugni) · perforante (lance, pugnali) · distanza (archi, lanci) · sparo (armi da fuoco) · magia — cambia l\'animazione',n:'atk',t:'select',o:ATK_KEYS},{l:'Danno fisso (si somma al tiro)',n:'dfix',t:'number'},{l:'Numero di dadi di danno (0 = nessun dado)',n:'dn',t:'number'},{l:'Tipo di dado',n:'dt',t:'select',o:DICE},{l:'Danno minimo (0 = nessun minimo)',n:'dmin',t:'number'}];
+const DMGF=[{l:'Tipo di attacco: taglio (spade, asce) · contundente (mazze, pugni) · perforante (lance, pugnali) · distanza (archi, lanci) · sparo (armi da fuoco) · magia — cambia l\'animazione',n:'atk',t:'select',o:ATK_KEYS},{l:'Danno fisso (si somma al tiro)',n:'dfix',t:'number'},{l:'Numero di dadi di danno (0 = nessun dado)',n:'dn',t:'number'},{l:'Tipo di dado',n:'dt',t:'select',o:DICE},{l:'Minimo del dado (ogni dado vale almeno questo numero, es. 2: un 1 conta 2; 0 = nessun minimo)',n:'dmin',t:'number'}];
 const dmgClean=(r,on)=>on?{dfix:Math.min(9999,r.dfix||0),dn:Math.min(20,r.dn||0),dt:DICE.includes(r.dt)?r.dt:'d6',dmin:Math.min(9999,r.dmin||0),atk:ATK_KEYS.includes(r.atk)?r.atk:''}:{dfix:0,dn:0,dt:'d6',dmin:0,atk:''};
 const dmgCopy=o=>({dfix:o.dfix||0,dn:o.dn||0,dt:o.dt||'d6',dmin:o.dmin||0,atk:o.atk||'',cnx:o.cnx||0,chp:o.chp||0});
 const dmgInit=o=>({dfix:o.dfix||0,dn:o.dn||0,dt:o.dt||'d6',dmin:o.dmin||0,atk:atkOf(o)});
@@ -2087,9 +2087,9 @@ const dmgHtml=e=>(e.cat==='arma'&&hasDmg(e)?` · <span style="color:var(--danger
 function rollDice(o){
   const n=Math.max(0,o.n|0),die=Math.max(2,o.die|0)||6,fix=o.fix|0,min=o.min|0;
   const dice=Array.isArray(o.pre)?o.pre.slice(0,n):Array.from({length:n},()=>1+Math.floor(Math.random()*die));
-  const raw=dice.reduce((a,b)=>a+b,0)+fix,tot=Math.max(min,raw);
-  const sub=(n?n+'d'+die:'')+(fix?(n?' + ':'')+fix:'')+(min?' · minimo '+min:'');
-  const brk=(n?dice.join(' + '):'')+(fix?(n?' + ':'')+fix:'')+(raw<min?' → minimo '+min:'');
+  const eff=dice.map(d=>Math.max(min,d)),raw=eff.reduce((a,b)=>a+b,0)+fix,tot=n?raw:Math.max(min,raw); /* il minimo vale per ogni dado: un 1 con minimo 2 conta 2 */
+  const sub=(n?n+'d'+die:'')+(fix?(n?' + ':'')+fix:'')+(min?' · minimo '+min+(n>1?' per dado':''):'');
+  const brk=(n?dice.map(d=>d<min?d+'→'+min:d).join(' + '):'')+(fix?(n?' + ':'')+fix:'')+(!n&&raw<min?' → minimo '+min:'');
   const m=document.createElement('div');m.className='modal';
   m.innerHTML=`<div class="rolldlg"><h3>${esc(o.title)}</h3><div class="mut">${esc(sub)}</div><div class="dice">${dice.map(()=>'<div class="die rolling"><b>?</b></div>').join('')}</div><div class="rres" style="visibility:hidden"><div class="mut">${esc(o.lab||'DANNO')}</div><div class="rtot">${tot}</div><div class="mut">${esc(brk)}</div></div><div class="row" style="margin-top:14px"><button class="grow" data-c>Chiudi</button></div></div>`;
   document.body.append(m);
