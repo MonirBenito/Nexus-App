@@ -233,16 +233,39 @@ function vigFix(p,nv,hpMax,hp){
 }
 /* ===== TRATTI → NEXUS massimo =====
    NEXUS massimo = NEXUS·200 + VIGORE·150 + ACUME·100 + differenziale
-   Differenziale (tirato una sola volta per player e salvato in nxDiff): 1d4 centinaia (100-400) + 1d10 decine (10-100), unità sempre 0.
-   Se il d10 esce 10 la centinaia sale di 1 e il numero finisce con 00 (es. 3 e 10 → 400). */
+   Differenziale: 1d4 centinaia + 1d10 decine (unità sempre 0, quindi da 110 a 500).
+   Si tira UNA sola volta per player, quando clicca per la prima volta su PROFILO (con animazione), e resta salvato in nxDiff.
+   Finché non è stato tirato, il NEXUS massimo vale solo i tratti. */
 const NX_MUL={nexus:200,vigore:150,acume:100};
 const nxBase=t=>Object.entries(NX_MUL).reduce((a,[k,m])=>a+Math.max(0,t[k]|0)*m,0);
-const rollNxDiff=()=>rollD(4)*100+rollD(10)*10;
-const nxNew=()=>{const d=rollNxDiff(),m=nxBase(trOf({}))+d;return {nxDiff:d,nxMax:m,nx:m}};
+const nxNew=()=>{const m=nxBase(trOf({}));return {nxMax:m,nx:m}};
 function nxFix(p,t,curMax,cur){
-  const first=p.nxDiff==null,diff=first?rollNxDiff():p.nxDiff,base=nxBase(t),nm=base+diff,g=nm-curMax;
-  return {upd:{nxDiff:diff,nxMax:nm,nx:Math.min(nm,g>0?cur+g:cur)},first,
-    msg:'🔷 NEXUS massimo '+nm+' ('+base+' tratti + '+diff+(first?' dado':'')+')'};
+  const diff=p.nxDiff==null?0:p.nxDiff,base=nxBase(t),nm=base+diff,g=nm-curMax;
+  return {upd:{nxMax:nm,nx:Math.min(nm,g>0?cur+g:cur)},first:false,
+    msg:'🔷 NEXUS massimo '+nm+' ('+base+' tratti'+(p.nxDiff==null?'':' + '+diff+' dado')+')'};
+}
+/* primo ingresso in PROFILO: tiro del differenziale (due dadi veri: d4 e d10) con animazione.
+   Il risultato viene salvato PRIMA di mostrare l'animazione, così non si può ritirare chiudendo o ricaricando. */
+const nxRolled=new Set();
+async function nxFirstRoll(p){
+  if(!p||!uid||p.nxDiff!=null||nxRolled.has(uid))return;
+  nxRolled.add(uid);
+  const a=rollD(4),b=rollD(10),diff=a*100+b*10,base=nxBase(trOf(p)),nm=base+diff,v=vit(p),g=nm-v.nm;
+  const ok=await guard(db.collection('players').doc(uid).update({nxDiff:diff,nxMax:nm,nx:Math.min(nm,g>0?v.n+g:v.n)}).then(()=>1));
+  if(!ok){nxRolled.delete(uid);return}
+  const faces=[4,10],dice=[a,b],lbl=['d4 · centinaia','d10 · decine'];
+  const m=document.createElement('div');m.className='modal';
+  m.innerHTML=`<div class="rolldlg"><h3>🔷 DIFFERENZIALE NEXUS</h3><div class="mut">1d4 centinaia + 1d10 decine</div><div class="dice">${dice.map((_,i)=>`<div><div class="die rolling"><b>?</b></div><div class="mut" style="margin-top:6px;font-size:.8em">${lbl[i]}</div></div>`).join('')}</div><div class="rres" style="visibility:hidden"><div class="mut">DIFFERENZIALE</div><div class="rtot">+${diff}</div><div class="mut">${a}×100 + ${b}×10 → NEXUS massimo ${nm}</div></div><div class="row" style="margin-top:14px"><button class="grow" data-c>Chiudi</button></div></div>`;
+  document.body.append(m);
+  const els=[...m.querySelectorAll('.die')],res=m.querySelector('.rres');let done=false,iv=0,q=false;SND.play('dice',1);
+  const land=(d,i)=>{d.className='die land'+(dice[i]===faces[i]?' max':dice[i]===1?' min':'');d.firstChild.textContent=dice[i];if(!q)SND.play('land',1)};
+  const fin=()=>{if(done)return;done=true;clearInterval(iv);q=true;els.forEach(land);SND.play(dice.some((x,i)=>x===faces[i])?'crit':'ok',1);res.style.visibility='visible';res.classList.add('rpop');if(navigator.vibrate)try{navigator.vibrate(40)}catch(e){}};
+  const t0=Date.now();
+  iv=setInterval(()=>{const k=Math.floor((Date.now()-t0-900)/300)+1;els.forEach((d,i)=>{if(i<k){if(!d.classList.contains('land'))land(d,i)}else d.firstChild.textContent=1+Math.floor(Math.random()*faces[i])});if(k<dice.length)SND.play('dice');if(k>=dice.length)fin()},70);
+  m.onclick=e=>{
+    if(e.target.dataset.c!==undefined||(e.target===m&&done)){clearInterval(iv);m.remove()}
+    else if(!done)fin();
+  };
 }
 let welcomeNew=null,welcomeRun=null;
 function renderHome(){
@@ -295,6 +318,7 @@ function renderBoard(){
   if(v==='npcs')b=hdr('🧙 Incontri',1)+(Object.values(S.npcs).filter(visN).map(n=>`<div class="card row" data-npc="${n.id}" style="cursor:pointer">${av(n)}<div class="grow"><b>${esc(n.name)}</b> <span class="tag">${KIND[kindOf(n)]}</span> <span class="tag" style="color:${attOf(n).c}">${attOf(n).i} ${attOf(n).l}</span> ${koTag(n)}<div class="mut">${esc(n.desc)}</div></div>›</div>`).join('')||'<p class="mut">Nessun incontro disponibile.</p>');
   if(v==='ego')b=egoBoard(p);if(v==='map')b=mapBoard(false);if(v==='inv')b=invBoard(p);if(v==='msgs')b=msgBoard(p);if(v==='party')b=partyBoard2(p);if(v==='quests')b=questBoard();else if(0)b=hdr('📜 Obiettivi',1)+(Object.values(S.quests).filter(q=>!(q.to&&q.to.length)||q.to.includes(uid)).map(q=>`<div class="card"><b>${esc(q.title)}</b><div class="row" style="margin-top:6px"><span class="tag">+${q.coins||0} 🪙</span></div></div>`).join('')||'<p class="mut">Nessun obiettivo per te al momento.</p>');
   app.innerHTML=b;bind();
+  if(v==='profile')nxFirstRoll(p);
   markViewed(v);app.querySelectorAll('[data-npc]').forEach(e=>e.onclick=()=>{view={name:'npc',id:e.dataset.npc};render()});
   const U=d=>guard(db.collection('players').doc(uid).update(d));
   if($('#bld'))$('#bld').onchange=e=>U({blood:e.target.value});
