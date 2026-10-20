@@ -231,6 +231,19 @@ function vigFix(p,nv,hpMax,hp){
   const hm=Math.max(1,hpMax+gain);
   return {hpMax:hm,hp:Math.min(hm,gain>0?hp+gain:hp),vigRolls:rolls,gain:hm-hpMax,dice};
 }
+/* ===== TRATTI → NEXUS massimo =====
+   NEXUS massimo = NEXUS·200 + VIGORE·150 + ACUME·100 + differenziale
+   Differenziale (tirato una sola volta per player e salvato in nxDiff): 1d4 centinaia (100-400) + 1d10 decine (10-100), unità sempre 0.
+   Se il d10 esce 10 la centinaia sale di 1 e il numero finisce con 00 (es. 3 e 10 → 400). */
+const NX_MUL={nexus:200,vigore:150,acume:100};
+const nxBase=t=>Object.entries(NX_MUL).reduce((a,[k,m])=>a+Math.max(0,t[k]|0)*m,0);
+const rollNxDiff=()=>rollD(4)*100+rollD(10)*10;
+const nxNew=()=>{const d=rollNxDiff(),m=nxBase(trOf({}))+d;return {nxDiff:d,nxMax:m,nx:m}};
+function nxFix(p,t,curMax,cur){
+  const first=p.nxDiff==null,diff=first?rollNxDiff():p.nxDiff,base=nxBase(t),nm=base+diff,g=nm-curMax;
+  return {upd:{nxDiff:diff,nxMax:nm,nx:Math.min(nm,g>0?cur+g:cur)},first,
+    msg:'🔷 NEXUS massimo '+nm+' ('+base+' tratti + '+diff+(first?' dado':'')+')'};
+}
 let welcomeNew=null,welcomeRun=null;
 function renderHome(){
   const p=me();app.innerHTML=hdr('🏠 Home')+homeCard(p)+tiles();bind();
@@ -298,6 +311,7 @@ function renderBoard(){
       if(vr)rollDice({title:'💪 VIGORE '+nv+'/5',n:1,die:vr[0],fix:0,min:vr[1],pre:[raw],lab:'HP MASSIMI IN PIÙ'});
       else toast('💪 VIGORE '+nv+'/5 · HP massimi +'+gain);
     }
+    if(NX_MUL[k]){const vn=vit(p),nf=nxFix(p,upd.traits,vn.nm,vn.n);Object.assign(upd,nf.upd);setTimeout(()=>toast(nf.msg),k==='vigore'?1700:0)}
     U(upd);
   });
   app.querySelectorAll('[data-ab]').forEach(x=>x.onclick=()=>{const a=abOf(p),k=x.dataset.ab;if((p.pointsAb||0)<1)return;U({abilities:{...a,[k]:a[k]+1},pointsAb:p.pointsAb-1})});
@@ -640,9 +654,12 @@ function editPlayer(id){
 function saveDraft(){
   const d=draft,id=selP,p=S.players[id];
   const vf=vigFix(p,Math.min(99,d.t_vigore),d.hpMax,d.hp);
+  const nt=Object.fromEntries(TR.map(([k])=>[k,Math.min(99,d['t_'+k])])),ot=trOf(p),vv=vit(p);
+  /* se i tratti NEXUS/VIGORE/ACUME cambiano e il master non ha toccato a mano il massimo, la barra si ricalcola */
+  const nf=Object.keys(NX_MUL).some(k=>nt[k]!==ot[k])&&d.nxMax===vv.nm?nxFix(p,nt,d.nxMax,d.nx):null;
   moneyNote(id,(d.currency||0)-(p.currency||0));
-  guard(db.collection('players').doc(id).update({vigRolls:vf.vigRolls,username:(d.username||'').trim()||p.username,currency:d.currency,blood:d.blood,points:d.points,pointsAb:d.pointsAb,hpMax:vf.hpMax,hp:vf.hp,nxMax:d.nxMax,nx:Math.min(d.nx,d.nxMax),traits:Object.fromEntries(TR.map(([k])=>[k,Math.min(99,d['t_'+k])])),abilities:Object.fromEntries(AB.map(([k])=>[k,Math.min(99,d['a_'+k])]))}));
-  editing=false;toast(vf.gain?'Salvato · VIGORE: HP massimi '+(vf.gain>0?'+':'')+vf.gain+' → '+vf.hpMax:'Modifiche salvate');render();
+  guard(db.collection('players').doc(id).update({vigRolls:vf.vigRolls,username:(d.username||'').trim()||p.username,currency:d.currency,blood:d.blood,points:d.points,pointsAb:d.pointsAb,hpMax:vf.hpMax,hp:vf.hp,...(nf?nf.upd:{nxMax:d.nxMax,nx:Math.min(d.nx,d.nxMax)}),traits:nt,abilities:Object.fromEntries(AB.map(([k])=>[k,Math.min(99,d['a_'+k])]))}));
+  editing=false;toast(vf.gain?'Salvato · VIGORE: HP massimi '+(vf.gain>0?'+':'')+vf.gain+' → '+vf.hpMax:(nf?nf.msg:'Modifiche salvate'));render();
 }
 async function composeMsg(pre,from){
   const nn=Object.values(S.npcs);
@@ -746,7 +763,7 @@ async function register(){
   if(ex||(cred&&cred.email===email))return toast('Email già registrata: usa Accedi');
   const pid=uid8()+uid8(),salt=uid8()+uid8(),h=await hash(r.pw,salt);
   if(!(await guard(ad.set({pid,salt,hash:h}).then(()=>1))))return;
-  if(!(await guard(db.collection('players').doc(pid).set({username:r.username.slice(0,32),currency:100,blood:'Non indicato',ego:'',skills:[],history:[],hpMax:20,hp:20,created:Date.now()}).then(()=>1))))return;
+  if(!(await guard(db.collection('players').doc(pid).set({username:r.username.slice(0,32),currency:100,blood:'Non indicato',ego:'',skills:[],history:[],hpMax:20,hp:20,...nxNew(),created:Date.now()}).then(()=>1))))return;
   uid=pid;authed=true;view={name:'home'};welcomeNew=pid;SND.play('login',1);
   try{localStorage.setItem('nx_pid',pid)}catch(e){}
   render();
