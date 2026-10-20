@@ -760,7 +760,9 @@ async function register(){
   if(!r.pw)return toast('Inserisci una password');
   const key=await hash(email,'nx-email'),ad=db.collection('accounts').doc(key);
   let ex=null;try{const s=await ad.get();ex=s.exists?s.data():null}catch(e){}
-  if(ex||(cred&&cred.email===email))return toast('Email già registrata: usa Accedi');
+  if(ex&&LD.players&&!S.players[ex.pid])ex=null; /* player eliminato dal master: l'email torna libera */
+  const legacy=cred&&cred.email===email&&!(LD.players&&cuid&&!S.players[cuid]);
+  if(ex||legacy)return toast('Email già registrata: usa Accedi');
   const pid=uid8()+uid8(),salt=uid8()+uid8(),h=await hash(r.pw,salt);
   if(!(await guard(ad.set({pid,salt,hash:h}).then(()=>1))))return;
   if(!(await guard(db.collection('players').doc(pid).set({username:r.username.slice(0,32),currency:100,blood:'Non indicato',ego:'',skills:[],history:[],hpMax:20,hp:20,points:3,pointsAb:18,...nxNew(),created:Date.now()}).then(()=>1))))return;
