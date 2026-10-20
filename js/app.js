@@ -356,7 +356,7 @@ function renderMaster(){
   const on=(a,fn)=>app.querySelectorAll(`[data-${a}]`).forEach(x=>x.onclick=()=>fn(x.dataset[a]));
   on('pe',async id=>{const p=S.players[id],t=trOf(p),r=await ask('Player',[{l:'Username',n:'username'},{l:'Nummus',n:'currency',t:'number'},{l:'Gruppo sanguigno',n:'blood',t:'select',o:BLOODS},{l:'Punti tratti',n:'points',t:'number'},{l:'Punti abilità',n:'pointsAb',t:'number'},{l:'HP massimi',n:'hpMax',t:'number'},{l:'HP attuali',n:'hp',t:'number'},{l:'NEXUS massimo',n:'nxMax',t:'number'},{l:'NEXUS attuale',n:'nx',t:'number'},...TR.map(([k,l])=>({l:l+' (valore)',n:k,t:'number'}))],{...p,points:p.points||0,pointsAb:p.pointsAb||0,...t,hpMax:vit(p).hm,hp:vit(p).h,nxMax:vit(p).nm,nx:vit(p).n});if(r){const vf=vigFix(p,Math.min(99,r.vigore),r.hpMax,r.hp);if(vf.gain)toast('💪 VIGORE: HP massimi '+(vf.gain>0?'+':'')+vf.gain+' → '+vf.hpMax);moneyNote(id,(r.currency||0)-(p.currency||0));guard(C('players').doc(id).update({vigRolls:vf.vigRolls,username:r.username||p.username,currency:r.currency,blood:r.blood,points:r.points,pointsAb:r.pointsAb,hpMax:vf.hpMax,hp:vf.hp,nxMax:r.nxMax,nx:Math.min(r.nx,r.nxMax),traits:Object.fromEntries(TR.map(([k])=>[k,Math.min(99,r[k])]))}))}});
   on('pa',async id=>{const p=S.players[id],r=await ask('Abilità',AB.map(([k,l])=>({l,n:k,t:'number'})),abOf(p));if(r)guard(C('players').doc(id).update({abilities:Object.fromEntries(AB.map(([k])=>[k,Math.min(99,r[k])]))}))});
-  on('pd',id=>{if(confirm('Eliminare il player?'))guard(C('players').doc(id).delete())});
+  on('pd',id=>{if(confirm('Eliminare il player?')){const k=(S.players[id]||{}).ekey;guard(C('players').doc(id).delete());if(k)guard(C('accounts').doc(k).delete())}});
   const npcF=()=>[{l:'Nome',n:'name'},{l:'Descrizione',n:'desc',t:'area'},{l:'Frasi di approccio (una per riga: se ce ne sono più di una, ne esce una a caso)',n:'keys',t:'area'},{l:'Tipo',n:'kind',t:'select',o:['mercante','combattente']},{l:'Atteggiamento',n:'att',t:'select',o:['neutrale','ostile','buono']},{l:'Visibile',n:'vis',t:'select',o:['sì','no']},{l:'Chi lo vede (nessuno selezionato = tutti i player)',n:'to',t:'multi',o:Object.entries(S.players).map(([i,p])=>[i,p.username])},{l:'Foto (max 2 MB)',n:'photo',t:'file'}];
   const upl=async f=>{if(!f)return '';if(!assets){toast('Upload non disponibile');return ''}if(f.size>2e6){toast('Foto oltre 2 MB');return ''}const a=await guard(assets.upload(f));return a?a.url:''};
   if($('#addN'))$('#addN').onclick=async()=>{const r=await ask('Nuovo incontro',npcF(),{kind:'mercante',vis:'sì',to:[]});if(r&&r.name){const id=uid8(),photo=await upl(r.photo);guard(C('npcs').doc(id).set({id,name:r.name,desc:r.desc,kind:r.kind,att:r.att,keys:splitL(r.keys),active:r.vis==='sì',photo,to:r.to}))}};
@@ -770,10 +770,11 @@ async function register(){
   if(!r.pw)return toast('Inserisci una password');
   const key=await hash(email,'nx-email'),ad=db.collection('accounts').doc(key);
   let ex=null;try{const s=await ad.get();ex=s.exists?s.data():null}catch(e){}
-  if(ex||(cred&&cred.email===email))return toast('Email già registrata: usa Accedi');
+  /* l'email è occupata solo se il suo player esiste ancora (se è stato eliminato torna libera) */
+  if((ex&&(!LD.players||S.players[ex.pid]))||(cred&&cred.email===email&&(!LD.players||S.players[cuid])))return toast('Email già registrata: usa Accedi');
   const pid=uid8()+uid8(),salt=uid8()+uid8(),h=await hash(r.pw,salt);
   if(!(await guard(ad.set({pid,salt,hash:h}).then(()=>1))))return;
-  if(!(await guard(db.collection('players').doc(pid).set({username:r.username.slice(0,32),currency:100,blood:'Non indicato',ego:'',skills:[],history:[],hpMax:20,hp:20,...nxStart(),created:Date.now()}).then(()=>1))))return;
+  if(!(await guard(db.collection('players').doc(pid).set({username:r.username.slice(0,32),currency:100,blood:'Non indicato',ego:'',skills:[],history:[],hpMax:20,hp:20,...nxStart(),ekey:key,created:Date.now()}).then(()=>1))))return;
   uid=pid;authed=true;view={name:'home'};welcomeNew=pid;SND.play('login',1);
   try{localStorage.setItem('nx_pid',pid)}catch(e){}
   render();
