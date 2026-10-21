@@ -114,7 +114,32 @@ const SND=(()=>{
     sync();b.onclick=()=>{toggle();sync()};
     tb.insertBefore(b,mb||null);
   }
-  return {play,toggle,sp:()=>lastSp};
+  /* ---- musichette a 8 bit per gli eventi (si fermano da sole; rispettano il tasto muto) ---- */
+  const TH={
+    generico:{b:108,r:60,w:'square',l:[0,4,7,12,7,4,7,null,5,9,12,9,7,5,4,null],s:[0,0,5,5,7,7,0,0]},
+    pericolo:{b:150,r:57,w:'sawtooth',l:[0,null,3,null,6,null,3,null,0,null,3,5,6,null,5,3],s:[0,0,0,0,-2,-2,1,1]},
+    combattimento:{b:170,r:55,w:'square',l:[0,0,3,0,5,0,3,0,0,0,7,0,5,3,2,0],s:[0,0,0,0,3,3,-2,-2]},
+    scoperta:{b:96,r:62,w:'triangle',l:[0,7,12,16,12,7,12,16,14,9,14,17,14,9,12,7],s:[0,0,5,5,9,9,7,7]},
+    mistero:{b:78,r:50,w:'sine',l:[0,null,null,3,null,null,7,null,6,null,null,3,null,null,2,null],s:[0,null,0,null,-4,null,-2,null]},
+    festa:{b:132,r:67,w:'square',l:[0,4,7,4,0,4,7,12,12,9,7,9,5,7,4,2],s:[0,7,0,7,5,12,7,12]}
+  };
+  let mi=0,mk='';
+  function musicStop(){clearInterval(mi);mi=0;mk=''}
+  function music(k){
+    if(!on||!init())return;
+    k=TH[k]?k:'generico';if(mk===k&&mi)return;
+    musicStop();mk=k;const T=TH[k],sd=60/T.b/2,fr=m=>440*Math.pow(2,(T.r+m-69)/12);let step=0,nt=ctx.currentTime+.15;
+    mi=setInterval(()=>{
+      if(!on){musicStop();return}
+      while(nt<ctx.currentTime+.4){
+        const s=step%16,l=T.l[s],b=T.s[s>>1],at=nt-ctx.currentTime;
+        if(l!=null)t(fr(l),sd*.9,{at,w:T.w,v:.05});
+        if(!(s&1)&&b!=null)t(fr(b-12),sd*1.8,{at,w:'triangle',v:.09});
+        nt+=sd;step++;
+      }
+    },120);
+  }
+  return {play,toggle,sp:()=>lastSp,music,stopMusic:musicStop};
 })();
 const SND_ERR=/insufficien|non consentit|errat|non valid|esaurit|troppo|già registrata|non esiste|non disponibile|oltre|Limite|Max |non riconosciuto|non leggibile|Scegli|Scrivi|Salva prima|Fuori dalla|Nessun /i;
 function toast(t){
@@ -2772,7 +2797,7 @@ const evFmt=s=>{const h=Math.floor(s/3600),m=Math.floor(s%3600/60),c=s%60;return
 const EV={ov:null,id:null,at:0,e:null,ended:false,iv:0,ty:null,shown:new Set()};
 
 function evClose(){
-  clearInterval(EV.iv);EV.iv=0;
+  SND.stopMusic();clearInterval(EV.iv);EV.iv=0;
   if(EV.ty){EV.ty.stop();EV.ty=null}
   if(EV.ov){EV.ov.remove();EV.ov=null}
   EV.id=null;EV.at=0;EV.e=null;EV.ended=false;
@@ -2789,7 +2814,7 @@ function evOpen(id){
   o.innerHTML=`${SC_COR}<div class="ev-flash"></div><div class="ev-in"><div class="ev-badge"><i></i><span id="evBt">EVENTO IN CORSO</span></div><div class="ev-ico"><b>${esc(evIco(e))}</b><s></s><s></s></div><div class="ev-kind">${K.i} ${K.l}</div><h2 class="ev-title" id="evT"></h2><div class="ev-desc" id="evD"></div><div id="evMg"></div><div class="ev-tm" id="evTm" style="display:none"><div class="ev-clk" id="evC">--:--</div><div class="ev-tb"><i id="evB"></i></div></div><p class="ev-endmsg">Il Master ha concluso l'evento.</p><div class="ev-act"><button class="g grow" id="evX">Chiudi</button></div></div>`;
   document.body.append(o);
   const q=s=>o.querySelector(s);
-  SND.play(K.s,1);
+  SND.play(K.s,1);SND.music(evMus(e));
   if(navigator.vibrate)try{navigator.vibrate(K.h?[120,60,200]:[40,40,60])}catch(x){}
   const tt=q('#evT'),dd=q('#evD');
   if(e.mg)mgMount(q('#evMg'),e);
@@ -2802,7 +2827,7 @@ function evOpen(id){
       ck.textContent=left>0?evFmt(Math.ceil(left/1000)):'⌛ TEMPO SCADUTO';
       bar.style.width=Math.max(0,Math.min(100,left/d*100))+'%';
       tm.classList.toggle('low',left>0&&left<=60000);tm.classList.toggle('zero',left<=0);
-      if(was===true&&left<=0){SND.play('alarm',1);if(navigator.vibrate)try{navigator.vibrate([200,100,200])}catch(x){}}
+      if(was===true&&left<=0){SND.stopMusic();SND.play('alarm',1);if(navigator.vibrate)try{navigator.vibrate([200,100,200])}catch(x){}}
       was=left>0;
     };
     EV.iv=setInterval(tick,500);tick();
@@ -2818,7 +2843,7 @@ function evEnd(){
   tt.textContent=e.title;tt.classList.remove('typing');dd.textContent=e.desc||'';dd.classList.remove('typing');
   o.classList.add('ended');q('#evBt').textContent='EVENTO CONCLUSO';
   const b=q('#evX');b.className='grow';
-  const mgb=q('#mgGo');if(mgb)mgb.disabled=true;
+  SND.stopMusic();o.querySelectorAll('.mg-ctl button').forEach(x=>x.disabled=true);
   SND.play('close',1);
 }
 /* notifica animata di nuovo evento */
@@ -2871,16 +2896,19 @@ function masterEvents(){
     live=L.filter(e=>e.active).length;
   app.innerHTML=hdr('🎭 Eventi',1)+
     (live?`<div class="card sc-alert"><h3>🔴 ${live} in corso</h3><p class="mut" style="margin:0">I player vedono la schermata dell'evento finché non lo termini.</p></div>`:'')+
-    `<button id="evAdd" style="width:100%">+ Nuovo evento</button><button id="mgAdd" style="width:100%;margin-top:8px">🎮 Nuovo minigioco</button>`+
+    `<button id="evAdd" style="width:100%">+ Nuovo evento</button>`+
     (L.map(e=>{
       const K=evK(e),seen=e.at?Object.values(S.players).filter(p=>(p.seenEv||{})[e.id]===e.at).map(p=>esc(p.username)):[];
-      return `<div class="card evcard ${e.active?'live':''}" style="--ec:${K.c}"><div class="row"><div class="avatar" style="font-size:24px;border-color:${K.c}">${esc(evIco(e))}</div><div class="grow"><b>${esc(e.title)}</b> <span class="tag" style="color:${K.c}">${K.l}</span> ${e.active?'<span class="tag" style="color:var(--danger)">🔴 IN CORSO</span>':e.at?'<span class="tag">✔ concluso</span>':'<span class="tag">pronto</span>'}<div class="mut">👁 ${e.to&&e.to.length?e.to.map(i=>esc(S.players[i]?.username||'?')).join(', '):'Tutti i player'}${evDur(e)?' · ⏳ '+evDur(e)+' min':''}</div>${e.at?`<div class="mut">Avviato: ${new Date(e.at).toLocaleString('it-IT')}${seen.length?' · ✔ visto da '+seen.join(', '):''}</div>`:''}</div></div>${e.desc?`<p class="mut" style="white-space:pre-wrap;margin:8px 0 0">${esc(e.desc)}</p>`:''}${e.mg?mgMasterHtml(e):''}<div class="row" style="margin-top:10px;flex-wrap:wrap">${e.active?`<button class="d grow" data-evs="${e.id}">⏹ Termina evento</button>`:`<button class="grow" data-evl="${e.id}">▶ ${e.at?'Rilancia':'Avvia'} evento</button>`}<button class="g" data-eve="${e.id}">Modifica</button><button class="d" data-evd="${e.id}">✕</button></div></div>`;
+      return `<div class="card evcard ${e.active?'live':''}" style="--ec:${K.c}"><div class="row"><div class="avatar" style="font-size:24px;border-color:${K.c}">${esc(evIco(e))}</div><div class="grow"><b>${esc(e.title)}</b> <span class="tag" style="color:${K.c}">${K.l}</span> ${e.active?'<span class="tag" style="color:var(--danger)">🔴 IN CORSO</span>':e.at?'<span class="tag">✔ concluso</span>':'<span class="tag">pronto</span>'}<div class="mut">👁 ${e.to&&e.to.length?e.to.map(i=>esc(S.players[i]?.username||'?')).join(', '):'Tutti i player'}${evDur(e)?' · ⏳ '+evDur(e)+' min':''}</div>${e.at?`<div class="mut">Avviato: ${new Date(e.at).toLocaleString('it-IT')}${seen.length?' · ✔ visto da '+seen.join(', '):''}</div>`:''}</div></div>${e.desc?`<p class="mut" style="white-space:pre-wrap;margin:8px 0 0">${esc(e.desc)}</p>`:''}${e.mg?mgMasterHtml(e):''}<div class="row" style="margin-top:10px;flex-wrap:wrap">${e.active?`<button class="d grow" data-evs="${e.id}">⏹ Termina evento</button>`:`<button class="grow" data-evl="${e.id}">▶ ${e.at?'Rilancia':'Avvia'} evento</button>`}<button class="g" data-eve="${e.id}">Modifica</button><button class="g" data-mge="${e.id}">🎮 ${e.mg?'Minigioco':'+ Minigioco'}</button><button class="d" data-evd="${e.id}">✕</button></div></div>`;
     }).join('')||'<p class="mut">Nessun evento: creane uno e avvialo quando vuoi.</p>');
   bind();
   const on=(a,fn)=>app.querySelectorAll(`[data-${a}]`).forEach(x=>x.onclick=()=>fn(x.dataset[a]));
-  $('#mgAdd').onclick=mgNew;
-  $('#evAdd').onclick=async()=>{const r=await ask('Nuovo evento',evFields(),{ek:'generico',dur:0,to:[]});if(!r||!r.title)return;const id=uid8();guard(C.doc(id).set({id,...evData(r),active:false,at:0,created:Date.now()}))};
-  on('eve',async id=>{const e=S.events[id];if(!e)return;if(e.mg)return mgEdit(id);const r=await ask('Modifica evento',evFields(),{...e,icon:e.icon||'',dur:e.dur||0,to:e.to||[]});if(!r||!r.title)return;guard(C.doc(id).update(evData(r)))});
+  $('#evAdd').onclick=async()=>{const r=await ask('Nuovo evento',[...evFields(),...MG_IDEA],{ek:'generico',dur:0,to:[]});if(!r||!r.title)return;const m=await mgBuild(r);if(m===0)return;const id=uid8(),d=evData(r);guard(C.doc(id).set({id,...d,...(m?{mg:m.mg,icon:d.icon||m.icon||''}:{}),active:false,at:0,created:Date.now()}))};
+  on('mge',async id=>{const e=S.events[id];if(!e)return;
+    if(!e.mg){const r=await ask('🎮 Aggiungi un minigioco a «'+e.title+'»',MG_IDEA,{},'Genera');if(!r)return;const m=await mgBuild({...r,title:e.title});if(!m)return;return guard(C.doc(id).update({mg:m.mg,...(e.icon?{}:{icon:m.icon||''})}))}
+    const x=await ask('Modifica minigioco',mgFields(),mgForm(e.mg,e.icon),'Salva');if(!x)return;
+    guard(C.doc(id).update({mg:mgObj({...x,title:e.title,id:e.mg.minigame_id}),icon:x.icon||e.icon||''}))});
+  on('eve',async id=>{const e=S.events[id];if(!e)return;const r=await ask('Modifica evento',evFields(),{...e,icon:e.icon||'',dur:e.dur||0,to:e.to||[]});if(!r||!r.title)return;guard(C.doc(id).update(evData(r)))});
   on('evl',async id=>{
     const e=S.events[id];if(!e)return;
     const who=e.to&&e.to.length?e.to.map(i=>S.players[i]?.username||'?').join(', '):'tutti i player';
@@ -2941,19 +2969,6 @@ function mgForm(mg,icon,e){
     tr:T?mgCap(T[1]):'Acume',sk:S?S[1]:'Notare',diff:mgClamp(m.difficulty_increments),ok:o.success_text||'',ko:o.failure_text||'',
     icon:icon||'',dur:(e&&e.dur)||0,to:(e&&e.to)||[],id:mg.minigame_id||''};
 }
-const mgFields=()=>[
-  {l:'Titolo del minigioco',n:'title'},
-  {l:'Emoji del bersaglio (una sola, opzionale)',n:'icon'},
-  {l:'Bersaglio / sprite (cosa si vede a schermo)',n:'spr',t:'area'},
-  {l:'Scena in prima persona',n:'env',t:'area'},
-  {l:'Azione che il giocatore compie',n:'act',t:'area'},
-  {l:'Tratto associato',n:'tr',t:'select',o:MG_TRL()},
-  {l:'Abilità associata',n:'sk',t:'select',o:MG_ABL()},
-  {l:'Difficoltà (incrementi richiesti, di solito 2, 3 o 4)',n:'diff',t:'number'},
-  {l:'Se riesce (testo)',n:'ok',t:'area'},
-  {l:'Se fallisce (testo)',n:'ko',t:'area'},
-  {l:'Durata in minuti (0 = nessun limite di tempo)',n:'dur',t:'number'},
-  {l:'Chi lo vede (nessuno selezionato = tutti i player)',n:'to',t:'multi',o:Object.entries(S.players).map(([i,p])=>[i,p.username])}];
 const mgObj=r=>({minigame_id:r.id||mgSlug(r.title),title:r.title.slice(0,80),
   visual_theme:{background_type:'first_person_view',target_sprite:(r.spr||'').slice(0,250),environment_description:(r.env||'').slice(0,500)},
   mechanic:{action_prompt:(r.act||'').slice(0,400),suggested_trait:r.tr,suggested_skill:r.sk,difficulty_increments:mgClamp(r.diff)},
@@ -2965,33 +2980,6 @@ function mgParseJson(txt){
     return j;
   }catch(x){toast('JSON non valido: controlla di averlo incollato per intero');return null}
 }
-async function mgNew(){
-  const a=await ask('🎮 Nuovo minigioco',[
-    {l:'Idea creativa (es. «scassina la serratura», «bancarella dove spari agli uccelli»)',n:'idea',t:'area'},
-    {l:'Oppure incolla qui un JSON già pronto (opzionale: se c\'è, ha la precedenza sull\'idea)',n:'json',t:'area'}],{},'Genera');
-  if(!a)return;
-  let mg,icon='🎯';
-  if(a.json){mg=mgParseJson(a.json);if(!mg)return}
-  else if(a.idea){const g=mgGen(a.idea);mg=g.mg;icon=g.icon;if(!g.known)toast('Idea non riconosciuta: controlla tratto e abilità')}
-  else return toast('Scrivi un\'idea o incolla un JSON');
-  const f=mgForm(mg,icon),r=await ask('🎮 Rivedi il minigioco',mgFields(),f,'Salva minigioco');
-  if(!r||!r.title)return;
-  const id=uid8();
-  guard(db.collection('events').doc(id).set({id,title:r.title.slice(0,80),ek:'minigioco',icon:Array.from(r.icon||'').slice(0,2).join(''),desc:'',dur:Math.min(1440,r.dur||0),to:r.to||[],mg:mgObj(r),active:false,at:0,created:Date.now()}));
-}
-async function mgEdit(id){
-  const e=S.events[id];if(!e||!e.mg)return;
-  const r=await ask('Modifica minigioco',mgFields(),mgForm(e.mg,e.icon,e),'Salva');
-  if(!r||!r.title)return;
-  guard(db.collection('events').doc(id).update({title:r.title.slice(0,80),icon:Array.from(r.icon||'').slice(0,2).join(''),dur:Math.min(1440,r.dur||0),to:r.to||[],mg:mgObj({...r,id:e.mg.minigame_id})}));
-}
-/* riga riassuntiva nella card del Master: regole del minigioco + risultati dei player */
-function mgMasterHtml(e){
-  const m=e.mg,mc=m.mechanic||{},need=mgClamp(mc.difficulty_increments);
-  const rs=e.at?Object.values(S.players).map(p=>{const r=mgRes(e,p);return r?`<div class="mut">${r.ok?'✔':'✘'} ${esc(p.username)}: ${r.inc}/${r.need} incrementi · dadi ${r.d.join(', ')||'—'}</div>`:''}).join(''):'';
-  return `<div class="mut" style="margin-top:8px">🎮 ${esc(mc.suggested_trait)} + ${esc(mc.suggested_skill)} · difficoltà ${need} incrementi</div>${rs}`;
-}
-
 /* incrementi: un d10 che fa 10 vale 1; gli altri dadi si sommano in gruppi che arrivano a 10 o più (anche 11, 12, 13… = 1 solo incremento) */
 function mgInc(dice){
   const r=[...dice].sort((a,b)=>b-a),g=[];let left=[];
@@ -3012,74 +3000,188 @@ function mgPool(p,mg){
   const tb=md.tr[T[0]]||0,sb=md.ab[S[0]]||0,t=(trOf(p)[T[0]]||0)+tb,a=(abOf(p)[S[0]]||0)+sb;
   return {T,S,t,a,tb,sb,n:Math.min(30,t+a)};
 }
+const MG_IDEA=[
+  {l:'🎮 Minigioco (opzionale): scrivi un\'idea creativa, es. «scassina la serratura»',n:'idea',t:'area'},
+  {l:'Oppure incolla qui un JSON già pronto (opzionale, ha la precedenza sull\'idea)',n:'json',t:'area'}];
+const mgFields=()=>[
+  {l:'Emoji del bersaglio (una sola, opzionale)',n:'icon'},
+  {l:'Bersaglio / sprite (cosa si vede a schermo)',n:'spr',t:'area'},
+  {l:'Scena in prima persona',n:'env',t:'area'},
+  {l:'Azione che il giocatore compie',n:'act',t:'area'},
+  {l:'Tratto associato',n:'tr',t:'select',o:MG_TRL()},
+  {l:'Abilità associata (decide anche il tipo di gioco)',n:'sk',t:'select',o:MG_ABL()},
+  {l:'Difficoltà (incrementi richiesti, di solito 2, 3 o 4)',n:'diff',t:'number'},
+  {l:'Se riesce (testo)',n:'ok',t:'area'},
+  {l:'Se fallisce (testo)',n:'ko',t:'area'}];
+/* idea/JSON → minigioco rivisto dal Master. null = evento normale, 0 = annullato */
+async function mgBuild(r){
+  if(!r.idea&&!r.json)return null;
+  let mg,icon='🎯';
+  if(r.json){mg=mgParseJson(r.json);if(!mg)return 0}
+  else{const g=mgGen(r.idea);mg=g.mg;icon=g.icon;if(!g.known)toast('Idea non riconosciuta: controlla tratto e abilità')}
+  mg.title=r.title;
+  const x=await ask('🎮 Rivedi il minigioco',mgFields(),mgForm(mg,icon),'Salva');
+  return x?{mg:mgObj({...x,title:r.title,id:mg.minigame_id}),icon:x.icon}:0;
+}
+const MG_TIER=(i,n)=>i>=n+2?'crit':i>=n?'ok':i>=1?'ko':'fiasco';
+const MG_T={crit:{h:'🌟 SUCCESSO STRAORDINARIO',x:'Hai fatto molto più del necessario: un colpo da maestro.'},ok:{h:'✔ SUCCESSO',x:'Ce l\'hai fatta.'},ko:{h:'✘ FALLIMENTO',x:''},fiasco:{h:'💀 FIASCO TOTALE',x:'Non poteva andare peggio: nemmeno un incremento.'}};
+function mgMasterHtml(e){
+  const mc=e.mg.mechanic||{},need=mgClamp(mc.difficulty_increments);
+  const rs=e.at?Object.values(S.players).map(p=>{const r=mgRes(e,p);return r?`<div class="mut">${r.ok?'✔':'✘'} ${esc(p.username)}: ${r.inc}/${r.need} incrementi · dadi ${r.d.join(', ')||'—'}</div>`:''}).join(''):'';
+  return `<div class="mut" style="margin-top:8px">🎮 ${esc(mc.suggested_trait)} + ${esc(mc.suggested_skill)} · difficoltà ${need} incrementi</div>${rs}`;
+}
+
+/* ---- gioco vero e proprio: 4 meccaniche, scelte dall'abilità ---- */
+const MG_GAME={furtivita:'timing',mischia:'timing',convincere:'timing',intimidire:'timing',empatia:'timing',mira:'target',notare:'target',rissa:'rapid',velocita:'rapid',atletica:'rapid',istruzione:'memory',concentrazione:'memory',creativita:'memory'};
+const MG_MUS={timing:'mistero',target:'festa',rapid:'combattimento',memory:'scoperta'};
+const MG_LBL={furtivita:'SCATTA',mischia:'COLPISCI',convincere:'ARGOMENTA',intimidire:'MINACCIA',empatia:'ASCOLTA',rissa:'PUGNO!',velocita:'CORRI!',atletica:'TIRATI SU!'};
+const MG_HOW={timing:'Ferma il segno nella zona verde. Hai 3 tentativi, e la zona si restringe.',target:'Tocca i bersagli prima che spariscano: ne compaiono 9.',rapid:'Tocca il pulsante più veloce che puoi per riempire la barra: hai 6 secondi.',memory:'Guarda la sequenza e ripetila a memoria.'};
+const mgGame=mg=>{const S=mgFind(AB,mg.mechanic.suggested_skill);return (S&&MG_GAME[S[0]])||'timing'};
+const evMus=e=>e.mg?MG_MUS[mgGame(e.mg)]:(e.ek||'generico');
+function mgPop(sc,txt,col){const f=sc.querySelector('.mg-fx'),s=document.createElement('i');s.className='mg-pop';s.textContent=txt;s.style.color=col;f.append(s);setTimeout(()=>s.remove(),900)}
+function mgBurst(sc,ch,n){const f=sc.querySelector('.mg-fx');for(let i=0;i<n;i++){const s=document.createElement('i'),a=Math.random()*6.28,d=60+Math.random()*100;s.className='mg-p';s.textContent=ch[i%ch.length];s.style.setProperty('--dx',Math.cos(a)*d+'px');s.style.setProperty('--dy',Math.sin(a)*d*.8+'px');s.style.animationDelay=Math.random()*.3+'s';f.append(s);setTimeout(()=>s.remove(),1800)}}
+const MG_G={
+ timing(c){
+  const N=3;let r=0,hits=0,pos=0,dir=1,zc=0,zw=0,sp=0,live=1,last=performance.now();
+  c.ctl.innerHTML=`<div class="tm-bar"><i class="tm-z"></i><b class="tm-m"></b></div><div class="mg-big tm-d"></div><button style="width:100%">⚡ ${c.lbl}</button>`;
+  const q=s=>c.ctl.querySelector(s),z=q('.tm-z'),m=q('.tm-m'),d=q('.tm-d');
+  const setup=()=>{zw=24-r*5;zc=22+Math.random()*56;z.style.left=zc-zw/2+'%';z.style.width=zw+'%';sp=58+r*32;d.textContent='●'.repeat(r)+'○'.repeat(N-r);c.H('Tentativo '+(r+1)+' di '+N)};
+  const loop=t=>{if(!c.box.isConnected||!live)return;pos+=dir*sp*(t-last)/1000;last=t;if(pos>=100){pos=100;dir=-1}if(pos<=0){pos=0;dir=1}m.style.left=pos+'%';requestAnimationFrame(loop)};
+  q('button').onpointerdown=ev=>{ev.preventDefault();if(!live)return;const x=Math.abs(pos-zc),k=x<=zw/2?1:x<=zw/2+9?.5:0;hits+=k;
+    mgPop(c.sc,k===1?'PERFETTO!':k?'QUASI…':'MANCATO',k===1?'#3dffa0':k?'#ffcb3d':'#ff4d5e');SND.play(k===1?'ok':k?'click':'danger',1);c.sc.classList.remove('hk');void c.sc.offsetWidth;c.sc.classList.add('hk');
+    if(++r>=N){live=0;d.textContent='●'.repeat(N);setTimeout(()=>c.done(hits/N),700)}else setup()};
+  setup();requestAnimationFrame(t=>{last=t;loop(t)});
+ },
+ target(c){
+  const N=9;let sp=0,hit=0;const f=c.sc.querySelector('.mg-fx');f.style.pointerEvents='auto';c.sc.classList.add('tg-on');
+  const upd=()=>c.H(`🎯 Colpiti <b>${hit}</b> / ${N}`);
+  const fin=()=>{f.style.pointerEvents='';c.sc.classList.remove('tg-on');c.done(hit/N)};
+  const spawn=()=>{
+    if(!c.box.isConnected)return;if(sp>=N){setTimeout(fin,1300);return}
+    sp++;const t=document.createElement('b');let gone=0;t.className='tg';t.textContent=c.ico;t.style.left=8+Math.random()*76+'%';t.style.top=8+Math.random()*52+'%';f.append(t);
+    t.onpointerdown=ev=>{ev.preventDefault();if(gone)return;gone=1;hit++;t.className='tg hit';t.textContent='💥';SND.play('shot',1);upd();setTimeout(()=>t.remove(),350)};
+    setTimeout(()=>{if(!gone){gone=1;t.remove()}},1300);setTimeout(spawn,950);
+  };
+  c.ctl.innerHTML='<div class="mut" style="text-align:center">Tocca i bersagli nella scena!</div>';upd();spawn();
+ },
+ rapid(c){
+  const G=26,D=6000;let taps=0,t0=0,live=1;
+  c.ctl.innerHTML=`<div class="rp-bar"><i></i></div><button class="rp-b" style="width:100%">👟 ${c.lbl}</button>`;
+  const bar=c.ctl.querySelector('.rp-bar i'),b=c.ctl.querySelector('.rp-b'),zoom=v=>c.spr.style.transform='translate(-50%,-50%) scale('+(.5+v*1)+')';
+  const tick=()=>{if(!c.box.isConnected||!live)return;const l=D-(Date.now()-t0);c.H('⏱ '+Math.max(0,l/1000).toFixed(1)+' s');if(l<=0){live=0;b.disabled=true;setTimeout(()=>c.done(Math.min(1,taps/G)),500);return}setTimeout(tick,100)};
+  b.onpointerdown=ev=>{ev.preventDefault();if(!live)return;if(!t0){t0=Date.now();tick()}taps++;const v=Math.min(1,taps/G);bar.style.width=v*100+'%';zoom(v);SND.play('click',1);c.sc.classList.remove('hk');void c.sc.offsetWidth;c.sc.classList.add('hk')};
+  zoom(0);c.H('Tocca per partire!');
+ },
+ memory(c){
+  const SY=['🔺','🟦','🟡','🟩'],L=5,seq=Array.from({length:L},()=>Math.floor(Math.random()*4));let k=0,live=1;
+  c.ctl.innerHTML='<div class="mm-pads">'+SY.map((s,i)=>`<button class="mm" data-i="${i}" disabled>${s}</button>`).join('')+'</div>';
+  const pads=[...c.ctl.querySelectorAll('.mm')],fl=(i,ms)=>{pads[i].classList.add('on');SND.play('click',1);setTimeout(()=>pads[i].classList.remove('on'),ms)};
+  const fin=()=>{live=0;pads.forEach(p=>p.disabled=true);setTimeout(()=>c.done(k/L),700)};
+  c.H('👀 Osserva la sequenza…');
+  seq.forEach((s,i)=>setTimeout(()=>{if(c.box.isConnected)fl(s,380)},900+i*650));
+  setTimeout(()=>{if(!c.box.isConnected)return;c.H('👆 Ripeti la sequenza');pads.forEach(p=>p.disabled=false)},900+L*650);
+  pads.forEach(p=>p.onclick=()=>{if(!live)return;const i=+p.dataset.i;fl(i,200);if(i===seq[k]){k++;if(k>=L)fin()}else{SND.play('danger',1);fin()}});
+ }
+};
 function mgCss(){
   if(document.getElementById('mgcss'))return;
   const s=document.createElement('style');s.id='mgcss';
   s.textContent=`.mg{width:100%;margin-top:14px;text-align:center}
-.mg-scene{position:relative;height:230px;overflow:hidden;border:4px solid var(--ink);box-shadow:4px 4px 0 var(--ink),0 0 0 3px var(--ec,var(--acc));image-rendering:pixelated;background:linear-gradient(#1a1250 0 56%,#3a2480 56% 59%,#120d2c 59%)}
+.mg-scene{position:relative;height:240px;overflow:hidden;border:4px solid var(--ink);box-shadow:4px 4px 0 var(--ink),0 0 0 3px var(--ec,var(--acc));image-rendering:pixelated;background:linear-gradient(#1a1250 0 56%,#3a2480 56% 59%,#120d2c 59%);touch-action:manipulation;user-select:none}
+.mg-scene.g-target{background:linear-gradient(#27408f 0 56%,#d9822b 56% 59%,#3a1d0f 59%)}
+.mg-scene.g-rapid{background:linear-gradient(#4a1230 0 56%,#a02a3a 56% 59%,#1d0a14 59%)}
+.mg-scene.g-memory{background:linear-gradient(#0e3b4a 0 56%,#1f8a8a 56% 59%,#0a1f26 59%)}
 .mg-sky{position:absolute;left:0;right:0;top:0;height:56%;background:radial-gradient(#fff 1px,transparent 1.6px) 0 0/22px 22px;opacity:.22}
 .mg-floor{position:absolute;left:0;right:0;bottom:0;height:41%;background:repeating-linear-gradient(90deg,rgba(255,255,255,.08) 0 4px,transparent 4px 36px),repeating-linear-gradient(0deg,rgba(0,0,0,.3) 0 4px,transparent 4px 26px)}
 .mg-spr{position:absolute;left:50%;top:47%;font-size:88px;line-height:1;transform:translate(-50%,-50%);filter:drop-shadow(4px 4px 0 var(--ink));animation:mgbob 1s steps(4) infinite}
-.mg-xh{position:absolute;left:50%;top:47%;width:52px;height:52px;margin:-26px 0 0 -26px;border:3px solid var(--ec,var(--acc));opacity:.75;animation:blink 1s steps(1) infinite}
-.mg-hand{position:absolute;right:14%;bottom:-10px;font-size:58px;transform:rotate(-18deg);filter:drop-shadow(3px 3px 0 var(--ink))}
+.mg-scene.still .mg-spr,.mg-scene.tg-on .mg-spr{animation:none}.mg-scene.tg-on .mg-spr{display:none}
+.mg-hand{position:absolute;right:14%;bottom:-10px;font-size:58px;transform:rotate(-18deg);filter:drop-shadow(3px 3px 0 var(--ink));z-index:2}
 .mg-hand.l{right:auto;left:14%;transform:rotate(18deg) scaleX(-1)}
-.mg-scene.win .mg-spr{animation:mgwin .5s steps(5) both}
-.mg-scene.lose .mg-spr{filter:grayscale(1) drop-shadow(4px 4px 0 var(--ink));animation:shake .4s steps(4) 2}
-.mg-scene.win .mg-xh,.mg-scene.lose .mg-xh{display:none}
-@keyframes mgbob{50%{transform:translate(-50%,-57%)}}
-@keyframes mgwin{50%{transform:translate(-50%,-50%) scale(1.5) rotate(10deg)}to{transform:translate(-50%,-50%) scale(1.15)}}
-.mg-env{margin:14px 0 4px;font-style:italic}
-.mg-act{font-weight:700;margin:0 0 10px}
+.mg-scene.hk .mg-hand{animation:mgjab .18s steps(3)}
+.mg-fx{position:absolute;inset:0;z-index:3;pointer-events:none;overflow:hidden}
+.tg{position:absolute;font-size:46px;line-height:1;cursor:pointer;filter:drop-shadow(3px 3px 0 var(--ink));animation:tgpop .2s steps(3),tgdrift 1.3s linear both}
+.tg.hit{animation:tgpop .2s steps(3) reverse}
+.mg-pop{position:absolute;left:50%;top:30%;font:400 13px/1 var(--f-px);text-shadow:2px 2px 0 var(--ink);white-space:nowrap;animation:mgrise .9s steps(8) both}
+.mg-p{position:absolute;left:50%;top:47%;font-size:26px;animation:mgfly 1.3s ease-out both}
+.mg-env{margin:14px 0 4px;font-style:italic}.mg-act{font-weight:700;margin:0 0 8px}
+.mg-hud{min-height:30px;margin:10px 0 4px}
 .mg-pool{border:2px dashed var(--ec,var(--acc));padding:8px 10px;margin:8px 0;font-size:.92em}
-.mg .dice{margin:14px 0 8px}.mg .die{width:42px;height:42px;font-size:13px;border-width:3px}
-.mg-g{display:inline-block;margin:3px;padding:4px 8px;border:2px solid var(--ok);color:var(--ok);font:400 10px/1.4 var(--f-px)}
-.mg-g.x{border-color:var(--mut,#888);color:var(--mut,#888)}
-.mg-big{font:400 14px/1.6 var(--f-px);margin:10px 0 4px;text-shadow:2px 2px 0 var(--ink)}
-.mg-big.ok{color:var(--ok)}.mg-big.ko{color:var(--danger)}`;
+.mg .dice{margin:12px 0 6px}.mg .die{width:42px;height:42px;font-size:13px;border-width:3px}
+.mg-g{display:inline-block;margin:3px;padding:4px 8px;border:2px solid var(--ok);color:var(--ok);font:400 10px/1.4 var(--f-px)}.mg-g.x{border-color:#888;color:#888}
+.mg-big{font:400 14px/1.6 var(--f-px);margin:8px 0 4px;text-shadow:2px 2px 0 var(--ink)}.mg-big.ok{color:var(--ok)}.mg-big.ko{color:var(--danger)}
+.tm-bar{position:relative;height:34px;margin:8px 0;background:#120d2c;border:3px solid var(--ink);box-shadow:3px 3px 0 var(--ink)}
+.tm-z{position:absolute;top:0;bottom:0;background:var(--ok);opacity:.8}.tm-m{position:absolute;top:-4px;bottom:-4px;width:8px;margin-left:-4px;background:#fff;border:2px solid var(--ink)}
+.rp-bar{height:22px;margin:8px 0;background:#120d2c;border:3px solid var(--ink)}.rp-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--acc),var(--ok))}
+.mm-pads{display:grid;grid-template-columns:1fr 1fr;gap:10px}.mm{height:60px;font-size:30px}.mm.on{background:#fff;transform:scale(.94);box-shadow:0 0 18px #fff}
+.mg-scene.t-crit{animation:mggold 1s steps(5) 2}.mg-scene.t-crit .mg-spr{animation:mgspin 1.2s steps(10) both}
+.mg-scene.t-ok .mg-spr{animation:mgwin .5s steps(5) both}
+.mg-scene.t-ko .mg-spr{animation:mgsink 1.3s steps(8) both}
+.mg-scene.t-fiasco{animation:shake .5s steps(4) 3,mgred 1.5s steps(6)}.mg-scene.t-fiasco .mg-spr{animation:none}
+@keyframes mgbob{50%{transform:translate(-50%,-57%)}}
+@keyframes mgjab{50%{transform:translate(0,-26px) scale(1.15)}}
+@keyframes tgpop{from{transform:scale(0)}}@keyframes tgdrift{to{margin-left:42px}}
+@keyframes mgrise{to{transform:translateY(-34px);opacity:0}}
+@keyframes mgfly{to{transform:translate(var(--dx),var(--dy)) scale(.4) rotate(220deg);opacity:0}}
+@keyframes mgwin{50%{transform:translate(-50%,-50%) scale(1.5) rotate(10deg)}to{transform:translate(-50%,-50%) scale(1.15)}}
+@keyframes mgspin{to{transform:translate(-50%,-50%) scale(1.7) rotate(720deg)}}
+@keyframes mgsink{to{transform:translate(-50%,10%) scale(.7) rotate(25deg);opacity:.35;filter:grayscale(1)}}
+@keyframes mggold{50%{box-shadow:inset 0 0 70px 24px rgba(255,210,60,.85),4px 4px 0 var(--ink)}}
+@keyframes mgred{50%{box-shadow:inset 0 0 70px 24px rgba(255,0,60,.8),4px 4px 0 var(--ink)}}`;
   document.head.append(s);
 }
-function mgShow(box,e,res,anim){
-  const dd=box.querySelector('.mg-dice'),out=box.querySelector('.mg-out'),sc=box.querySelector('.mg-scene'),go=box.querySelector('#mgGo'),pl=box.querySelector('.mg-pool');
-  if(go)go.style.display='none';if(pl)pl.style.display='none';
-  const R=mgInc(res.d),o=e.mg.outcomes||{};
-  dd.innerHTML=res.d.map(()=>'<div class="die rolling"><b>?</b></div>').join('');
-  const els=[...dd.children];let done=false,iv=0,q=!anim;
+/* animazione dei dadi (a metà prova) */
+function mgDice(ctl,res,anim,cb){
+  const R=mgInc(res.d);
+  ctl.innerHTML='<div class="dice">'+res.d.map(()=>'<div class="die rolling"><b>?</b></div>').join('')+'</div><div class="mg-chips"></div>';
+  const els=[...ctl.querySelectorAll('.die')],ch=ctl.querySelector('.mg-chips');let done=0,iv=0,q=!anim;
   const land=(d,i)=>{d.className='die land'+(res.d[i]===10?' max':res.d[i]===1?' min':'');d.firstChild.textContent=res.d[i];if(!q)SND.play('land',1)};
-  const fin=()=>{
-    if(done)return;done=true;clearInterval(iv);q=true;els.forEach(land);
-    const chips=R.g.map(g=>`<span class="mg-g">${g.join('+')}${g.length>1?'='+g.reduce((a,b)=>a+b,0):''}</span>`).join('')+(R.left.length?`<span class="mg-g x">scarto: ${R.left.join('+')}</span>`:'');
-    out.innerHTML=`<div>${chips||'<span class="mut">Nessun incremento</span>'}</div><div class="mg-big ${res.ok?'ok':'ko'}">${res.ok?'✔ SUCCESSO':'✘ FALLIMENTO'} · ${R.g.length}/${res.need} INCREMENTI</div><p style="margin:4px 0">${esc(res.ok?o.success_text:o.failure_text)}</p>`;
-    sc.classList.add(res.ok?'win':'lose');
-    if(anim){SND.play(res.ok?'fanfare':'alarm',1);if(navigator.vibrate)try{navigator.vibrate(res.ok?[40,40,90]:[200,80,200])}catch(x){}}
-  };
+  const fin=()=>{if(done)return;done=1;clearInterval(iv);q=true;els.forEach(land);
+    ch.innerHTML=R.g.map(g=>`<span class="mg-g">${g.join('+')}${g.length>1?'='+g.reduce((a,b)=>a+b,0):''}</span>`).join('')+(R.left.length?`<span class="mg-g x">scarto ${R.left.join('+')}</span>`:'');if(cb)cb()};
   if(!anim||!res.d.length||REDM()){fin();return}
-  SND.play('dice',1);
-  const step=res.d.length>10?90:240,t0=Date.now();
+  SND.play('dice',1);const step=res.d.length>10?90:240,t0=Date.now();
   iv=setInterval(()=>{const k=Math.floor((Date.now()-t0-700)/step)+1;els.forEach((d,i)=>{if(i<k){if(!d.classList.contains('land'))land(d,i)}else d.firstChild.textContent=1+Math.floor(Math.random()*10)});if(k<res.d.length)SND.play('dice');else fin()},70);
-}
-async function mgRoll(box,e){
-  const p=me();if(!p||!db||box.dataset.busy||mgRes(e,p))return;
-  box.dataset.busy=1;
-  const mc=e.mg.mechanic,pl=mgPool(p,e.mg),need=mgClamp(mc.difficulty_increments);
-  const d=Array.from({length:pl.n},()=>rollD(10)),R=mgInc(d);
-  const res={d,inc:R.g.length,ok:R.g.length>=need,need,t:pl.t,a:pl.a,ts:Date.now()};
-  /* risultato salvato PRIMA dell'animazione: chiudere o ricaricare non permette di ritirare */
-  const ev=Object.entries({...(p.evRes||{}),[mgKey(e)]:res}).sort((x,y)=>(y[1].ts||0)-(x[1].ts||0)).slice(0,20);
-  const ok=await guard(db.collection('players').doc(uid).update({evRes:Object.fromEntries(ev)}).then(()=>1));
-  if(!ok){delete box.dataset.busy;return}
-  mgShow(box,e,res,true);
 }
 function mgMount(box,e){
   mgCss();
-  const p=me(),mg=e.mg,mc=mg.mechanic||{},need=mgClamp(mc.difficulty_increments),pl=p?mgPool(p,mg):{n:0},old=mgRes(e,p);
-  const tl=pl.T?pl.T[1]:mc.suggested_trait,sl=pl.S?pl.S[1]:mc.suggested_skill;
-  box.innerHTML=`<div class="mg"><div class="mg-scene"><div class="mg-sky"></div><div class="mg-floor"></div><div class="mg-spr">${esc(evIco(e)==='🎮'?'🎯':evIco(e))}</div><i class="mg-xh"></i><div class="mg-hand l">✋</div><div class="mg-hand">✋</div></div>
-<div class="mg-env">${esc((mg.visual_theme||{}).environment_description||'')}</div><div class="mg-act">${esc(mc.action_prompt||'')}</div>
-<div class="mg-pool"><b>${esc(String(tl).toUpperCase())}</b> ${pl.t||0}${pl.tb?' (+'+pl.tb+' oggetti)':''} + <b>${esc(String(sl).toUpperCase())}</b> ${pl.a||0}${pl.sb?' (+'+pl.sb+' oggetti)':''} = <b>${pl.n}d10</b><br><span class="mut">Servono ${need} incrementi (ogni incremento = 10 o più, con un dado o sommando più dadi)</span></div>
-<div class="dice mg-dice"></div><div class="mg-out"></div><button id="mgGo" style="width:100%">🎲 TIRA I DADI</button></div>`;
-  const go=box.querySelector('#mgGo');
-  if(old){mgShow(box,e,old,false);return}
-  go.onclick=()=>mgRoll(box,e);
+  const p=me(),mg=e.mg,mc=mg.mechanic||{},vt=mg.visual_theme||{},o=mg.outcomes||{},game=mgGame(mg),ico=evIco(e)==='🎮'?'🎯':evIco(e),old=mgRes(e,p),sk=mgFind(AB,mc.suggested_skill);
+  box.innerHTML=`<div class="mg"><div class="mg-scene g-${game}"><div class="mg-sky"></div><div class="mg-floor"></div><div class="mg-spr">${esc(ico)}</div><div class="mg-fx"></div><div class="mg-hand l">✋</div><div class="mg-hand">✋</div></div><div class="mg-hud"></div><div class="mg-ctl"></div></div>`;
+  const Q=s=>box.querySelector(s),sc=Q('.mg-scene'),hud=Q('.mg-hud'),ctl=Q('.mg-ctl'),spr=Q('.mg-spr'),H=h=>{hud.innerHTML=h};
+  const btn=(l,fn)=>{ctl.innerHTML=`<button style="width:100%">${l}</button>`;ctl.firstChild.onclick=fn};
+  const star=s=>s>=.75?'⭐⭐⭐':s>=.4?'⭐⭐':'⭐';
+  const end=(res,anim)=>{
+    const tier=MG_TIER(res.inc,res.need),X=MG_T[tier],base=(res.ok?o.success_text:o.failure_text)||'';
+    const x=tier==='ko'?(res.need-res.inc===1?'Per un soffio…':'Non è bastato.'):X.x;
+    sc.classList.remove('still');sc.classList.add('fin','t-'+tier);
+    if(anim){
+      SND.stopMusic();
+      ({crit:()=>{SND.play('fanfare',1);setTimeout(()=>SND.play('crit',1),600);mgBurst(sc,['✨','⭐','🎉','💫'],34)},ok:()=>{SND.play('quest',1);mgBurst(sc,['✨','⭐'],14)},ko:()=>{SND.play('danger',1);mgBurst(sc,['💨','💧'],10)},fiasco:()=>{SND.play('alarm',1);mgBurst(sc,['💢','💥','☠️'],22);spr.textContent='💥';setTimeout(()=>spr.textContent='💀',650)}})[tier]();
+      if(navigator.vibrate)try{navigator.vibrate(res.ok?[40,40,90]:[200,80,200])}catch(z){}
+    }else if(tier==='fiasco')spr.textContent='💀';
+    setTimeout(()=>H(`<div class="mg-big ${res.ok?'ok':'ko'}">${X.h}</div><div class="mg-big" style="font-size:11px">${res.inc}/${res.need} INCREMENTI · PROVA ${star(res.sc||0)}</div><p style="margin:6px 0">${esc(base)}</p><p class="mut" style="margin:0">${esc(x)}</p>`),anim?1700:0);
+  };
+  const roll=async s=>{
+    if(box.dataset.busy||mgRes(e,p))return;box.dataset.busy=1;
+    const pl=mgPool(p,mg),need=mgClamp(mc.difficulty_increments),d=Array.from({length:pl.n},()=>rollD(10)),R=mgInc(d);
+    const res={d,inc:R.g.length,ok:R.g.length>=need,need,t:pl.t,a:pl.a,sc:Math.round(s*100)/100,ts:Date.now()};
+    /* salvato PRIMA dell'animazione: chiudere o ricaricare non permette di ritirare */
+    const ev=Object.entries({...(p.evRes||{}),[mgKey(e)]:res}).sort((x,y)=>(y[1].ts||0)-(x[1].ts||0)).slice(0,20);
+    if(!(await guard(db.collection('players').doc(uid).update({evRes:Object.fromEntries(ev)}).then(()=>1)))){delete box.dataset.busy;return}
+    H('<div class="mg-big">🎲 I DADI DECIDONO…</div>');
+    mgDice(ctl,res,true,()=>setTimeout(()=>end(res,true),1300));
+  };
+  const mid=s=>{
+    sc.classList.remove('still');spr.style.transform='';
+    const pl=mgPool(p,mg),need=mgClamp(mc.difficulty_increments),tl=pl.T?pl.T[1]:mc.suggested_trait,sl=pl.S?pl.S[1]:mc.suggested_skill;
+    H(`<div class="mg-big ok">${star(s)}</div><div class="mut">${s>=.75?'Esecuzione impeccabile.':s>=.4?'Una prova discreta.':'Una prova incerta.'}</div><div class="mg-pool"><b>${esc(String(tl).toUpperCase())}</b> ${pl.t||0}${pl.tb?' (+'+pl.tb+')':''} + <b>${esc(String(sl).toUpperCase())}</b> ${pl.a||0}${pl.sb?' (+'+pl.sb+')':''} = <b>${pl.n}d10</b><br><span class="mut">Servono ${need} incrementi: a metà prova sono i dadi a decidere come va a finire.</span></div>`);
+    btn(`🎲 TIRA ${pl.n} d10`,()=>roll(s));
+  };
+  const play=()=>{
+    sc.classList.add('still');spr.style.transform='';
+    MG_G[game]({box,sc,ctl,spr,H,ico,lbl:MG_LBL[sk&&sk[0]]||'AGISCI',done:s=>{ctl.innerHTML='';mid(s)}});
+  };
+  if(old){end(old,false);mgDice(ctl,old,false);return}
+  H(`<div class="mg-env">${esc(vt.environment_description||'')}</div><div class="mg-act">${esc(mc.action_prompt||'')}</div><div class="mut">${MG_HOW[game]}</div>`);
+  btn('▶ INIZIA LA PROVA',play);
 }
 
 {const _re=renderMaster;renderMaster=function(){if(tab==='events')return masterEvents();return _re()}}
