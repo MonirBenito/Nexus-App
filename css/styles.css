@@ -1064,3 +1064,66 @@ html.dv-tablet #hud{padding-left:20px;padding-right:20px}
 .modal.enc-m.hurt{animation:notifhurt .8s ease-out both}
 .modal.enc-m.notif-out{animation:notifbgout .22s ease-in both}
 @media (prefers-reduced-motion:reduce){.toast,.toast.err,.toast.out,.toast::after{animation:none}}
+
+
+/* =====================================================================
+   EVENTI: notifica, schermata evento in corso, chip, scheda Master
+   (--ec = colore del tipo di evento, impostato da js/app.js)
+   ===================================================================== */
+.evchip{position:fixed;left:12px;bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:44;max-width:calc(100vw - 24px);display:flex;align-items:center;gap:8px;margin:0;padding:8px 14px;
+  font:400 9px/1.5 var(--f-px);letter-spacing:1px;text-transform:uppercase;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  background:var(--ink);border:3px solid var(--ec,var(--acc));
+  box-shadow:0 0 0 3px var(--ink),0 0 18px color-mix(in srgb,var(--ec,var(--acc)) 70%,transparent);
+  animation:evchipin .5s cubic-bezier(.2,1.3,.4,1) both,evchippulse 1.6s ease-in-out .5s infinite}
+.evchip span{font-size:15px}
+body.mapfull .evchip,body.locked .evchip{display:none}
+@keyframes evchipin{from{opacity:0;transform:translateX(-30px) scale(.7)}to{opacity:1;transform:none}}
+@keyframes evchippulse{50%{box-shadow:0 0 0 3px var(--ink),0 0 30px var(--ec,var(--acc))}}
+
+.evov{position:fixed;inset:0;z-index:47;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;align-items:center;
+  padding:max(22px,env(safe-area-inset-top)) 16px 30px;color:var(--tx);
+  background:radial-gradient(ellipse at 50% 24%,color-mix(in srgb,var(--ec) 30%,#07030f),#03020a 72%);
+  animation:fadeIn .4s ease-out both;overscroll-behavior:contain}
+.evov::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:repeating-linear-gradient(0deg,rgba(0,0,0,.22) 0 2px,transparent 2px 4px),
+    radial-gradient(circle,color-mix(in srgb,var(--ec) 16%,transparent) 1px,transparent 1.6px) 0 0/26px 26px}
+.evov::after{content:'';position:fixed;left:0;right:0;top:-18%;height:18%;pointer-events:none;z-index:0;
+  background:linear-gradient(180deg,transparent,color-mix(in srgb,var(--ec) 26%,transparent),transparent);animation:scsweepy 3.6s linear infinite}
+.evov .sc-cor{border-color:var(--ec);filter:drop-shadow(0 0 6px var(--ec))}
+.ev-flash{position:fixed;inset:0;z-index:60;pointer-events:none;background:color-mix(in srgb,var(--ec) 40%,#fff);animation:scflash .9s ease-out both}
+.ev-in{position:relative;z-index:1;width:100%;max-width:520px;margin:auto 0;text-align:center}
+.ev-badge{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;font:400 10px/1.4 var(--f-px);letter-spacing:2px;color:var(--ec);
+  background:var(--ink);border:3px solid var(--ec);box-shadow:0 0 14px color-mix(in srgb,var(--ec) 60%,transparent);
+  animation:nxpop .5s cubic-bezier(.2,1.4,.4,1) .2s both}
+.ev-badge i{display:block;width:9px;height:9px;background:var(--danger);animation:blink 1s steps(1) infinite}
+.ev-ico{position:relative;width:min(52vw,190px);aspect-ratio:1;margin:22px auto 10px;display:grid;place-items:center;border-radius:50%;
+  border:4px solid var(--ec);background:radial-gradient(circle,color-mix(in srgb,var(--ec) 35%,#000),#05020c 72%);
+  box-shadow:0 0 0 3px var(--ink),0 0 46px color-mix(in srgb,var(--ec) 65%,transparent),inset 0 0 36px rgba(0,0,0,.6);
+  animation:npcpop .9s cubic-bezier(.3,1.2,.4,1) .35s both}
+.ev-ico b{font-size:clamp(54px,18vw,84px);line-height:1;filter:drop-shadow(3px 3px 0 var(--ink));animation:float 3s ease-in-out 1.2s infinite}
+.ev-ico s{position:absolute;inset:0;border-radius:50%;border:3px solid var(--ec);opacity:0;text-decoration:none;animation:evring 2.4s ease-out infinite}
+.ev-ico s:nth-of-type(2){animation-delay:1.2s}
+@keyframes evring{0%{opacity:.8;transform:scale(1)}100%{opacity:0;transform:scale(1.7)}}
+.ev-kind{display:inline-block;font:400 10px/1.6 var(--f-px);letter-spacing:3px;color:var(--ec);text-shadow:0 0 12px var(--ec),2px 2px 0 var(--ink);animation:qstamp .5s cubic-bezier(.2,.9,.3,1.4) .9s both}
+.ev-title{margin:16px 0 10px;min-height:1.6em;font:400 clamp(16px,5vw,24px)/1.5 var(--f-px);text-shadow:0 0 16px var(--ec),3px 3px 0 var(--ink);overflow-wrap:anywhere}
+.ev-title.typing::after,.ev-desc.typing::after{content:'▌';margin-left:2px;animation:itblink .5s steps(1) infinite}
+.ev-desc{margin:8px 0 0;padding:14px;text-align:left;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.5;
+  background:color-mix(in srgb,var(--card) 80%,#000);border:3px solid var(--line);border-left:8px solid var(--ec);
+  box-shadow:0 0 0 3px var(--ink),5px 5px 0 3px var(--ink);animation:nxin .4s ease-out both}
+.ev-desc:empty{display:none}
+.ev-tm{margin-top:20px;animation:nxin .4s ease-out 1.3s both}
+.ev-clk{font:400 clamp(28px,10vw,46px)/1.3 var(--f-px);color:var(--gold);text-shadow:0 0 14px color-mix(in srgb,var(--gold) 70%,transparent),3px 3px 0 var(--ink)}
+.ev-tm.low .ev-clk{color:var(--danger);animation:scblink .8s steps(2) infinite}
+.ev-tm.zero .ev-clk{font-size:clamp(14px,4.4vw,22px);color:var(--danger)}
+.ev-tb{height:16px;margin:8px auto 0;max-width:340px;border:3px solid var(--ec);background:#020611;overflow:hidden;box-shadow:0 0 0 2px var(--ink)}
+.ev-tb i{display:block;height:100%;width:100%;background:repeating-linear-gradient(90deg,var(--ec) 0 8px,transparent 8px 12px);transition:width .5s linear}
+.ev-act{display:flex;gap:10px;margin-top:22px}
+.ev-endmsg{display:none;margin:16px 0 0;font:400 10px/1.8 var(--f-px);color:var(--mut)}
+.evov.ended{filter:saturate(.35)}
+.evov.ended .ev-endmsg{display:block}
+.evov.ended .ev-badge{color:var(--mut);border-color:var(--line);box-shadow:none}
+.evov.ended .ev-badge i{background:var(--mut);animation:none}
+.evov.ended .ev-ico s,.evov.ended .ev-tm{display:none!important}
+.evov.ended::after{display:none}
+.evcard.live{border-color:var(--ec)}
+@media (prefers-reduced-motion:reduce){.evov::after{animation:none!important}}
