@@ -2761,7 +2761,8 @@ const EVK={
   combattimento:{i:'⚔️',c:'#ff9a3d',l:'COMBATTIMENTO',s:'alarm',h:1,p:'evpericolo'},
   scoperta:{i:'🔎',c:'#ffcb3d',l:'SCOPERTA',s:'quest',h:0,p:'evento'},
   mistero:{i:'🔮',c:'#b57bff',l:'MISTERO',s:'magic',h:0,p:'evento'},
-  festa:{i:'🎉',c:'#3dffa0',l:'FESTA',s:'fanfare',h:0,p:'evfesta'}
+  festa:{i:'🎉',c:'#3dffa0',l:'FESTA',s:'fanfare',h:0,p:'evfesta'},
+  minigioco:{i:'🎮',c:'#ffcb3d',l:'MINIGIOCO',s:'quest',h:0,p:'evento'}
 };
 const evK=e=>EVK[e.ek]||EVK.generico,evIco=e=>String(e.icon||'').trim()||evK(e).i;
 const evVis=e=>!(e.to&&e.to.length)||e.to.includes(uid);
@@ -2785,12 +2786,13 @@ function evOpen(id){
   const K=evK(e),d=evDur(e)*60000;
   EV.id=id;EV.at=e.at;EV.e=e;EV.ended=false;
   const o=document.createElement('div');o.id='evov';o.className='evov';o.style.setProperty('--ec',K.c);EV.ov=o;
-  o.innerHTML=`${SC_COR}<div class="ev-flash"></div><div class="ev-in"><div class="ev-badge"><i></i><span id="evBt">EVENTO IN CORSO</span></div><div class="ev-ico"><b>${esc(evIco(e))}</b><s></s><s></s></div><div class="ev-kind">${K.i} ${K.l}</div><h2 class="ev-title" id="evT"></h2><div class="ev-desc" id="evD"></div><div class="ev-tm" id="evTm" style="display:none"><div class="ev-clk" id="evC">--:--</div><div class="ev-tb"><i id="evB"></i></div></div><p class="ev-endmsg">Il Master ha concluso l'evento.</p><div class="ev-act"><button class="g grow" id="evX">Chiudi</button></div></div>`;
+  o.innerHTML=`${SC_COR}<div class="ev-flash"></div><div class="ev-in"><div class="ev-badge"><i></i><span id="evBt">EVENTO IN CORSO</span></div><div class="ev-ico"><b>${esc(evIco(e))}</b><s></s><s></s></div><div class="ev-kind">${K.i} ${K.l}</div><h2 class="ev-title" id="evT"></h2><div class="ev-desc" id="evD"></div><div id="evMg"></div><div class="ev-tm" id="evTm" style="display:none"><div class="ev-clk" id="evC">--:--</div><div class="ev-tb"><i id="evB"></i></div></div><p class="ev-endmsg">Il Master ha concluso l'evento.</p><div class="ev-act"><button class="g grow" id="evX">Chiudi</button></div></div>`;
   document.body.append(o);
   const q=s=>o.querySelector(s);
   SND.play(K.s,1);
   if(navigator.vibrate)try{navigator.vibrate(K.h?[120,60,200]:[40,40,60])}catch(x){}
   const tt=q('#evT'),dd=q('#evD');
+  if(e.mg)mgMount(q('#evMg'),e);
   if(REDM()){tt.textContent=e.title;dd.textContent=e.desc||''}
   else EV.ty=typeInto(tt,e.title,false,()=>{EV.ty=e.desc?typeInto(dd,e.desc):null});
   if(d>0){
@@ -2816,6 +2818,7 @@ function evEnd(){
   tt.textContent=e.title;tt.classList.remove('typing');dd.textContent=e.desc||'';dd.classList.remove('typing');
   o.classList.add('ended');q('#evBt').textContent='EVENTO CONCLUSO';
   const b=q('#evX');b.className='grow';
+  const mgb=q('#mgGo');if(mgb)mgb.disabled=true;
   SND.play('close',1);
 }
 /* notifica animata di nuovo evento */
@@ -2856,7 +2859,7 @@ function evSync(){
 /* ---- pannello Master: gestione eventi ---- */
 const evFields=()=>[
   {l:'Titolo dell\'evento',n:'title'},
-  {l:'Tipo (cambia colore, icona e suono della notifica)',n:'ek',t:'select',o:Object.keys(EVK)},
+  {l:'Tipo (cambia colore, icona e suono della notifica)',n:'ek',t:'select',o:Object.keys(EVK).filter(k=>k!=='minigioco')},
   {l:'Icona personalizzata (un emoji, opzionale)',n:'icon'},
   {l:'Descrizione (cosa succede: la leggono i player)',n:'desc',t:'area'},
   {l:'Durata in minuti (0 = nessun limite di tempo)',n:'dur',t:'number'},
@@ -2868,15 +2871,16 @@ function masterEvents(){
     live=L.filter(e=>e.active).length;
   app.innerHTML=hdr('🎭 Eventi',1)+
     (live?`<div class="card sc-alert"><h3>🔴 ${live} in corso</h3><p class="mut" style="margin:0">I player vedono la schermata dell'evento finché non lo termini.</p></div>`:'')+
-    `<button id="evAdd" style="width:100%">+ Nuovo evento</button>`+
+    `<button id="evAdd" style="width:100%">+ Nuovo evento</button><button id="mgAdd" style="width:100%;margin-top:8px">🎮 Nuovo minigioco</button>`+
     (L.map(e=>{
       const K=evK(e),seen=e.at?Object.values(S.players).filter(p=>(p.seenEv||{})[e.id]===e.at).map(p=>esc(p.username)):[];
-      return `<div class="card evcard ${e.active?'live':''}" style="--ec:${K.c}"><div class="row"><div class="avatar" style="font-size:24px;border-color:${K.c}">${esc(evIco(e))}</div><div class="grow"><b>${esc(e.title)}</b> <span class="tag" style="color:${K.c}">${K.l}</span> ${e.active?'<span class="tag" style="color:var(--danger)">🔴 IN CORSO</span>':e.at?'<span class="tag">✔ concluso</span>':'<span class="tag">pronto</span>'}<div class="mut">👁 ${e.to&&e.to.length?e.to.map(i=>esc(S.players[i]?.username||'?')).join(', '):'Tutti i player'}${evDur(e)?' · ⏳ '+evDur(e)+' min':''}</div>${e.at?`<div class="mut">Avviato: ${new Date(e.at).toLocaleString('it-IT')}${seen.length?' · ✔ visto da '+seen.join(', '):''}</div>`:''}</div></div>${e.desc?`<p class="mut" style="white-space:pre-wrap;margin:8px 0 0">${esc(e.desc)}</p>`:''}<div class="row" style="margin-top:10px;flex-wrap:wrap">${e.active?`<button class="d grow" data-evs="${e.id}">⏹ Termina evento</button>`:`<button class="grow" data-evl="${e.id}">▶ ${e.at?'Rilancia':'Avvia'} evento</button>`}<button class="g" data-eve="${e.id}">Modifica</button><button class="d" data-evd="${e.id}">✕</button></div></div>`;
+      return `<div class="card evcard ${e.active?'live':''}" style="--ec:${K.c}"><div class="row"><div class="avatar" style="font-size:24px;border-color:${K.c}">${esc(evIco(e))}</div><div class="grow"><b>${esc(e.title)}</b> <span class="tag" style="color:${K.c}">${K.l}</span> ${e.active?'<span class="tag" style="color:var(--danger)">🔴 IN CORSO</span>':e.at?'<span class="tag">✔ concluso</span>':'<span class="tag">pronto</span>'}<div class="mut">👁 ${e.to&&e.to.length?e.to.map(i=>esc(S.players[i]?.username||'?')).join(', '):'Tutti i player'}${evDur(e)?' · ⏳ '+evDur(e)+' min':''}</div>${e.at?`<div class="mut">Avviato: ${new Date(e.at).toLocaleString('it-IT')}${seen.length?' · ✔ visto da '+seen.join(', '):''}</div>`:''}</div></div>${e.desc?`<p class="mut" style="white-space:pre-wrap;margin:8px 0 0">${esc(e.desc)}</p>`:''}${e.mg?mgMasterHtml(e):''}<div class="row" style="margin-top:10px;flex-wrap:wrap">${e.active?`<button class="d grow" data-evs="${e.id}">⏹ Termina evento</button>`:`<button class="grow" data-evl="${e.id}">▶ ${e.at?'Rilancia':'Avvia'} evento</button>`}<button class="g" data-eve="${e.id}">Modifica</button><button class="d" data-evd="${e.id}">✕</button></div></div>`;
     }).join('')||'<p class="mut">Nessun evento: creane uno e avvialo quando vuoi.</p>');
   bind();
   const on=(a,fn)=>app.querySelectorAll(`[data-${a}]`).forEach(x=>x.onclick=()=>fn(x.dataset[a]));
+  $('#mgAdd').onclick=mgNew;
   $('#evAdd').onclick=async()=>{const r=await ask('Nuovo evento',evFields(),{ek:'generico',dur:0,to:[]});if(!r||!r.title)return;const id=uid8();guard(C.doc(id).set({id,...evData(r),active:false,at:0,created:Date.now()}))};
-  on('eve',async id=>{const e=S.events[id];if(!e)return;const r=await ask('Modifica evento',evFields(),{...e,icon:e.icon||'',dur:e.dur||0,to:e.to||[]});if(!r||!r.title)return;guard(C.doc(id).update(evData(r)))});
+  on('eve',async id=>{const e=S.events[id];if(!e)return;if(e.mg)return mgEdit(id);const r=await ask('Modifica evento',evFields(),{...e,icon:e.icon||'',dur:e.dur||0,to:e.to||[]});if(!r||!r.title)return;guard(C.doc(id).update(evData(r)))});
   on('evl',async id=>{
     const e=S.events[id];if(!e)return;
     const who=e.to&&e.to.length?e.to.map(i=>S.players[i]?.username||'?').join(', '):'tutti i player';
@@ -2887,6 +2891,197 @@ function masterEvents(){
   on('evs',id=>{const e=S.events[id];if(!e)return;guard(C.doc(id).update({active:false,ended:Date.now()}));toast('⏹ Evento terminato: '+e.title)});
   on('evd',async id=>{if(await askYes('Eliminare questo evento?'))guard(C.doc(id).delete())});
 }
+/* ===== MINIGIOCHI (dentro la bacheca Eventi) =====
+   Il Master scrive un'idea creativa → l'app la trasforma in un JSON standard (titolo, tema visivo in prima persona, meccanica, esiti).
+   Il Master può rivedere e correggere ogni campo, oppure incollare un JSON già pronto.
+   Il player apre l'evento, vede la scena fissa in pixel art e tira (Tratto + Abilità) d10: ogni incremento = un gruppo di dadi che arriva a 10+. */
+const MG_RULES=[
+ {r:/scass|serratur|lucchett|grimaldell|forzar|chiave/,t:'acume',s:'furtivita',m:'🔒',spr:'Una grossa serratura di ferro con il buco della chiave, illuminata da una luce fioca',env:'Sei chino davanti a una porta chiusa a chiave, in prima persona, con il corridoio buio alle spalle.',act:'Infili i grimaldelli nel meccanismo e senti i perni scattare uno a uno.',ok:'Click! La serratura cede e la porta si apre senza fare rumore.',ko:'Il grimaldello si spezza nel buco e il rumore rimbomba nel corridoio.'},
+ {r:/uccell|bersagli|spara|tiro a segno|bancarell|pistol|fucil|freccia|\barco\b|\bmira\b/,t:'agilita',s:'mira',m:'🐦',spr:'Sagome di uccelli di latta che scorrono in fila su una bancarella da luna park',env:'Sei davanti a una bancarella del luna park, in prima persona, con il fucile ad aria compressa tra le mani.',act:'Prendi la mira e sparisci gli uccelli di latta che scorrono davanti a te.',ok:'Colpo dopo colpo gli uccelli cadono: il banchista ti consegna il premio.',ko:'I colpi vanno a vuoto e gli uccelli sfilano indisturbati. Nessun premio.'},
+ {r:/scapp|fugg|inseguit|evad|scampa|via di qua/,t:'agilita',s:'velocita',m:'🏃',spr:'Un corridoio che si allunga davanti a te, con la porta d\'uscita in fondo e le ombre che ti inseguono',env:'Corri in prima persona lungo un passaggio stretto: i passi dell\'inseguitore sono sempre più vicini.',act:'Scatti in avanti, schivi gli ostacoli e punti dritto verso l\'uscita.',ok:'Sbatti la porta alle tue spalle: sei salvo, per ora.',ko:'Una mano ti afferra il braccio: la fuga è finita.'},
+ {r:/pungiball|sacco|pugn|rissa|colpisc|picchi|boxe/,t:'vigore',s:'rissa',m:'🥊',spr:'Un pesante sacco da boxe appeso a una catena',env:'Sei in una palestra polverosa, in prima persona, con le nocche fasciate e il sacco davanti.',act:'Carichi il braccio e scarichi una serie di pugni sul sacco.',ok:'L\'ultimo colpo fa oscillare il sacco con un tonfo: tutti si voltano a guardarti.',ko:'I pugni sono goffi e deboli: il sacco quasi non si muove.'},
+ {r:/spada|mischia|lama|duell|ascia|martello|scherma/,t:'vigore',s:'mischia',m:'⚔️',spr:'Un manichino da addestramento con un\'armatura ammaccata',env:'Sei in un cortile d\'addestramento, in prima persona, con l\'arma salda in pugno.',act:'Avanzi di un passo e concateni fendenti contro il manichino.',ok:'L\'armatura si spacca con un clangore: la tua tecnica è impeccabile.',ko:'L\'arma rimbalza sul metallo e ti sfugge di mano.'},
+ {r:/scal|arrampic|salta|\bmuro\b|parete|\bfune\b|corda|ostacol|sollev|spingi/,t:'vigore',s:'atletica',m:'🧗',spr:'Una parete di roccia con appigli sporgenti',env:'Sei aggrappato a una parete, in prima persona, con il vuoto sotto di te.',act:'Cerchi l\'appiglio successivo e ti tiri su con tutta la forza delle braccia.',ok:'Raggiungi la cima e ti issi oltre il bordo, senza fiato.',ko:'La presa cede e scivoli giù lungo la parete.'},
+ {r:/nascond|furtiv|sgattaiol|pedin|borseggi|\bruba|scivol|silenzio/,t:'agilita',s:'furtivita',m:'🕵️',spr:'Un angolo buio dietro una pila di casse, con una guardia che passa sullo sfondo',env:'Sei acquattato nell\'ombra, in prima persona, e trattieni il respiro.',act:'Ti muovi piano, da un nascondiglio all\'altro, senza fare rumore.',ok:'Nessuno si accorge di te: sei passato come un fantasma.',ko:'Una tavola scricchiola: la guardia si volta di scatto.'},
+ {r:/convinc|persuad|negozi|trattat|mercanteggi|bluff|seduc|discors|parlament/,t:'panache',s:'convincere',m:'💬',spr:'Il volto dell\'interlocutore, serio e diffidente, davanti a te',env:'Sei faccia a faccia con qualcuno che non vuole cedere, in prima persona.',act:'Scegli le parole giuste e cerchi di far pendere l\'ago dalla tua parte.',ok:'L\'interlocutore sospira e annuisce: hai vinto la discussione.',ko:'Il tuo discorso cade nel vuoto: l\'altro scuote la testa e volta le spalle.'},
+ {r:/intimid|minacc|spavent|terroriz/,t:'vigore',s:'intimidire',m:'💀',spr:'Un avversario che indietreggia, con gli occhi sbarrati',env:'Sei a pochi passi da un avversario, in prima persona, e lo fissi senza battere ciglio.',act:'Ti avvicini, abbassi la voce e fai pesare ogni parola.',ok:'L\'avversario trema e cede di fronte alla tua presenza.',ko:'L\'avversario ride: la tua minaccia non lo smuove.'},
+ {r:/cerca|osserva|indizi|scrut|notare|trova|ricerc|ispezion|perquisi/,t:'acume',s:'notare',m:'🔎',spr:'Una stanza disordinata con un dettaglio fuori posto che quasi non si nota',env:'Sei al centro di una stanza silenziosa, in prima persona, con gli occhi che scandagliano ogni angolo.',act:'Passi in rassegna ogni oggetto, cercando ciò che gli altri non vedono.',ok:'Lo trovi: un dettaglio nascosto che cambia tutto.',ko:'Hai guardato ovunque, ma l\'indizio ti sfugge.'},
+ {r:/enigm|indovinell|decifr|codice|\brune\b|puzzle|cifra|studia|libro/,t:'acume',s:'istruzione',m:'🧩',spr:'Una tavola di simboli antichi incisi nella pietra',env:'Sei davanti a una parete coperta di simboli, in prima persona, con una lanterna in mano.',act:'Confronti i simboli, ricordi ciò che hai studiato e provi a comporre la soluzione.',ok:'I simboli si illuminano uno dopo l\'altro: l\'enigma è risolto.',ko:'La combinazione è sbagliata e i simboli si spengono di colpo.'},
+ {r:/medit|concentr|nexus|rituale|incantes|magia|potere|sigillo/,t:'nexus',s:'concentrazione',m:'🔮',spr:'Un\'orbita di luce che pulsa davanti ai tuoi occhi',env:'Sei in silenzio, in prima persona, e senti il NEXUS vibrare sotto la pelle.',act:'Chiudi gli occhi, respiri piano e guidi l\'energia verso il centro della luce.',ok:'La luce si stabilizza e obbedisce al tuo volere.',ko:'La concentrazione si spezza e l\'energia si disperde in scintille.'},
+ {r:/calm|consol|ascolta|empati|confort|supporto|lacrim/,t:'panache',s:'empatia',m:'💞',spr:'Una persona abbattuta, seduta con lo sguardo basso',env:'Sei seduto accanto a qualcuno che soffre, in prima persona.',act:'Ascolti senza fretta e scegli con cura il gesto e la parola giusti.',ok:'Le spalle si rilassano: ti sei guadagnato la sua fiducia.',ko:'Le tue parole suonano vuote: l\'altro si chiude in sé stesso.'},
+ {r:/dipin|crea|invent|compon|suona|canta|costruisc|\barte\b|scolpi|improvvis/,t:'panache',s:'creativita',m:'🎨',spr:'Una tela bianca, un cavalletto e una tavolozza di colori accesi',env:'Sei davanti a una tela vuota, in prima persona, con il pennello in mano.',act:'Lasci correre l\'ispirazione e dai forma a ciò che hai in mente.',ok:'L\'opera prende vita: tutti restano a bocca aperta.',ko:'Il risultato è confuso e privo di slancio. Nessuno è colpito.'},
+ {r:/veloc|gara|sprint|schiva|evita|riflessi/,t:'agilita',s:'velocita',m:'⚡',spr:'Un ostacolo che ti viene incontro a tutta velocità',env:'Sei fermo in posizione, in prima persona, con i muscoli tesi.',act:'Al momento giusto scatti di lato e anticipi il colpo.',ok:'Lo schivi per un soffio: nemmeno ti ha sfiorato.',ko:'Troppo lento: l\'impatto ti coglie in pieno.'}
+];
+const MG_ALIAS={prontezza:'agilita',intelletto:'acume',intelligenza:'acume',forza:'vigore',carisma:'panache',riflessi:'velocita',mischia:'mischia',furtivita:'furtivita'};
+const mgCap=s=>s?s[0]+s.slice(1).toLowerCase():s;
+const MG_TRL=()=>TR.map(x=>mgCap(x[1])),MG_ABL=()=>AB.map(x=>x[1]);
+const mgFind=(list,txt)=>{const k=nzs(txt||''),a=MG_ALIAS[k]||k;return list.find(x=>x[0]===a||nzs(x[1])===a)};
+const mgKey=e=>e.id+':'+e.at;
+const mgRes=(e,p)=>p&&p.evRes&&p.evRes[mgKey(e)];
+const mgClamp=n=>Math.max(1,Math.min(8,parseInt(n)||3));
+
+/* idea creativa → JSON standard */
+function mgGen(idea){
+  const z=nzs(idea),R=MG_RULES.find(x=>x.r.test(z));
+  const diff=/impossibil|epic|leggendari/.test(z)?5:/difficil|duro|ostico|complicat/.test(z)?4:/facile|semplice|banale/.test(z)?2:3;
+  const ttl=idea.replace(/^\s*[«"']|[»"']\s*$/g,'').trim();
+  const title=(ttl[0]||'M').toUpperCase()+ttl.slice(1,60);
+  const T=R?TR.find(x=>x[0]===R.t):TR.find(x=>x[0]==='acume'),S=R?AB.find(x=>x[0]===R.s):AB.find(x=>x[0]==='notare');
+  return {mg:{
+    minigame_id:'',title,
+    visual_theme:{background_type:'first_person_view',target_sprite:R?R.spr:'Il bersaglio della prova, al centro della scena, in pixel art',environment_description:R?R.env:'Sei dentro la scena, in prima persona: «'+ttl+'».'},
+    mechanic:{action_prompt:R?R.act:'Ti concentri e affronti la prova: «'+ttl+'».',suggested_trait:mgCap(T[1]),suggested_skill:S[1],difficulty_increments:diff},
+    outcomes:{success_text:R?R.ok:'Ce l\'hai fatta: la prova è superata.',failure_text:R?R.ko:'La prova va male: non riesci a superarla.'}},
+    icon:R?R.m:'🎯',known:!!R};
+}
+const mgSlug=t=>(nzs(t).replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'').slice(0,32)||'minigame')+'_'+uid8().slice(0,4);
+function mgForm(mg,icon,e){
+  const v=mg.visual_theme||{},m=mg.mechanic||{},o=mg.outcomes||{},T=mgFind(TR,m.suggested_trait),S=mgFind(AB,m.suggested_skill);
+  return {title:mg.title||'',spr:v.target_sprite||'',env:v.environment_description||'',act:m.action_prompt||'',
+    tr:T?mgCap(T[1]):'Acume',sk:S?S[1]:'Notare',diff:mgClamp(m.difficulty_increments),ok:o.success_text||'',ko:o.failure_text||'',
+    icon:icon||'',dur:(e&&e.dur)||0,to:(e&&e.to)||[],id:mg.minigame_id||''};
+}
+const mgFields=()=>[
+  {l:'Titolo del minigioco',n:'title'},
+  {l:'Emoji del bersaglio (una sola, opzionale)',n:'icon'},
+  {l:'Bersaglio / sprite (cosa si vede a schermo)',n:'spr',t:'area'},
+  {l:'Scena in prima persona',n:'env',t:'area'},
+  {l:'Azione che il giocatore compie',n:'act',t:'area'},
+  {l:'Tratto associato',n:'tr',t:'select',o:MG_TRL()},
+  {l:'Abilità associata',n:'sk',t:'select',o:MG_ABL()},
+  {l:'Difficoltà (incrementi richiesti, di solito 2, 3 o 4)',n:'diff',t:'number'},
+  {l:'Se riesce (testo)',n:'ok',t:'area'},
+  {l:'Se fallisce (testo)',n:'ko',t:'area'},
+  {l:'Durata in minuti (0 = nessun limite di tempo)',n:'dur',t:'number'},
+  {l:'Chi lo vede (nessuno selezionato = tutti i player)',n:'to',t:'multi',o:Object.entries(S.players).map(([i,p])=>[i,p.username])}];
+const mgObj=r=>({minigame_id:r.id||mgSlug(r.title),title:r.title.slice(0,80),
+  visual_theme:{background_type:'first_person_view',target_sprite:(r.spr||'').slice(0,250),environment_description:(r.env||'').slice(0,500)},
+  mechanic:{action_prompt:(r.act||'').slice(0,400),suggested_trait:r.tr,suggested_skill:r.sk,difficulty_increments:mgClamp(r.diff)},
+  outcomes:{success_text:(r.ok||'').slice(0,400),failure_text:(r.ko||'').slice(0,400)}});
+function mgParseJson(txt){
+  try{
+    const j=JSON.parse(String(txt).replace(/^\s*```(?:json)?/i,'').replace(/```\s*$/,'').trim());
+    if(!j||!j.title||!j.mechanic||!j.outcomes)throw 0;
+    return j;
+  }catch(x){toast('JSON non valido: controlla di averlo incollato per intero');return null}
+}
+async function mgNew(){
+  const a=await ask('🎮 Nuovo minigioco',[
+    {l:'Idea creativa (es. «scassina la serratura», «bancarella dove spari agli uccelli»)',n:'idea',t:'area'},
+    {l:'Oppure incolla qui un JSON già pronto (opzionale: se c\'è, ha la precedenza sull\'idea)',n:'json',t:'area'}],{},'Genera');
+  if(!a)return;
+  let mg,icon='🎯';
+  if(a.json){mg=mgParseJson(a.json);if(!mg)return}
+  else if(a.idea){const g=mgGen(a.idea);mg=g.mg;icon=g.icon;if(!g.known)toast('Idea non riconosciuta: controlla tratto e abilità')}
+  else return toast('Scrivi un\'idea o incolla un JSON');
+  const f=mgForm(mg,icon),r=await ask('🎮 Rivedi il minigioco',mgFields(),f,'Salva minigioco');
+  if(!r||!r.title)return;
+  const id=uid8();
+  guard(db.collection('events').doc(id).set({id,title:r.title.slice(0,80),ek:'minigioco',icon:Array.from(r.icon||'').slice(0,2).join(''),desc:'',dur:Math.min(1440,r.dur||0),to:r.to||[],mg:mgObj(r),active:false,at:0,created:Date.now()}));
+}
+async function mgEdit(id){
+  const e=S.events[id];if(!e||!e.mg)return;
+  const r=await ask('Modifica minigioco',mgFields(),mgForm(e.mg,e.icon,e),'Salva');
+  if(!r||!r.title)return;
+  guard(db.collection('events').doc(id).update({title:r.title.slice(0,80),icon:Array.from(r.icon||'').slice(0,2).join(''),dur:Math.min(1440,r.dur||0),to:r.to||[],mg:mgObj({...r,id:e.mg.minigame_id})}));
+}
+/* riga riassuntiva nella card del Master: regole del minigioco + risultati dei player */
+function mgMasterHtml(e){
+  const m=e.mg,mc=m.mechanic||{},need=mgClamp(mc.difficulty_increments);
+  const rs=e.at?Object.values(S.players).map(p=>{const r=mgRes(e,p);return r?`<div class="mut">${r.ok?'✔':'✘'} ${esc(p.username)}: ${r.inc}/${r.need} incrementi · dadi ${r.d.join(', ')||'—'}</div>`:''}).join(''):'';
+  return `<div class="mut" style="margin-top:8px">🎮 ${esc(mc.suggested_trait)} + ${esc(mc.suggested_skill)} · difficoltà ${need} incrementi</div>${rs}`;
+}
+
+/* incrementi: un d10 che fa 10 vale 1; gli altri dadi si sommano in gruppi che arrivano a 10 o più (anche 11, 12, 13… = 1 solo incremento) */
+function mgInc(dice){
+  const r=[...dice].sort((a,b)=>b-a),g=[];let left=[];
+  while(r.length){
+    const x=r.shift();
+    if(x>=10){g.push([x]);continue}
+    let j=-1;for(let i=r.length-1;i>=0;i--)if(r[i]>=10-x){j=i;break}
+    if(j>=0){g.push([x,r.splice(j,1)[0]]);continue}
+    const grp=[x];let s=x;
+    while(r.length&&s<10){const y=r.shift();s+=y;grp.push(y)}
+    if(s>=10)g.push(grp);else{left=grp;break}
+  }
+  return {g,left};
+}
+function mgPool(p,mg){
+  const T=mgFind(TR,mg.mechanic.suggested_trait),S=mgFind(AB,mg.mechanic.suggested_skill),md=modOf(p);
+  if(!T||!S)return {T,S,t:0,a:0,tb:0,sb:0,n:0};
+  const tb=md.tr[T[0]]||0,sb=md.ab[S[0]]||0,t=(trOf(p)[T[0]]||0)+tb,a=(abOf(p)[S[0]]||0)+sb;
+  return {T,S,t,a,tb,sb,n:Math.min(30,t+a)};
+}
+function mgCss(){
+  if(document.getElementById('mgcss'))return;
+  const s=document.createElement('style');s.id='mgcss';
+  s.textContent=`.mg{width:100%;margin-top:14px;text-align:center}
+.mg-scene{position:relative;height:230px;overflow:hidden;border:4px solid var(--ink);box-shadow:4px 4px 0 var(--ink),0 0 0 3px var(--ec,var(--acc));image-rendering:pixelated;background:linear-gradient(#1a1250 0 56%,#3a2480 56% 59%,#120d2c 59%)}
+.mg-sky{position:absolute;left:0;right:0;top:0;height:56%;background:radial-gradient(#fff 1px,transparent 1.6px) 0 0/22px 22px;opacity:.22}
+.mg-floor{position:absolute;left:0;right:0;bottom:0;height:41%;background:repeating-linear-gradient(90deg,rgba(255,255,255,.08) 0 4px,transparent 4px 36px),repeating-linear-gradient(0deg,rgba(0,0,0,.3) 0 4px,transparent 4px 26px)}
+.mg-spr{position:absolute;left:50%;top:47%;font-size:88px;line-height:1;transform:translate(-50%,-50%);filter:drop-shadow(4px 4px 0 var(--ink));animation:mgbob 1s steps(4) infinite}
+.mg-xh{position:absolute;left:50%;top:47%;width:52px;height:52px;margin:-26px 0 0 -26px;border:3px solid var(--ec,var(--acc));opacity:.75;animation:blink 1s steps(1) infinite}
+.mg-hand{position:absolute;right:14%;bottom:-10px;font-size:58px;transform:rotate(-18deg);filter:drop-shadow(3px 3px 0 var(--ink))}
+.mg-hand.l{right:auto;left:14%;transform:rotate(18deg) scaleX(-1)}
+.mg-scene.win .mg-spr{animation:mgwin .5s steps(5) both}
+.mg-scene.lose .mg-spr{filter:grayscale(1) drop-shadow(4px 4px 0 var(--ink));animation:shake .4s steps(4) 2}
+.mg-scene.win .mg-xh,.mg-scene.lose .mg-xh{display:none}
+@keyframes mgbob{50%{transform:translate(-50%,-57%)}}
+@keyframes mgwin{50%{transform:translate(-50%,-50%) scale(1.5) rotate(10deg)}to{transform:translate(-50%,-50%) scale(1.15)}}
+.mg-env{margin:14px 0 4px;font-style:italic}
+.mg-act{font-weight:700;margin:0 0 10px}
+.mg-pool{border:2px dashed var(--ec,var(--acc));padding:8px 10px;margin:8px 0;font-size:.92em}
+.mg .dice{margin:14px 0 8px}.mg .die{width:42px;height:42px;font-size:13px;border-width:3px}
+.mg-g{display:inline-block;margin:3px;padding:4px 8px;border:2px solid var(--ok);color:var(--ok);font:400 10px/1.4 var(--f-px)}
+.mg-g.x{border-color:var(--mut,#888);color:var(--mut,#888)}
+.mg-big{font:400 14px/1.6 var(--f-px);margin:10px 0 4px;text-shadow:2px 2px 0 var(--ink)}
+.mg-big.ok{color:var(--ok)}.mg-big.ko{color:var(--danger)}`;
+  document.head.append(s);
+}
+function mgShow(box,e,res,anim){
+  const dd=box.querySelector('.mg-dice'),out=box.querySelector('.mg-out'),sc=box.querySelector('.mg-scene'),go=box.querySelector('#mgGo'),pl=box.querySelector('.mg-pool');
+  if(go)go.style.display='none';if(pl)pl.style.display='none';
+  const R=mgInc(res.d),o=e.mg.outcomes||{};
+  dd.innerHTML=res.d.map(()=>'<div class="die rolling"><b>?</b></div>').join('');
+  const els=[...dd.children];let done=false,iv=0,q=!anim;
+  const land=(d,i)=>{d.className='die land'+(res.d[i]===10?' max':res.d[i]===1?' min':'');d.firstChild.textContent=res.d[i];if(!q)SND.play('land',1)};
+  const fin=()=>{
+    if(done)return;done=true;clearInterval(iv);q=true;els.forEach(land);
+    const chips=R.g.map(g=>`<span class="mg-g">${g.join('+')}${g.length>1?'='+g.reduce((a,b)=>a+b,0):''}</span>`).join('')+(R.left.length?`<span class="mg-g x">scarto: ${R.left.join('+')}</span>`:'');
+    out.innerHTML=`<div>${chips||'<span class="mut">Nessun incremento</span>'}</div><div class="mg-big ${res.ok?'ok':'ko'}">${res.ok?'✔ SUCCESSO':'✘ FALLIMENTO'} · ${R.g.length}/${res.need} INCREMENTI</div><p style="margin:4px 0">${esc(res.ok?o.success_text:o.failure_text)}</p>`;
+    sc.classList.add(res.ok?'win':'lose');
+    if(anim){SND.play(res.ok?'fanfare':'alarm',1);if(navigator.vibrate)try{navigator.vibrate(res.ok?[40,40,90]:[200,80,200])}catch(x){}}
+  };
+  if(!anim||!res.d.length||REDM()){fin();return}
+  SND.play('dice',1);
+  const step=res.d.length>10?90:240,t0=Date.now();
+  iv=setInterval(()=>{const k=Math.floor((Date.now()-t0-700)/step)+1;els.forEach((d,i)=>{if(i<k){if(!d.classList.contains('land'))land(d,i)}else d.firstChild.textContent=1+Math.floor(Math.random()*10)});if(k<res.d.length)SND.play('dice');else fin()},70);
+}
+async function mgRoll(box,e){
+  const p=me();if(!p||!db||box.dataset.busy||mgRes(e,p))return;
+  box.dataset.busy=1;
+  const mc=e.mg.mechanic,pl=mgPool(p,e.mg),need=mgClamp(mc.difficulty_increments);
+  const d=Array.from({length:pl.n},()=>rollD(10)),R=mgInc(d);
+  const res={d,inc:R.g.length,ok:R.g.length>=need,need,t:pl.t,a:pl.a,ts:Date.now()};
+  /* risultato salvato PRIMA dell'animazione: chiudere o ricaricare non permette di ritirare */
+  const ev=Object.entries({...(p.evRes||{}),[mgKey(e)]:res}).sort((x,y)=>(y[1].ts||0)-(x[1].ts||0)).slice(0,20);
+  const ok=await guard(db.collection('players').doc(uid).update({evRes:Object.fromEntries(ev)}).then(()=>1));
+  if(!ok){delete box.dataset.busy;return}
+  mgShow(box,e,res,true);
+}
+function mgMount(box,e){
+  mgCss();
+  const p=me(),mg=e.mg,mc=mg.mechanic||{},need=mgClamp(mc.difficulty_increments),pl=p?mgPool(p,mg):{n:0},old=mgRes(e,p);
+  const tl=pl.T?pl.T[1]:mc.suggested_trait,sl=pl.S?pl.S[1]:mc.suggested_skill;
+  box.innerHTML=`<div class="mg"><div class="mg-scene"><div class="mg-sky"></div><div class="mg-floor"></div><div class="mg-spr">${esc(evIco(e)==='🎮'?'🎯':evIco(e))}</div><i class="mg-xh"></i><div class="mg-hand l">✋</div><div class="mg-hand">✋</div></div>
+<div class="mg-env">${esc((mg.visual_theme||{}).environment_description||'')}</div><div class="mg-act">${esc(mc.action_prompt||'')}</div>
+<div class="mg-pool"><b>${esc(String(tl).toUpperCase())}</b> ${pl.t||0}${pl.tb?' (+'+pl.tb+' oggetti)':''} + <b>${esc(String(sl).toUpperCase())}</b> ${pl.a||0}${pl.sb?' (+'+pl.sb+' oggetti)':''} = <b>${pl.n}d10</b><br><span class="mut">Servono ${need} incrementi (ogni incremento = 10 o più, con un dado o sommando più dadi)</span></div>
+<div class="dice mg-dice"></div><div class="mg-out"></div><button id="mgGo" style="width:100%">🎲 TIRA I DADI</button></div>`;
+  const go=box.querySelector('#mgGo');
+  if(old){mgShow(box,e,old,false);return}
+  go.onclick=()=>mgRoll(box,e);
+}
+
 {const _re=renderMaster;renderMaster=function(){if(tab==='events')return masterEvents();return _re()}}
 
 $('#mbtn').onclick=async()=>{
