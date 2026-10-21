@@ -2,7 +2,7 @@
 const NX=window.NX_CONFIG||{};
 const $=s=>document.querySelector(s), app=$('#app');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let db,user,assets,uid,isMaster=false,masterOK=false,authed=false,cred=null,S={players:{},npcs:{},items:{},quests:{},party:{},msgs:{},maps:{},bestiary:{}},view={name:'splash'},tab='players';
+let db,user,assets,uid,isMaster=false,masterOK=false,authed=false,cred=null,S={players:{},npcs:{},items:{},quests:{},party:{},msgs:{},maps:{},bestiary:{},events:{}},view={name:'splash'},tab='players';
 const DROP=`<svg viewBox="0 0 100 130" width="100%" height="100%"><defs><radialGradient id="g" cx="35%" cy="40%"><stop offset="0" stop-color="#ff4d5a"/><stop offset="1" stop-color="#8a0c16"/></radialGradient></defs><path d="M50 4C50 4 8 58 8 84a42 42 0 0 0 84 0C92 58 50 4 50 4Z" fill="url(#g)"/><ellipse cx="34" cy="86" rx="7" ry="15" fill="#fff" opacity=".25" transform="rotate(20 34 86)"/></svg>`;
 /* ===== suoni: sintetizzati con WebAudio (nessun file audio) ===== */
 const SN={u:null,hp:0,nx:0,cur:0};
@@ -170,16 +170,16 @@ async function boot(){
     uid=await user.id();cuid=uid; isMaster=!!user.canEdit?.();
     try{const s=await credDoc().get();cred=s.exists?s.data():null}catch(e){cred=null}
     try{const s=await mvDoc().get();const d=s.exists&&s.data().v;if(d)for(const k in d)MV[k]=[...new Set([...(MV[k]||[]),...(d[k]||[])])]}catch(e){}
-    for(const k of ['players','npcs','items','quests','party','msgs','maps','bestiary'])
+    for(const k of ['players','npcs','items','quests','party','msgs','maps','bestiary','events'])
       db.collection(k).onSnapshot(s=>{S[k]={};s.docs.forEach(d=>S[k][d.id]=d.data());LD[k]=1;render()},e=>console.warn(k,e));
     render();
   }catch(e){console.warn(e);render()}
 }
 /* ===== v2: bacheche ===== */
 tab=null;
-const TILES=[['profile','👤','Profilo'],['ego','⚡','EGO'],['npcs','🧙','Incontri'],['scanner','🔍','Scanner'],['quests','📜','Obiettivi'],['party','🏕️','Party'],['inv','🎒','Inventario'],['msgs','✉️','Messaggi'],['map','🗺️','Mappa']];
+const TILES=[['profile','👤','Profilo'],['ego','⚡','EGO'],['npcs','🧙','Incontri'],['scanner','🔍','Scanner'],['quests','📜','Obiettivi'],['party','🏕️','Party'],['inv','🎒','Inventario'],['msgs','✉️','Messaggi'],['map','🗺️','Mappa'],['events','🎭','Eventi']];
 const KIND={mercante:'🛒 Mercante',combattente:'⚔️ Combattente'},kindOf=n=>n.kind||'mercante';
-const tiles=()=>{const M=masterOK&&view.name==='master';return `<div class="tiles">${TILES.filter(t=>!(M&&t[0]==='inv')&&!(!M&&t[0]==='scanner'&&!(me()&&me().scanner))).map(([k,i,l])=>{if(M&&k==='profile'){i='👥';l='Player'}return `<button class="tile" data-go="${k}"><span>${i}</span>${l}${badge(k,M)}</button>`}).join('')}</div>`};
+const tiles=()=>{const M=masterOK&&view.name==='master';return `<div class="tiles">${TILES.filter(t=>!(M&&t[0]==='inv')&&!(!M&&t[0]==='scanner'&&!(me()&&me().scanner))&&!(!M&&t[0]==='events')).map(([k,i,l])=>{if(M&&k==='profile'){i='👥';l='Player'}return `<button class="tile" data-go="${k}"><span>${i}</span>${l}${badge(k,M)}</button>`}).join('')}</div>`};
 const BLOODS=['Non indicato','A+','A-','B+','B-','AB+','AB-','0+','0-'];
 const TR=[['vigore','VIGORE'],['agilita','AGILITÀ'],['acume','ACUME'],['panache','PANACHE'],['nexus','NEXUS']];
 const AB=[['mira','Mira'],['rissa','Rissa'],['mischia','Mischia'],['convincere','Convincere'],['intimidire','Intimidire'],['atletica','Atletica'],['velocita','Velocità'],['furtivita','Furtività'],['notare','Notare'],['istruzione','Istruzione'],['concentrazione','Concentrazione'],['empatia','Empatia'],['creativita','Creatività']];
@@ -764,7 +764,7 @@ function rebindMP(){
 const REDM=()=>{try{return matchMedia('(prefers-reduced-motion: reduce)').matches}catch(e){return false}};
 function notifBurst(card,kind){
   if(REDM())return;
-  const E={quest:['📜','✨'],questmain:['⭐','📜','✨','🏆'],ego:['⚡','✨'],money:['🪙','✨'],obiettivo:['🏆','✨','⭐'],ferita:['🩸','💥'],cura:['💚','✨'],invite:['🏕️','✨'],msg:['✉️','✨'],enc:['🩸','✨','👁'],encostile:['💀','⚠️','💥','🩸'],encbuono:['💚','✨','⭐','🤝'],map:['🗺️','🧭','📍','✨']}[kind]||['✨'];
+  const E={quest:['📜','✨'],questmain:['⭐','📜','✨','🏆'],ego:['⚡','✨'],money:['🪙','✨'],obiettivo:['🏆','✨','⭐'],ferita:['🩸','💥'],cura:['💚','✨'],invite:['🏕️','✨'],msg:['✉️','✨'],enc:['🩸','✨','👁'],encostile:['💀','⚠️','💥','🩸'],encbuono:['💚','✨','⭐','🤝'],map:['🗺️','🧭','📍','✨'],evento:['🎭','⚡','✨','🔥'],evpericolo:['⚠️','💥','🔥','⚡'],evfesta:['🎉','✨','🎊','⭐']}[kind]||['✨'];
   const a=card.querySelector('.encav');if(!a)return;
   const box=document.createElement('div');box.className='nparts';
   const cx=a.offsetLeft+a.offsetWidth/2,cy=a.offsetTop+a.offsetHeight/2,fall=kind==='money'?70:0;
@@ -921,7 +921,7 @@ function tick(){
   const w=document.getElementById('tb-clockw');if(w){w.style.cursor=masterOK?'pointer':'';w.title=masterOK?'Modifica data e ora (Master)':''}
 }
 function screenName(){
-  if(masterOK&&view.name==='master'){const T={profile:'Player',ego:'EGO',npcs:'Incontri',quests:'Obiettivi',party:'Party',msgs:'Messaggi',map:'Mappa'};return 'Pannello Master'+(tab&&T[tab]?' — '+T[tab]:'')+' · build ego-notify 2'}
+  if(masterOK&&view.name==='master'){const T={profile:'Player',ego:'EGO',npcs:'Incontri',quests:'Obiettivi',party:'Party',msgs:'Messaggi',map:'Mappa',events:'Eventi'};return 'Pannello Master'+(tab&&T[tab]?' — '+T[tab]:'')+' · build ego-notify 2'}
   if(!authed||!me())return 'Nexus Connection';
   if(view.name==='npc'){const n=S.npcs[view.id];return 'Incontro'+(n?' — '+n.name:'')}
   const N={home:'Home',profile:'Profilo',ego:'EGO',npcs:'Incontri',quests:'Obiettivi',party:'Party',inv:'Inventario',msgs:'Messaggi',map:'Mappa'};
@@ -2750,6 +2750,144 @@ function scanMaster(){
   on('bsd',async id=>{if(await askYes('Eliminare questa creatura dal bestiario?'))guard(C.doc(id).delete())});
 }
 {const _rm=renderMaster;renderMaster=function(){if(tab==='scanner')return scanMaster();return _rm()}}
+
+/* ===== EVENTI =====
+   Bacheca SOLO Master (collezione 'events'). Il Master avvia un evento → ai player visibili arriva una notifica animata
+   → «Partecipa» apre la schermata dell'evento in corso (titolo e testo scritti, timer opzionale) finché il Master lo termina.
+   Con «Più tardi» resta un chip in basso a sinistra per rientrare nell'evento. */
+const EVK={
+  generico:{i:'🎭',c:'var(--acc)',l:'EVENTO',s:'enc',h:0,p:'evento'},
+  pericolo:{i:'⚠️',c:'#ff4d5e',l:'PERICOLO',s:'alarm',h:1,p:'evpericolo'},
+  combattimento:{i:'⚔️',c:'#ff9a3d',l:'COMBATTIMENTO',s:'alarm',h:1,p:'evpericolo'},
+  scoperta:{i:'🔎',c:'#ffcb3d',l:'SCOPERTA',s:'quest',h:0,p:'evento'},
+  mistero:{i:'🔮',c:'#b57bff',l:'MISTERO',s:'magic',h:0,p:'evento'},
+  festa:{i:'🎉',c:'#3dffa0',l:'FESTA',s:'fanfare',h:0,p:'evfesta'}
+};
+const evK=e=>EVK[e.ek]||EVK.generico,evIco=e=>String(e.icon||'').trim()||evK(e).i;
+const evVis=e=>!(e.to&&e.to.length)||e.to.includes(uid);
+const evDur=e=>Math.max(0,+e.dur||0);
+const evTop=()=>Object.values(S.events||{}).filter(e=>e.active&&e.at&&evVis(e)).sort((a,b)=>b.at-a.at)[0];
+const evFmt=s=>{const h=Math.floor(s/3600),m=Math.floor(s%3600/60),c=s%60;return (h?h+':':'')+pad2(m)+':'+pad2(c)};
+const EV={ov:null,id:null,at:0,e:null,ended:false,iv:0,ty:null,shown:new Set()};
+
+function evClose(){
+  clearInterval(EV.iv);EV.iv=0;
+  if(EV.ty){EV.ty.stop();EV.ty=null}
+  if(EV.ov){EV.ov.remove();EV.ov=null}
+  EV.id=null;EV.at=0;EV.e=null;EV.ended=false;
+}
+function evKill(){evClose();const c=document.getElementById('evchip');if(c)c.remove()}
+
+/* schermata dell'evento in corso */
+function evOpen(id){
+  const e=S.events[id];if(!e)return;
+  evClose();
+  const K=evK(e),d=evDur(e)*60000;
+  EV.id=id;EV.at=e.at;EV.e=e;EV.ended=false;
+  const o=document.createElement('div');o.id='evov';o.className='evov';o.style.setProperty('--ec',K.c);EV.ov=o;
+  o.innerHTML=`${SC_COR}<div class="ev-flash"></div><div class="ev-in"><div class="ev-badge"><i></i><span id="evBt">EVENTO IN CORSO</span></div><div class="ev-ico"><b>${esc(evIco(e))}</b><s></s><s></s></div><div class="ev-kind">${K.i} ${K.l}</div><h2 class="ev-title" id="evT"></h2><div class="ev-desc" id="evD"></div><div class="ev-tm" id="evTm" style="display:none"><div class="ev-clk" id="evC">--:--</div><div class="ev-tb"><i id="evB"></i></div></div><p class="ev-endmsg">Il Master ha concluso l'evento.</p><div class="ev-act"><button class="g grow" id="evX">Chiudi</button></div></div>`;
+  document.body.append(o);
+  const q=s=>o.querySelector(s);
+  SND.play(K.s,1);
+  if(navigator.vibrate)try{navigator.vibrate(K.h?[120,60,200]:[40,40,60])}catch(x){}
+  const tt=q('#evT'),dd=q('#evD');
+  if(REDM()){tt.textContent=e.title;dd.textContent=e.desc||''}
+  else EV.ty=typeInto(tt,e.title,false,()=>{EV.ty=e.desc?typeInto(dd,e.desc):null});
+  if(d>0){
+    const tm=q('#evTm'),ck=q('#evC'),bar=q('#evB');tm.style.display='';let was=null;
+    const tick=()=>{
+      const left=Math.max(0,e.at+d-Date.now());
+      ck.textContent=left>0?evFmt(Math.ceil(left/1000)):'⌛ TEMPO SCADUTO';
+      bar.style.width=Math.max(0,Math.min(100,left/d*100))+'%';
+      tm.classList.toggle('low',left>0&&left<=60000);tm.classList.toggle('zero',left<=0);
+      if(was===true&&left<=0){SND.play('alarm',1);if(navigator.vibrate)try{navigator.vibrate([200,100,200])}catch(x){}}
+      was=left>0;
+    };
+    EV.iv=setInterval(tick,500);tick();
+  }
+  q('#evX').onclick=()=>{evClose();evSync()};
+}
+/* il Master ha terminato (o cancellato) l'evento mentre il player lo guardava */
+function evEnd(){
+  const o=EV.ov;if(!o||EV.ended)return;
+  EV.ended=true;clearInterval(EV.iv);EV.iv=0;
+  if(EV.ty){EV.ty.stop();EV.ty=null}
+  const e=EV.e,q=s=>o.querySelector(s),tt=q('#evT'),dd=q('#evD');
+  tt.textContent=e.title;tt.classList.remove('typing');dd.textContent=e.desc||'';dd.classList.remove('typing');
+  o.classList.add('ended');q('#evBt').textContent='EVENTO CONCLUSO';
+  const b=q('#evX');b.className='grow';
+  SND.play('close',1);
+}
+/* notifica animata di nuovo evento */
+function evNotify(e,seen){
+  encOpen=true;
+  const K=evK(e),c=K.c;
+  SND.play(K.s,1);
+  const m=document.createElement('div');m.className='modal notif-m enc-m evn-m'+(K.h?' hurt':'');
+  m.innerHTML=`<div class="notif encnotif evnotif ${K.h?'shake':''}" style="--nc:${c};text-align:center;border:2px solid ${c}"><h2 class="newenc" style="color:${c}">EVENTO IN ARRIVO</h2><div class="encav" style="border-color:${c}">${esc(evIco(e))}</div><div class="encatt" style="color:${c};border-color:${c}">${K.i} ${K.l} ${K.i}</div><h3 class="encname">${esc(e.title)}</h3><div class="mut" style="animation-delay:.95s">Il Master ha dato inizio a un evento.</div>${evDur(e)?`<div class="mut" style="margin-top:4px;animation-delay:1.05s">⏳ Durata: ${evDur(e)} min</div>`:''}<div class="row" style="margin-top:14px;animation-delay:1.2s"><button class="g grow" data-c>Più tardi</button><button class="grow" data-i>▶ Partecipa</button></div></div>`;
+  document.body.append(m);
+  notifBurst(m.firstElementChild,K.p);
+  if(navigator.vibrate)try{navigator.vibrate(K.h?[200,100,200,100,320]:[40,40,90])}catch(x){}
+  const done=async go=>{
+    if(m.dataset.closing)return;m.dataset.closing=1;m.classList.add('notif-out');
+    if(!REDM())await new Promise(r=>setTimeout(r,220));
+    m.remove();encOpen=false;
+    await guard(db.collection('players').doc(uid).update({seenEv:{...seen,[e.id]:e.at}}));
+    if(go)evOpen(e.id);else evSync();
+  };
+  m.onclick=ev=>{if(ev.target.dataset.c!==undefined)done(0);if(ev.target.dataset.i!==undefined)done(1)};
+}
+function evSync(){
+  const M=masterOK&&view.name==='master',p=me();
+  if(M||!db||!authed||!p||!LD.events||!LD.players){evKill();return}
+  if(EV.ov&&!EV.ended){const c=S.events[EV.id];if(!c||!c.active||c.at!==EV.at)evEnd()}
+  const e=evTop(),seenEv=p.seenEv||{},key=e?e.id+':'+e.at:'',seen=e&&(seenEv[e.id]===e.at||EV.shown.has(key));
+  if(e&&!seen&&!encOpen&&(!EV.ov||EV.ended)){EV.shown.add(key);evNotify(e,seenEv);return}
+  let chip=document.getElementById('evchip');
+  if(e&&seen&&!EV.ov&&!encOpen){
+    if(!chip){chip=document.createElement('button');chip.id='evchip';chip.className='evchip';document.body.append(chip);chip.onclick=()=>{const a=evTop();if(a)evOpen(a.id)}}
+    chip.style.setProperty('--ec',evK(e).c);
+    const t='<span>'+esc(evIco(e))+'</span> EVENTO IN CORSO · '+esc(e.title);
+    if(chip.dataset.h!==t){chip.dataset.h=t;chip.innerHTML=t}
+  }else if(chip)chip.remove();
+}
+{const _r3=render;render=function(){_r3();evSync()}}
+
+/* ---- pannello Master: gestione eventi ---- */
+const evFields=()=>[
+  {l:'Titolo dell\'evento',n:'title'},
+  {l:'Tipo (cambia colore, icona e suono della notifica)',n:'ek',t:'select',o:Object.keys(EVK)},
+  {l:'Icona personalizzata (un emoji, opzionale)',n:'icon'},
+  {l:'Descrizione (cosa succede: la leggono i player)',n:'desc',t:'area'},
+  {l:'Durata in minuti (0 = nessun limite di tempo)',n:'dur',t:'number'},
+  {l:'Chi lo vede (nessuno selezionato = tutti i player)',n:'to',t:'multi',o:Object.entries(S.players).map(([i,p])=>[i,p.username])}];
+const evData=r=>({title:r.title.slice(0,80),ek:EVK[r.ek]?r.ek:'generico',icon:Array.from(r.icon||'').slice(0,2).join(''),desc:(r.desc||'').slice(0,1500),dur:Math.min(1440,r.dur||0),to:r.to||[]});
+function masterEvents(){
+  const C=db.collection('events'),
+    L=Object.values(S.events||{}).sort((a,b)=>(b.active?1:0)-(a.active?1:0)||(b.at||0)-(a.at||0)||String(a.title).localeCompare(String(b.title))),
+    live=L.filter(e=>e.active).length;
+  app.innerHTML=hdr('🎭 Eventi',1)+
+    (live?`<div class="card sc-alert"><h3>🔴 ${live} in corso</h3><p class="mut" style="margin:0">I player vedono la schermata dell'evento finché non lo termini.</p></div>`:'')+
+    `<button id="evAdd" style="width:100%">+ Nuovo evento</button>`+
+    (L.map(e=>{
+      const K=evK(e),seen=e.at?Object.values(S.players).filter(p=>(p.seenEv||{})[e.id]===e.at).map(p=>esc(p.username)):[];
+      return `<div class="card evcard ${e.active?'live':''}" style="--ec:${K.c}"><div class="row"><div class="avatar" style="font-size:24px;border-color:${K.c}">${esc(evIco(e))}</div><div class="grow"><b>${esc(e.title)}</b> <span class="tag" style="color:${K.c}">${K.l}</span> ${e.active?'<span class="tag" style="color:var(--danger)">🔴 IN CORSO</span>':e.at?'<span class="tag">✔ concluso</span>':'<span class="tag">pronto</span>'}<div class="mut">👁 ${e.to&&e.to.length?e.to.map(i=>esc(S.players[i]?.username||'?')).join(', '):'Tutti i player'}${evDur(e)?' · ⏳ '+evDur(e)+' min':''}</div>${e.at?`<div class="mut">Avviato: ${new Date(e.at).toLocaleString('it-IT')}${seen.length?' · ✔ visto da '+seen.join(', '):''}</div>`:''}</div></div>${e.desc?`<p class="mut" style="white-space:pre-wrap;margin:8px 0 0">${esc(e.desc)}</p>`:''}<div class="row" style="margin-top:10px;flex-wrap:wrap">${e.active?`<button class="d grow" data-evs="${e.id}">⏹ Termina evento</button>`:`<button class="grow" data-evl="${e.id}">▶ ${e.at?'Rilancia':'Avvia'} evento</button>`}<button class="g" data-eve="${e.id}">Modifica</button><button class="d" data-evd="${e.id}">✕</button></div></div>`;
+    }).join('')||'<p class="mut">Nessun evento: creane uno e avvialo quando vuoi.</p>');
+  bind();
+  const on=(a,fn)=>app.querySelectorAll(`[data-${a}]`).forEach(x=>x.onclick=()=>fn(x.dataset[a]));
+  $('#evAdd').onclick=async()=>{const r=await ask('Nuovo evento',evFields(),{ek:'generico',dur:0,to:[]});if(!r||!r.title)return;const id=uid8();guard(C.doc(id).set({id,...evData(r),active:false,at:0,created:Date.now()}))};
+  on('eve',async id=>{const e=S.events[id];if(!e)return;const r=await ask('Modifica evento',evFields(),{...e,icon:e.icon||'',dur:e.dur||0,to:e.to||[]});if(!r||!r.title)return;guard(C.doc(id).update(evData(r)))});
+  on('evl',async id=>{
+    const e=S.events[id];if(!e)return;
+    const who=e.to&&e.to.length?e.to.map(i=>S.players[i]?.username||'?').join(', '):'tutti i player';
+    const r=await ask('▶ Avviare «'+e.title+'»? La notifica arriverà a: '+who,[],{},'▶ Avvia');
+    if(!r)return;
+    guard(C.doc(id).update({active:true,at:Date.now()}));SND.play('alarm',1);toast('🎭 Evento avviato: '+e.title);
+  });
+  on('evs',id=>{const e=S.events[id];if(!e)return;guard(C.doc(id).update({active:false,ended:Date.now()}));toast('⏹ Evento terminato: '+e.title)});
+  on('evd',async id=>{if(await askYes('Eliminare questo evento?'))guard(C.doc(id).delete())});
+}
+{const _re=renderMaster;renderMaster=function(){if(tab==='events')return masterEvents();return _re()}}
 
 $('#mbtn').onclick=async()=>{
   if(masterOK){view={name:'master'};return render()}
