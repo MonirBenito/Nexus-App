@@ -2924,21 +2924,21 @@ function masterEvents(){
    Il Master può rivedere e correggere ogni campo, oppure incollare un JSON già pronto.
    Il player apre l'evento, vede la scena fissa in pixel art e tira (Tratto + Abilità) d10: ogni incremento = un gruppo di dadi che arriva a 10+. */
 const MG_RULES=[
- {r:/scass|serratur|lucchett|grimaldell|forzar|chiave/,t:'acume',s:'furtivita',m:'🔒',spr:'Una grossa serratura di ferro con il buco della chiave, illuminata da una luce fioca',env:'Sei chino davanti a una porta chiusa a chiave, in prima persona, con il corridoio buio alle spalle.',act:'Infili i grimaldelli nel meccanismo e senti i perni scattare uno a uno.',ok:'Click! La serratura cede e la porta si apre senza fare rumore.',ko:'Il grimaldello si spezza nel buco e il rumore rimbomba nel corridoio.'},
- {r:/uccell|bersagli|spara|tiro a segno|bancarell|pistol|fucil|freccia|\barco\b|\bmira\b/,t:'agilita',s:'mira',m:'🐦',spr:'Sagome di uccelli di latta che scorrono in fila su una bancarella da luna park',env:'Sei davanti a una bancarella del luna park, in prima persona, con il fucile ad aria compressa tra le mani.',act:'Prendi la mira e sparisci gli uccelli di latta che scorrono davanti a te.',ok:'Colpo dopo colpo gli uccelli cadono: il banchista ti consegna il premio.',ko:'I colpi vanno a vuoto e gli uccelli sfilano indisturbati. Nessun premio.'},
- {r:/scapp|fugg|inseguit|evad|scampa|via di qua/,t:'agilita',s:'velocita',m:'🏃',spr:'Un corridoio che si allunga davanti a te, con la porta d\'uscita in fondo e le ombre che ti inseguono',env:'Corri in prima persona lungo un passaggio stretto: i passi dell\'inseguitore sono sempre più vicini.',act:'Scatti in avanti, schivi gli ostacoli e punti dritto verso l\'uscita.',ok:'Sbatti la porta alle tue spalle: sei salvo, per ora.',ko:'Una mano ti afferra il braccio: la fuga è finita.'},
- {r:/pungiball|sacco|pugn|rissa|colpisc|picchi|boxe/,t:'vigore',s:'rissa',m:'🥊',spr:'Un pesante sacco da boxe appeso a una catena',env:'Sei in una palestra polverosa, in prima persona, con le nocche fasciate e il sacco davanti.',act:'Carichi il braccio e scarichi una serie di pugni sul sacco.',ok:'L\'ultimo colpo fa oscillare il sacco con un tonfo: tutti si voltano a guardarti.',ko:'I pugni sono goffi e deboli: il sacco quasi non si muove.'},
- {r:/spada|mischia|lama|duell|ascia|martello|scherma/,t:'vigore',s:'mischia',m:'⚔️',spr:'Un manichino da addestramento con un\'armatura ammaccata',env:'Sei in un cortile d\'addestramento, in prima persona, con l\'arma salda in pugno.',act:'Avanzi di un passo e concateni fendenti contro il manichino.',ok:'L\'armatura si spacca con un clangore: la tua tecnica è impeccabile.',ko:'L\'arma rimbalza sul metallo e ti sfugge di mano.'},
- {r:/scal|arrampic|salta|\bmuro\b|parete|\bfune\b|corda|ostacol|sollev|spingi/,t:'vigore',s:'atletica',m:'🧗',spr:'Una parete di roccia con appigli sporgenti',env:'Sei aggrappato a una parete, in prima persona, con il vuoto sotto di te.',act:'Cerchi l\'appiglio successivo e ti tiri su con tutta la forza delle braccia.',ok:'Raggiungi la cima e ti issi oltre il bordo, senza fiato.',ko:'La presa cede e scivoli giù lungo la parete.'},
- {r:/nascond|furtiv|sgattaiol|pedin|borseggi|\bruba|scivol|silenzio/,t:'agilita',s:'furtivita',m:'🕵️',spr:'Un angolo buio dietro una pila di casse, con una guardia che passa sullo sfondo',env:'Sei acquattato nell\'ombra, in prima persona, e trattieni il respiro.',act:'Ti muovi piano, da un nascondiglio all\'altro, senza fare rumore.',ok:'Nessuno si accorge di te: sei passato come un fantasma.',ko:'Una tavola scricchiola: la guardia si volta di scatto.'},
- {r:/convinc|persuad|negozi|trattat|mercanteggi|bluff|seduc|discors|parlament/,t:'panache',s:'convincere',m:'💬',spr:'Il volto dell\'interlocutore, serio e diffidente, davanti a te',env:'Sei faccia a faccia con qualcuno che non vuole cedere, in prima persona.',act:'Scegli le parole giuste e cerchi di far pendere l\'ago dalla tua parte.',ok:'L\'interlocutore sospira e annuisce: hai vinto la discussione.',ko:'Il tuo discorso cade nel vuoto: l\'altro scuote la testa e volta le spalle.'},
- {r:/intimid|minacc|spavent|terroriz/,t:'vigore',s:'intimidire',m:'💀',spr:'Un avversario che indietreggia, con gli occhi sbarrati',env:'Sei a pochi passi da un avversario, in prima persona, e lo fissi senza battere ciglio.',act:'Ti avvicini, abbassi la voce e fai pesare ogni parola.',ok:'L\'avversario trema e cede di fronte alla tua presenza.',ko:'L\'avversario ride: la tua minaccia non lo smuove.'},
- {r:/cerca|osserva|indizi|scrut|notare|trova|ricerc|ispezion|perquisi/,t:'acume',s:'notare',m:'🔎',spr:'Una stanza disordinata con un dettaglio fuori posto che quasi non si nota',env:'Sei al centro di una stanza silenziosa, in prima persona, con gli occhi che scandagliano ogni angolo.',act:'Passi in rassegna ogni oggetto, cercando ciò che gli altri non vedono.',ok:'Lo trovi: un dettaglio nascosto che cambia tutto.',ko:'Hai guardato ovunque, ma l\'indizio ti sfugge.'},
- {r:/enigm|indovinell|decifr|codice|\brune\b|puzzle|cifra|studia|libro/,t:'acume',s:'istruzione',m:'🧩',spr:'Una tavola di simboli antichi incisi nella pietra',env:'Sei davanti a una parete coperta di simboli, in prima persona, con una lanterna in mano.',act:'Confronti i simboli, ricordi ciò che hai studiato e provi a comporre la soluzione.',ok:'I simboli si illuminano uno dopo l\'altro: l\'enigma è risolto.',ko:'La combinazione è sbagliata e i simboli si spengono di colpo.'},
- {r:/medit|concentr|nexus|rituale|incantes|magia|potere|sigillo/,t:'nexus',s:'concentrazione',m:'🔮',spr:'Un\'orbita di luce che pulsa davanti ai tuoi occhi',env:'Sei in silenzio, in prima persona, e senti il NEXUS vibrare sotto la pelle.',act:'Chiudi gli occhi, respiri piano e guidi l\'energia verso il centro della luce.',ok:'La luce si stabilizza e obbedisce al tuo volere.',ko:'La concentrazione si spezza e l\'energia si disperde in scintille.'},
- {r:/calm|consol|ascolta|empati|confort|supporto|lacrim/,t:'panache',s:'empatia',m:'💞',spr:'Una persona abbattuta, seduta con lo sguardo basso',env:'Sei seduto accanto a qualcuno che soffre, in prima persona.',act:'Ascolti senza fretta e scegli con cura il gesto e la parola giusti.',ok:'Le spalle si rilassano: ti sei guadagnato la sua fiducia.',ko:'Le tue parole suonano vuote: l\'altro si chiude in sé stesso.'},
- {r:/dipin|crea|invent|compon|suona|canta|costruisc|\barte\b|scolpi|improvvis/,t:'panache',s:'creativita',m:'🎨',spr:'Una tela bianca, un cavalletto e una tavolozza di colori accesi',env:'Sei davanti a una tela vuota, in prima persona, con il pennello in mano.',act:'Lasci correre l\'ispirazione e dai forma a ciò che hai in mente.',ok:'L\'opera prende vita: tutti restano a bocca aperta.',ko:'Il risultato è confuso e privo di slancio. Nessuno è colpito.'},
- {r:/veloc|gara|sprint|schiva|evita|riflessi/,t:'agilita',s:'velocita',m:'⚡',spr:'Un ostacolo che ti viene incontro a tutta velocità',env:'Sei fermo in posizione, in prima persona, con i muscoli tesi.',act:'Al momento giusto scatti di lato e anticipi il colpo.',ok:'Lo schivi per un soffio: nemmeno ti ha sfiorato.',ko:'Troppo lento: l\'impatto ti coglie in pieno.'}
+ {r:/scass|serratur|lucchett|grimaldell|forzar|chiave/,t:'acume',s:'furtivita',m:'🔒',k:'lock',spr:'Una grossa serratura di ferro con il buco della chiave, illuminata da una luce fioca',env:'Sei chino davanti a una porta chiusa a chiave, in prima persona, con il corridoio buio alle spalle.',act:'Infili i grimaldelli nel meccanismo e senti i perni scattare uno a uno.',ok:'Click! La serratura cede e la porta si apre senza fare rumore.',ko:'Il grimaldello si spezza nel buco e il rumore rimbomba nel corridoio.'},
+ {r:/uccell|bersagli|spara|tiro a segno|bancarell|pistol|fucil|freccia|\barco\b|\bmira\b/,t:'agilita',s:'mira',m:'🐦',k:'shoot',spr:'Sagome di uccelli di latta che scorrono in fila su una bancarella da luna park',env:'Sei davanti a una bancarella del luna park, in prima persona, con il fucile ad aria compressa tra le mani.',act:'Prendi la mira e sparisci gli uccelli di latta che scorrono davanti a te.',ok:'Colpo dopo colpo gli uccelli cadono: il banchista ti consegna il premio.',ko:'I colpi vanno a vuoto e gli uccelli sfilano indisturbati. Nessun premio.'},
+ {r:/scapp|fugg|inseguit|evad|scampa|via di qua/,t:'agilita',s:'velocita',m:'🏃',k:'run',spr:'Un corridoio che si allunga davanti a te, con la porta d\'uscita in fondo e le ombre che ti inseguono',env:'Corri in prima persona lungo un passaggio stretto: i passi dell\'inseguitore sono sempre più vicini.',act:'Scatti in avanti, schivi gli ostacoli e punti dritto verso l\'uscita.',ok:'Sbatti la porta alle tue spalle: sei salvo, per ora.',ko:'Una mano ti afferra il braccio: la fuga è finita.'},
+ {r:/pungiball|sacco|pugn|rissa|colpisc|picchi|boxe/,t:'vigore',s:'rissa',m:'🥊',k:'punch',spr:'Un pesante sacco da boxe appeso a una catena',env:'Sei in una palestra polverosa, in prima persona, con le nocche fasciate e il sacco davanti.',act:'Carichi il braccio e scarichi una serie di pugni sul sacco.',ok:'L\'ultimo colpo fa oscillare il sacco con un tonfo: tutti si voltano a guardarti.',ko:'I pugni sono goffi e deboli: il sacco quasi non si muove.'},
+ {r:/spada|mischia|lama|duell|ascia|martello|scherma/,t:'vigore',s:'mischia',m:'⚔️',k:'punch',spr:'Un manichino da addestramento con un\'armatura ammaccata',env:'Sei in un cortile d\'addestramento, in prima persona, con l\'arma salda in pugno.',act:'Avanzi di un passo e concateni fendenti contro il manichino.',ok:'L\'armatura si spacca con un clangore: la tua tecnica è impeccabile.',ko:'L\'arma rimbalza sul metallo e ti sfugge di mano.'},
+ {r:/scal|arrampic|salta|\bmuro\b|parete|\bfune\b|corda|ostacol|sollev|spingi/,t:'vigore',s:'atletica',m:'🧗',k:'climb',spr:'Una parete di roccia con appigli sporgenti',env:'Sei aggrappato a una parete, in prima persona, con il vuoto sotto di te.',act:'Cerchi l\'appiglio successivo e ti tiri su con tutta la forza delle braccia.',ok:'Raggiungi la cima e ti issi oltre il bordo, senza fiato.',ko:'La presa cede e scivoli giù lungo la parete.'},
+ {r:/nascond|furtiv|sgattaiol|pedin|borseggi|\bruba|scivol|silenzio/,t:'agilita',s:'furtivita',m:'🕵️',k:'stealth',spr:'Un angolo buio dietro una pila di casse, con una guardia che passa sullo sfondo',env:'Sei acquattato nell\'ombra, in prima persona, e trattieni il respiro.',act:'Ti muovi piano, da un nascondiglio all\'altro, senza fare rumore.',ok:'Nessuno si accorge di te: sei passato come un fantasma.',ko:'Una tavola scricchiola: la guardia si volta di scatto.'},
+ {r:/convinc|persuad|negozi|trattat|mercanteggi|bluff|seduc|discors|parlament/,t:'panache',s:'convincere',m:'💬',k:'talk',spr:'Il volto dell\'interlocutore, serio e diffidente, davanti a te',env:'Sei faccia a faccia con qualcuno che non vuole cedere, in prima persona.',act:'Scegli le parole giuste e cerchi di far pendere l\'ago dalla tua parte.',ok:'L\'interlocutore sospira e annuisce: hai vinto la discussione.',ko:'Il tuo discorso cade nel vuoto: l\'altro scuote la testa e volta le spalle.'},
+ {r:/intimid|minacc|spavent|terroriz/,t:'vigore',s:'intimidire',m:'💀',k:'talk',spr:'Un avversario che indietreggia, con gli occhi sbarrati',env:'Sei a pochi passi da un avversario, in prima persona, e lo fissi senza battere ciglio.',act:'Ti avvicini, abbassi la voce e fai pesare ogni parola.',ok:'L\'avversario trema e cede di fronte alla tua presenza.',ko:'L\'avversario ride: la tua minaccia non lo smuove.'},
+ {r:/cerca|osserva|indizi|scrut|notare|trova|ricerc|ispezion|perquisi/,t:'acume',s:'notare',m:'🔎',k:'search',spr:'Una stanza disordinata con un dettaglio fuori posto che quasi non si nota',env:'Sei al centro di una stanza silenziosa, in prima persona, con gli occhi che scandagliano ogni angolo.',act:'Passi in rassegna ogni oggetto, cercando ciò che gli altri non vedono.',ok:'Lo trovi: un dettaglio nascosto che cambia tutto.',ko:'Hai guardato ovunque, ma l\'indizio ti sfugge.'},
+ {r:/enigm|indovinell|decifr|codice|\brune\b|puzzle|cifra|studia|libro/,t:'acume',s:'istruzione',m:'🧩',k:'puzzle',spr:'Una tavola di simboli antichi incisi nella pietra',env:'Sei davanti a una parete coperta di simboli, in prima persona, con una lanterna in mano.',act:'Confronti i simboli, ricordi ciò che hai studiato e provi a comporre la soluzione.',ok:'I simboli si illuminano uno dopo l\'altro: l\'enigma è risolto.',ko:'La combinazione è sbagliata e i simboli si spengono di colpo.'},
+ {r:/medit|concentr|nexus|rituale|incantes|magia|potere|sigillo/,t:'nexus',s:'concentrazione',m:'🔮',k:'puzzle',spr:'Un\'orbita di luce che pulsa davanti ai tuoi occhi',env:'Sei in silenzio, in prima persona, e senti il NEXUS vibrare sotto la pelle.',act:'Chiudi gli occhi, respiri piano e guidi l\'energia verso il centro della luce.',ok:'La luce si stabilizza e obbedisce al tuo volere.',ko:'La concentrazione si spezza e l\'energia si disperde in scintille.'},
+ {r:/calm|consol|ascolta|empati|confort|supporto|lacrim/,t:'panache',s:'empatia',m:'💞',k:'talk',spr:'Una persona abbattuta, seduta con lo sguardo basso',env:'Sei seduto accanto a qualcuno che soffre, in prima persona.',act:'Ascolti senza fretta e scegli con cura il gesto e la parola giusti.',ok:'Le spalle si rilassano: ti sei guadagnato la sua fiducia.',ko:'Le tue parole suonano vuote: l\'altro si chiude in sé stesso.'},
+ {r:/dipin|crea|invent|compon|suona|canta|costruisc|\barte\b|scolpi|improvvis/,t:'panache',s:'creativita',m:'🎨',k:'puzzle',spr:'Una tela bianca, un cavalletto e una tavolozza di colori accesi',env:'Sei davanti a una tela vuota, in prima persona, con il pennello in mano.',act:'Lasci correre l\'ispirazione e dai forma a ciò che hai in mente.',ok:'L\'opera prende vita: tutti restano a bocca aperta.',ko:'Il risultato è confuso e privo di slancio. Nessuno è colpito.'},
+ {r:/veloc|gara|sprint|schiva|evita|riflessi/,t:'agilita',s:'velocita',m:'⚡',k:'dodge',spr:'Un ostacolo che ti viene incontro a tutta velocità',env:'Sei fermo in posizione, in prima persona, con i muscoli tesi.',act:'Al momento giusto scatti di lato e anticipi il colpo.',ok:'Lo schivi per un soffio: nemmeno ti ha sfiorato.',ko:'Troppo lento: l\'impatto ti coglie in pieno.'}
 ];
 const MG_ALIAS={prontezza:'agilita',intelletto:'acume',intelligenza:'acume',forza:'vigore',carisma:'panache',riflessi:'velocita',mischia:'mischia',furtivita:'furtivita'};
 const mgCap=s=>s?s[0]+s.slice(1).toLowerCase():s;
@@ -2956,7 +2956,7 @@ function mgGen(idea){
   const title=(ttl[0]||'M').toUpperCase()+ttl.slice(1,60);
   const T=R?TR.find(x=>x[0]===R.t):TR.find(x=>x[0]==='acume'),S=R?AB.find(x=>x[0]===R.s):AB.find(x=>x[0]==='notare');
   return {mg:{
-    minigame_id:'',title,
+    minigame_id:R?R.k+'_'+mgSlug(ttl):'',title,
     visual_theme:{background_type:'first_person_view',target_sprite:R?R.spr:'Il bersaglio della prova, al centro della scena, in pixel art',environment_description:R?R.env:'Sei dentro la scena, in prima persona: «'+ttl+'».'},
     mechanic:{action_prompt:R?R.act:'Ti concentri e affronti la prova: «'+ttl+'».',suggested_trait:mgCap(T[1]),suggested_skill:S[1],difficulty_increments:diff},
     outcomes:{success_text:R?R.ok:'Ce l\'hai fatta: la prova è superata.',failure_text:R?R.ko:'La prova va male: non riesci a superarla.'}},
@@ -2967,9 +2967,11 @@ function mgForm(mg,icon,e){
   const v=mg.visual_theme||{},m=mg.mechanic||{},o=mg.outcomes||{},T=mgFind(TR,m.suggested_trait),S=mgFind(AB,m.suggested_skill);
   return {title:mg.title||'',spr:v.target_sprite||'',env:v.environment_description||'',act:m.action_prompt||'',
     tr:T?mgCap(T[1]):'Acume',sk:S?S[1]:'Notare',diff:mgClamp(m.difficulty_increments),ok:o.success_text||'',ko:o.failure_text||'',
-    icon:icon||'',dur:(e&&e.dur)||0,to:(e&&e.to)||[],id:mg.minigame_id||''};
+    icon:icon||'',dur:(e&&e.dur)||0,to:(e&&e.to)||[],id:mg.minigame_id||'',gk:((String(mg.minigame_id||'').match(/^([a-z]+)_/)||[])[1]||'auto')};
 }
-const mgObj=r=>({minigame_id:r.id||mgSlug(r.title),title:r.title.slice(0,80),
+
+const mgId=r=>(r.gk&&r.gk!=='auto'?r.gk+'_':'')+String(r.id||mgSlug(r.title)).replace(/^(lock|shoot|run|stealth|search|punch|talk|puzzle|climb|dodge)_/,'');
+const mgObj=r=>({minigame_id:mgId(r),title:r.title.slice(0,80),
   visual_theme:{background_type:'first_person_view',target_sprite:(r.spr||'').slice(0,250),environment_description:(r.env||'').slice(0,500)},
   mechanic:{action_prompt:(r.act||'').slice(0,400),suggested_trait:r.tr,suggested_skill:r.sk,difficulty_increments:mgClamp(r.diff)},
   outcomes:{success_text:(r.ok||'').slice(0,400),failure_text:(r.ko||'').slice(0,400)}});
@@ -2980,6 +2982,7 @@ function mgParseJson(txt){
     return j;
   }catch(x){toast('JSON non valido: controlla di averlo incollato per intero');return null}
 }
+
 /* incrementi: un d10 che fa 10 vale 1; gli altri dadi si sommano in gruppi che arrivano a 10 o più (anche 11, 12, 13… = 1 solo incremento) */
 function mgInc(dice){
   const r=[...dice].sort((a,b)=>b-a),g=[];let left=[];
@@ -3000,6 +3003,7 @@ function mgPool(p,mg){
   const tb=md.tr[T[0]]||0,sb=md.ab[S[0]]||0,t=(trOf(p)[T[0]]||0)+tb,a=(abOf(p)[S[0]]||0)+sb;
   return {T,S,t,a,tb,sb,n:Math.min(30,t+a)};
 }
+
 const MG_IDEA=[
   {l:'🎮 Minigioco (opzionale): scrivi un\'idea creativa, es. «scassina la serratura»',n:'idea',t:'area'},
   {l:'Oppure incolla qui un JSON già pronto (opzionale, ha la precedenza sull\'idea)',n:'json',t:'area'}];
@@ -3009,7 +3013,8 @@ const mgFields=()=>[
   {l:'Scena in prima persona',n:'env',t:'area'},
   {l:'Azione che il giocatore compie',n:'act',t:'area'},
   {l:'Tratto associato',n:'tr',t:'select',o:MG_TRL()},
-  {l:'Abilità associata (decide anche il tipo di gioco)',n:'sk',t:'select',o:MG_ABL()},
+  {l:'Abilità associata',n:'sk',t:'select',o:MG_ABL()},
+  {l:'Tipo di gioco: auto, lock=scasso, shoot=tiro a bersaglio, run=corsa e salti, stealth=furtività alla Pokémon, search=ricerca gemme, punch=colpo a tempo, talk=dialogo a tempo, puzzle=memoria, climb=scalata, dodge=schivata massi',n:'gk',t:'select',o:['auto','lock','shoot','run','stealth','search','punch','talk','puzzle','climb','dodge']},
   {l:'Difficoltà (incrementi richiesti, di solito 2, 3 o 4)',n:'diff',t:'number'},
   {l:'Se riesce (testo)',n:'ok',t:'area'},
   {l:'Se fallisce (testo)',n:'ko',t:'area'}];
@@ -3031,104 +3036,7 @@ function mgMasterHtml(e){
   return `<div class="mut" style="margin-top:8px">🎮 ${esc(mc.suggested_trait)} + ${esc(mc.suggested_skill)} · difficoltà ${need} incrementi</div>${rs}`;
 }
 
-/* ---- gioco vero e proprio: 4 meccaniche, scelte dall'abilità ---- */
-const MG_GAME={furtivita:'timing',mischia:'timing',convincere:'timing',intimidire:'timing',empatia:'timing',mira:'target',notare:'target',rissa:'rapid',velocita:'rapid',atletica:'rapid',istruzione:'memory',concentrazione:'memory',creativita:'memory'};
-const MG_MUS={timing:'mistero',target:'festa',rapid:'combattimento',memory:'scoperta'};
-const MG_LBL={furtivita:'SCATTA',mischia:'COLPISCI',convincere:'ARGOMENTA',intimidire:'MINACCIA',empatia:'ASCOLTA',rissa:'PUGNO!',velocita:'CORRI!',atletica:'TIRATI SU!'};
-const MG_HOW={timing:'Ferma il segno nella zona verde. Hai 3 tentativi, e la zona si restringe.',target:'Tocca i bersagli prima che spariscano: ne compaiono 9.',rapid:'Tocca il pulsante più veloce che puoi per riempire la barra: hai 6 secondi.',memory:'Guarda la sequenza e ripetila a memoria.'};
-const mgGame=mg=>{const S=mgFind(AB,mg.mechanic.suggested_skill);return (S&&MG_GAME[S[0]])||'timing'};
-const evMus=e=>e.mg?MG_MUS[mgGame(e.mg)]:(e.ek||'generico');
-function mgPop(sc,txt,col){const f=sc.querySelector('.mg-fx'),s=document.createElement('i');s.className='mg-pop';s.textContent=txt;s.style.color=col;f.append(s);setTimeout(()=>s.remove(),900)}
-function mgBurst(sc,ch,n){const f=sc.querySelector('.mg-fx');for(let i=0;i<n;i++){const s=document.createElement('i'),a=Math.random()*6.28,d=60+Math.random()*100;s.className='mg-p';s.textContent=ch[i%ch.length];s.style.setProperty('--dx',Math.cos(a)*d+'px');s.style.setProperty('--dy',Math.sin(a)*d*.8+'px');s.style.animationDelay=Math.random()*.3+'s';f.append(s);setTimeout(()=>s.remove(),1800)}}
-const MG_G={
- timing(c){
-  const N=3;let r=0,hits=0,pos=0,dir=1,zc=0,zw=0,sp=0,live=1,last=performance.now();
-  c.ctl.innerHTML=`<div class="tm-bar"><i class="tm-z"></i><b class="tm-m"></b></div><div class="mg-big tm-d"></div><button style="width:100%">⚡ ${c.lbl}</button>`;
-  const q=s=>c.ctl.querySelector(s),z=q('.tm-z'),m=q('.tm-m'),d=q('.tm-d');
-  const setup=()=>{zw=24-r*5;zc=22+Math.random()*56;z.style.left=zc-zw/2+'%';z.style.width=zw+'%';sp=58+r*32;d.textContent='●'.repeat(r)+'○'.repeat(N-r);c.H('Tentativo '+(r+1)+' di '+N)};
-  const loop=t=>{if(!c.box.isConnected||!live)return;pos+=dir*sp*(t-last)/1000;last=t;if(pos>=100){pos=100;dir=-1}if(pos<=0){pos=0;dir=1}m.style.left=pos+'%';requestAnimationFrame(loop)};
-  q('button').onpointerdown=ev=>{ev.preventDefault();if(!live)return;const x=Math.abs(pos-zc),k=x<=zw/2?1:x<=zw/2+9?.5:0;hits+=k;
-    mgPop(c.sc,k===1?'PERFETTO!':k?'QUASI…':'MANCATO',k===1?'#3dffa0':k?'#ffcb3d':'#ff4d5e');SND.play(k===1?'ok':k?'click':'danger',1);c.sc.classList.remove('hk');void c.sc.offsetWidth;c.sc.classList.add('hk');
-    if(++r>=N){live=0;d.textContent='●'.repeat(N);setTimeout(()=>c.done(hits/N),700)}else setup()};
-  setup();requestAnimationFrame(t=>{last=t;loop(t)});
- },
- target(c){
-  const N=9;let sp=0,hit=0;const f=c.sc.querySelector('.mg-fx');f.style.pointerEvents='auto';c.sc.classList.add('tg-on');
-  const upd=()=>c.H(`🎯 Colpiti <b>${hit}</b> / ${N}`);
-  const fin=()=>{f.style.pointerEvents='';c.sc.classList.remove('tg-on');c.done(hit/N)};
-  const spawn=()=>{
-    if(!c.box.isConnected)return;if(sp>=N){setTimeout(fin,1300);return}
-    sp++;const t=document.createElement('b');let gone=0;t.className='tg';t.textContent=c.ico;t.style.left=8+Math.random()*76+'%';t.style.top=8+Math.random()*52+'%';f.append(t);
-    t.onpointerdown=ev=>{ev.preventDefault();if(gone)return;gone=1;hit++;t.className='tg hit';t.textContent='💥';SND.play('shot',1);upd();setTimeout(()=>t.remove(),350)};
-    setTimeout(()=>{if(!gone){gone=1;t.remove()}},1300);setTimeout(spawn,950);
-  };
-  c.ctl.innerHTML='<div class="mut" style="text-align:center">Tocca i bersagli nella scena!</div>';upd();spawn();
- },
- rapid(c){
-  const G=26,D=6000;let taps=0,t0=0,live=1;
-  c.ctl.innerHTML=`<div class="rp-bar"><i></i></div><button class="rp-b" style="width:100%">👟 ${c.lbl}</button>`;
-  const bar=c.ctl.querySelector('.rp-bar i'),b=c.ctl.querySelector('.rp-b'),zoom=v=>c.spr.style.transform='translate(-50%,-50%) scale('+(.5+v*1)+')';
-  const tick=()=>{if(!c.box.isConnected||!live)return;const l=D-(Date.now()-t0);c.H('⏱ '+Math.max(0,l/1000).toFixed(1)+' s');if(l<=0){live=0;b.disabled=true;setTimeout(()=>c.done(Math.min(1,taps/G)),500);return}setTimeout(tick,100)};
-  b.onpointerdown=ev=>{ev.preventDefault();if(!live)return;if(!t0){t0=Date.now();tick()}taps++;const v=Math.min(1,taps/G);bar.style.width=v*100+'%';zoom(v);SND.play('click',1);c.sc.classList.remove('hk');void c.sc.offsetWidth;c.sc.classList.add('hk')};
-  zoom(0);c.H('Tocca per partire!');
- },
- memory(c){
-  const SY=['🔺','🟦','🟡','🟩'],L=5,seq=Array.from({length:L},()=>Math.floor(Math.random()*4));let k=0,live=1;
-  c.ctl.innerHTML='<div class="mm-pads">'+SY.map((s,i)=>`<button class="mm" data-i="${i}" disabled>${s}</button>`).join('')+'</div>';
-  const pads=[...c.ctl.querySelectorAll('.mm')],fl=(i,ms)=>{pads[i].classList.add('on');SND.play('click',1);setTimeout(()=>pads[i].classList.remove('on'),ms)};
-  const fin=()=>{live=0;pads.forEach(p=>p.disabled=true);setTimeout(()=>c.done(k/L),700)};
-  c.H('👀 Osserva la sequenza…');
-  seq.forEach((s,i)=>setTimeout(()=>{if(c.box.isConnected)fl(s,380)},900+i*650));
-  setTimeout(()=>{if(!c.box.isConnected)return;c.H('👆 Ripeti la sequenza');pads.forEach(p=>p.disabled=false)},900+L*650);
-  pads.forEach(p=>p.onclick=()=>{if(!live)return;const i=+p.dataset.i;fl(i,200);if(i===seq[k]){k++;if(k>=L)fin()}else{SND.play('danger',1);fin()}});
- }
-};
-function mgCss(){
-  if(document.getElementById('mgcss'))return;
-  const s=document.createElement('style');s.id='mgcss';
-  s.textContent=`.mg{width:100%;margin-top:14px;text-align:center}
-.mg-scene{position:relative;height:240px;overflow:hidden;border:4px solid var(--ink);box-shadow:4px 4px 0 var(--ink),0 0 0 3px var(--ec,var(--acc));image-rendering:pixelated;background:linear-gradient(#1a1250 0 56%,#3a2480 56% 59%,#120d2c 59%);touch-action:manipulation;user-select:none}
-.mg-scene.g-target{background:linear-gradient(#27408f 0 56%,#d9822b 56% 59%,#3a1d0f 59%)}
-.mg-scene.g-rapid{background:linear-gradient(#4a1230 0 56%,#a02a3a 56% 59%,#1d0a14 59%)}
-.mg-scene.g-memory{background:linear-gradient(#0e3b4a 0 56%,#1f8a8a 56% 59%,#0a1f26 59%)}
-.mg-sky{position:absolute;left:0;right:0;top:0;height:56%;background:radial-gradient(#fff 1px,transparent 1.6px) 0 0/22px 22px;opacity:.22}
-.mg-floor{position:absolute;left:0;right:0;bottom:0;height:41%;background:repeating-linear-gradient(90deg,rgba(255,255,255,.08) 0 4px,transparent 4px 36px),repeating-linear-gradient(0deg,rgba(0,0,0,.3) 0 4px,transparent 4px 26px)}
-.mg-spr{position:absolute;left:50%;top:47%;font-size:88px;line-height:1;transform:translate(-50%,-50%);filter:drop-shadow(4px 4px 0 var(--ink));animation:mgbob 1s steps(4) infinite}
-.mg-scene.still .mg-spr,.mg-scene.tg-on .mg-spr{animation:none}.mg-scene.tg-on .mg-spr{display:none}
-.mg-hand{position:absolute;right:14%;bottom:-10px;font-size:58px;transform:rotate(-18deg);filter:drop-shadow(3px 3px 0 var(--ink));z-index:2}
-.mg-hand.l{right:auto;left:14%;transform:rotate(18deg) scaleX(-1)}
-.mg-scene.hk .mg-hand{animation:mgjab .18s steps(3)}
-.mg-fx{position:absolute;inset:0;z-index:3;pointer-events:none;overflow:hidden}
-.tg{position:absolute;font-size:46px;line-height:1;cursor:pointer;filter:drop-shadow(3px 3px 0 var(--ink));animation:tgpop .2s steps(3),tgdrift 1.3s linear both}
-.tg.hit{animation:tgpop .2s steps(3) reverse}
-.mg-pop{position:absolute;left:50%;top:30%;font:400 13px/1 var(--f-px);text-shadow:2px 2px 0 var(--ink);white-space:nowrap;animation:mgrise .9s steps(8) both}
-.mg-p{position:absolute;left:50%;top:47%;font-size:26px;animation:mgfly 1.3s ease-out both}
-.mg-env{margin:14px 0 4px;font-style:italic}.mg-act{font-weight:700;margin:0 0 8px}
-.mg-hud{min-height:30px;margin:10px 0 4px}
-.mg-pool{border:2px dashed var(--ec,var(--acc));padding:8px 10px;margin:8px 0;font-size:.92em}
-.mg .dice{margin:12px 0 6px}.mg .die{width:42px;height:42px;font-size:13px;border-width:3px}
-.mg-g{display:inline-block;margin:3px;padding:4px 8px;border:2px solid var(--ok);color:var(--ok);font:400 10px/1.4 var(--f-px)}.mg-g.x{border-color:#888;color:#888}
-.mg-big{font:400 14px/1.6 var(--f-px);margin:8px 0 4px;text-shadow:2px 2px 0 var(--ink)}.mg-big.ok{color:var(--ok)}.mg-big.ko{color:var(--danger)}
-.tm-bar{position:relative;height:34px;margin:8px 0;background:#120d2c;border:3px solid var(--ink);box-shadow:3px 3px 0 var(--ink)}
-.tm-z{position:absolute;top:0;bottom:0;background:var(--ok);opacity:.8}.tm-m{position:absolute;top:-4px;bottom:-4px;width:8px;margin-left:-4px;background:#fff;border:2px solid var(--ink)}
-.rp-bar{height:22px;margin:8px 0;background:#120d2c;border:3px solid var(--ink)}.rp-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--acc),var(--ok))}
-.mm-pads{display:grid;grid-template-columns:1fr 1fr;gap:10px}.mm{height:60px;font-size:30px}.mm.on{background:#fff;transform:scale(.94);box-shadow:0 0 18px #fff}
-.mg-scene.t-crit{animation:mggold 1s steps(5) 2}.mg-scene.t-crit .mg-spr{animation:mgspin 1.2s steps(10) both}
-.mg-scene.t-ok .mg-spr{animation:mgwin .5s steps(5) both}
-.mg-scene.t-ko .mg-spr{animation:mgsink 1.3s steps(8) both}
-.mg-scene.t-fiasco{animation:shake .5s steps(4) 3,mgred 1.5s steps(6)}.mg-scene.t-fiasco .mg-spr{animation:none}
-@keyframes mgbob{50%{transform:translate(-50%,-57%)}}
-@keyframes mgjab{50%{transform:translate(0,-26px) scale(1.15)}}
-@keyframes tgpop{from{transform:scale(0)}}@keyframes tgdrift{to{margin-left:42px}}
-@keyframes mgrise{to{transform:translateY(-34px);opacity:0}}
-@keyframes mgfly{to{transform:translate(var(--dx),var(--dy)) scale(.4) rotate(220deg);opacity:0}}
-@keyframes mgwin{50%{transform:translate(-50%,-50%) scale(1.5) rotate(10deg)}to{transform:translate(-50%,-50%) scale(1.15)}}
-@keyframes mgspin{to{transform:translate(-50%,-50%) scale(1.7) rotate(720deg)}}
-@keyframes mgsink{to{transform:translate(-50%,10%) scale(.7) rotate(25deg);opacity:.35;filter:grayscale(1)}}
-@keyframes mggold{50%{box-shadow:inset 0 0 70px 24px rgba(255,210,60,.85),4px 4px 0 var(--ink)}}
-@keyframes mgred{50%{box-shadow:inset 0 0 70px 24px rgba(255,0,60,.8),4px 4px 0 var(--ink)}}`;
-  document.head.append(s);
-}
+
 /* animazione dei dadi (a metà prova) */
 function mgDice(ctl,res,anim,cb){
   const R=mgInc(res.d);
@@ -3141,48 +3049,370 @@ function mgDice(ctl,res,anim,cb){
   SND.play('dice',1);const step=res.d.length>10?90:240,t0=Date.now();
   iv=setInterval(()=>{const k=Math.floor((Date.now()-t0-700)/step)+1;els.forEach((d,i)=>{if(i<k){if(!d.classList.contains('land'))land(d,i)}else d.firstChild.textContent=1+Math.floor(Math.random()*10)});if(k<res.d.length)SND.play('dice');else fin()},70);
 }
+
+/* ---- motore grafico a pixel: canvas 160x128, sprite disegnati in codice ---- */
+const MG_W=160,MG_H=128,MG_KEYS=['lock','shoot','run','stealth','search','punch','talk','puzzle','climb','dodge'];
+const MGP={k:'#0f0820',w:'#ffffff',r:'#e53950',R:'#8a1d38',y:'#ffd23d',Y:'#c98a14',g:'#42d884',G:'#1f8a55',b:'#4aa8ff',B:'#2757b5',p:'#b07bff',n:'#9a6238',N:'#5c3820',s:'#f2c9a0',e:'#aab0c4',E:'#5d647c',o:'#ff9440',c:'#6fe8ff'};
+const MGS={
+ hero:['..RRRR..','.RRRRRR.','.ssksks.','.ssssss.','..BBBB..','.sBBBBs.','..BBBB..','..N..N..'],
+ hero2:['..RRRR..','.RRRRRR.','.ssksks.','.ssssss.','..BBBB..','.sBBBBs.','..BBBB..','...NN...'],
+ heroup:['..RRRR..','.RRRRRR.','.ssksks.','s.ssss.s','sBBBBBBs','..BBBB..','..BBBB..','..N..N..'],
+ guard:['..pppp..','.pppppp.','.ssksks.','.ssssss.','..pBBp..','.spBBps.','..pppp..','..k..k..'],
+ bird:['.y.....y.','yyy...yyy','.yyyyyyy.','..yyyyyko','...ooyy..'],
+ bird2:['.........','.........','yyyyyyyyy','..yyyyyko','...ooyy..'],
+ lock:['..eeeeee..','.ee....ee.','.e......e.','.e......e.','yyyyyyyyyy','yYYYYYYYYy','yYYYkkYYYy','yYYYkkYYYy','yYYYYkYYYy','yYYYYkYYYy','yYYYYYYYYy','yyyyyyyyyy'],
+ bag:['...ee...','...ee...','.RRRRRR.','RrrrrrrR','RrwwwwrR','RrrrrrrR','RrrrrrrR','RrrrrrrR','RrrrrrrR','RrrrrrrR','RrrrrrrR','.RrrrrR.','..RRRR..'],
+ face:['..NNNNNNNN..','.NNNNNNNNNN.','.NssssssssN.','.NswkssswkN.','.NssssssssN.','.NssssnsssN.','.NssssssssN.','.NsRRRRRRsN.','..ssssssss..','...ssssss...','..BBBBBBBB..','.BBBBBBBBBB.'],
+ tree:['.....gggggg.....','...gggGgggggg...','..ggggggGgggggg.','.gggGgggggggGggg','.ggggggggGgggggg','gggggGggggggggGg','ggGggggggGggggGg','.gggggggggggggG.','..GGggggggggGG..','....GGGGGGGG....','......NNNN......','......NnNN......','......NNNN......','.....NNNNNN.....'],
+ gem:['..cc..','.cwcc.','cwcccc','cccccB','.cccB.','..BB..'],
+ rock:['..EEEE..','.EeeeeE.','EeeeeeeE','EeeEeeeE','EeeeeEeE','EEEEEEEE'],
+ trophy:['y.yyyyyy.y','y.yyyyyy.y','.yyyyyyyy.','..yyyyyy..','...yyyy...','....yy....','....yy....','...YYYY...','..YYYYYY..'],
+ skull:['..wwwwww..','.wwwwwwww.','wwkkwwkkww','wwkkwwkkww','wwwwkkwwww','.wwwwwwww.','..wkwkwk..','...wwwww..'],
+ heart:['.r.r.','rrrrr','rrrrr','.rrr.','..r..'],
+ hold:['.nnnn.','nNnnnN','NNNNNN']
+};
+const mgSC={};
+function mgSpr(n){
+  if(mgSC[n])return mgSC[n];
+  const a=MGS[n],c=document.createElement('canvas');c.width=a[0].length;c.height=a.length;
+  const x=c.getContext('2d');a.forEach((r,j)=>[...r].forEach((ch,i)=>{if(MGP[ch]){x.fillStyle=MGP[ch];x.fillRect(i,j,1,1)}}));
+  return mgSC[n]=c;
+}
+function mgD(g,n,x,y,s,fl){
+  const c=mgSpr(n);s=s||1;g.save();g.translate(Math.round(x),Math.round(y));
+  if(fl){g.translate(c.width*s,0);g.scale(-1,1)}
+  g.imageSmoothingEnabled=false;g.drawImage(c,0,0,c.width*s,c.height*s);g.restore();
+}
+const MG_TH={dusk:['#241552','#32207a','#4a2c8a','#6c3c92','#9a5290','#c8708a'],day:['#2a6ad0','#3b82e2','#58a0f0','#7ebcf6','#a8d6fa','#cdeafb'],fire:['#2a0814','#4a1020','#74182c','#a02a32','#d4503a','#f08a48'],night:['#04060f','#080c26','#0e1642','#16225e','#20317e','#2c4296']};
+function mgSky(g,th,h,t){
+  const c=MG_TH[th]||MG_TH.dusk,b=Math.ceil(h/c.length);
+  c.forEach((x,i)=>{g.fillStyle=x;g.fillRect(0,i*b,MG_W,b)});
+  if(th==='night'||th==='dusk'){g.fillStyle='#fff';for(let i=0;i<22;i++)if(((t||0)+i*7)%40<30)g.fillRect((i*37)%MG_W,(i*53)%Math.floor(h*.6),1,1)}
+}
+function mgTxt(g,s,x,y,col,sz){g.font='bold '+(sz||8)+'px monospace';g.textAlign='center';g.fillStyle='#0f0820';g.fillText(s,x+1,y+1);g.fillStyle=col||'#fff';g.fillText(s,x,y)}
+function mgLoop(c,fn){
+  let last=performance.now(),acc=0;
+  const f=t=>{if(!c.box.isConnected||c.off)return;acc=Math.min(100,acc+t-last);last=t;while(acc>=16.7&&!c.off){acc-=16.7;fn()}requestAnimationFrame(f)};
+  requestAnimationFrame(f);
+}
+function mgIn(c){
+  const K={},m={ArrowLeft:'l',a:'l',ArrowRight:'r',d:'r',ArrowUp:'u',w:'u',ArrowDown:'d',s:'d',' ':'j'};
+  const kd=e=>{const k=m[e.key];if(k){K[k]=1;if(e.key[0]==='A'||e.key===' ')e.preventDefault()}},ku=e=>{const k=m[e.key];if(k)K[k]=0};
+  addEventListener('keydown',kd);addEventListener('keyup',ku);
+  c.ctl.querySelectorAll('[data-k]').forEach(b=>{const k=b.dataset.k;b.onpointerdown=e=>{e.preventDefault();K[k]=1};b.onpointerup=b.onpointerleave=b.onpointercancel=()=>{K[k]=0}});
+  c.cleanup=()=>{removeEventListener('keydown',kd);removeEventListener('keyup',ku)};
+  return K;
+}
+const mgPt=(c,e)=>{const r=c.cv.getBoundingClientRect();return{x:(e.clientX-r.left)/r.width*MG_W,y:(e.clientY-r.top)/r.height*MG_H}};
+function mgParts(g,P){for(let i=P.length-1;i>=0;i--){const p=P[i];p.x+=p.vx;p.y+=p.vy;p.vy+=p.gr||0;if(--p.l<=0){P.splice(i,1);continue}g.fillStyle=p.c;g.fillRect(Math.round(p.x),Math.round(p.y),p.sz||2,p.sz||2)}}
+const mgBurstP=(P,x,y,n,cols,sp)=>{for(let i=0;i<n;i++){const a=Math.random()*6.28,v=Math.random()*(sp||2.5)+.5;P.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,c:cols[i%cols.length],l:40+Math.random()*30,gr:.04})}};
+const mgHearts=(g,n,m)=>{for(let i=0;i<m;i++){g.globalAlpha=i<n?1:.25;mgD(g,'heart',3+i*7,3,1)}g.globalAlpha=1};
+const PADS={
+ pd:'<div class="pd"><button data-k="l">◀</button><button data-k="r">▶</button><button data-k="j" class="jb">SALTA</button></div>',
+ lr:'<div class="pd"><button data-k="l">◀</button><button data-k="r">▶</button></div>',
+ dp:'<div class="dp"><i></i><button data-k="u">▲</button><i></i><button data-k="l">◀</button><button data-k="d">▼</button><button data-k="r">▶</button></div>'
+};
+
+const mgG={};
+/* CORSA E SALTI: platform a scorrimento, come Super Mario. Dirupi, massi, bandiera. */
+mgG.run=c=>{
+  const g=c.g,SOL=[[0,88,150,60],[182,88,86,60],[304,88,88,60],[424,88,124,60],[216,76,16,12],[348,64,16,24]],P={x:8,y:60,vx:0,vy:0,w:10,h:14,on:0};
+  let falls=0,safe=8,cam=0,t=0,msg=0;
+  c.ctl.innerHTML=PADS.pd;const K=mgIn(c);
+  const hit=(a,s)=>a.x<s[0]+s[2]&&a.x+a.w>s[0]&&a.y<s[1]+s[3]&&a.y+a.h>s[1],gr=x=>SOL.slice(0,4).some(s=>x+3>=s[0]&&x+3<s[0]+s[2]);
+  c.H('Raggiungi la bandiera! Non cadere nei dirupi.');
+  mgLoop(c,()=>{
+    t++;
+    const ax=(K.r?1:0)-(K.l?1:0);P.vx=Math.max(-1.6,Math.min(1.6,P.vx+ax*.25));if(!ax)P.vx*=.8;
+    if((K.u||K.j)&&P.on){P.vy=-5.3;P.on=0;SND.play('click',1)}
+    P.vy=Math.min(6,P.vy+.34);
+    P.x+=P.vx;for(const s of SOL)if(hit(P,s)){P.x=P.vx>0?s[0]-P.w:s[0]+s[2];P.vx=0}
+    P.y+=P.vy;P.on=0;for(const s of SOL)if(hit(P,s)){if(P.vy>0){P.y=s[1]-P.h;P.on=1;if(P.y+P.h>=88)safe=P.x}else P.y=s[1]+s[3];P.vy=0}
+    if(P.y>150){falls++;msg=40;SND.play('danger',1);if(falls>=3){c.fin(0,500);return}let rx=safe-12;while(rx>8&&!gr(rx))rx-=4;P.x=rx;P.y=60;P.vx=P.vy=0}
+    cam+=(Math.max(0,Math.min(384,P.x-70))-cam)*.15;
+    if(P.x>=494){c.fin(Math.max(0,1-falls*.34),900);msg=-1}
+    /* disegno */
+    mgSky(g,'day',88,t);
+    g.fillStyle='#e8f4ff';[[20,18],[90,30],[140,14]].forEach(q=>{const x=((q[0]-cam*.2)%200+200)%200-20;g.fillRect(x,q[1],18,4);g.fillRect(x+3,q[1]-3,10,3)});
+    g.fillStyle='#4a6ab8';for(let x=0;x<160;x+=4){const h=22+14*Math.sin((x+cam*.3)/24)+7*Math.sin((x+cam*.3)/9);g.fillRect(x,88-h,4,h)}
+    g.fillStyle='#2f9a5a';for(let x=0;x<160;x+=4){const h=8+6*Math.sin((x+cam*.6)/13);g.fillRect(x,88-h,4,h)}
+    SOL.slice(0,4).forEach(s=>{const x=s[0]-cam;g.fillStyle='#5c3820';g.fillRect(x,88,s[2],40);g.fillStyle='#9a6238';for(let i=0;i<s[2];i+=8)g.fillRect(x+i+((i/8)%2)*3,96+((i/8)%3)*9,4,3);g.fillStyle='#42d884';g.fillRect(x,88,s[2],3);g.fillStyle='#1f8a55';g.fillRect(x,91,s[2],1)});
+    mgD(g,'rock',216-cam,76,2);mgD(g,'rock',348-cam,64,2);mgD(g,'rock',348-cam,76,2);
+    g.fillStyle='#aab0c4';g.fillRect(500-cam,52,2,36);g.fillStyle='#ffd23d';g.fillRect(499-cam,50,4,3);
+    g.fillStyle='#e53950';for(let i=0;i<11;i++)g.fillRect(502-cam+i,53+Math.round(Math.sin(t/8+i/2)*1.5),1,7);
+    mgD(g,(P.on&&Math.abs(P.vx)>.3&&(t>>3)&1)||!P.on?'hero2':'hero',P.x-3-cam,P.y-2,2,P.vx<0);
+    mgHearts(g,3-falls,3);
+    if(msg>0){msg--;mgTxt(g,'AHIA!',80,44,'#ff5a72',10)}
+    if(msg<0)mgTxt(g,'TRAGUARDO!',80,44,'#ffd23d',10);
+  });
+};
+/* ZONA TOP-DOWN alla Pokémon: griglia a passi. stealth = guardia con cono di luce; search = gemme nascoste. */
+function mgTop(c,st){
+  const g=c.g,M=st?['##########','#S...#...#','#....#...#','#........D','#....#...#','#....#...#','#....#...#','##########']:['##########','#S.......#','#.##..##.#','#........#','#.#..#...#','#...##.#.#','#........#','##########'];
+  c.ctl.innerHTML=PADS.dp;const K=mgIn(c),P={tx:1,ty:1,x:16,y:16,dx:0,dy:0,mv:0,f:1,w:0},G=[],gd={y:1,d:1},FX=[];
+  let bad=0,t=0,frz=0,left=1500,got=0;
+  if(!st)while(G.length<3){const x=1+Math.floor(Math.random()*8),y=1+Math.floor(Math.random()*6);if(M[y][x]==='.'&&Math.abs(x-1)+Math.abs(y-1)>3&&!G.some(q=>q[0]===x&&q[1]===y))G.push([x,y])}
+  c.H(st?'Raggiungi la porta senza entrare nel cono di luce della guardia.':'Esplora e trova le 3 gemme nascoste!');
+  const arrive=()=>{
+    if(M[P.ty][P.tx]==='D'){SND.play('ok',1);c.fin(Math.max(0,1-bad*.34),700);return}
+    const i=G.findIndex(q=>q[0]===P.tx&&q[1]===P.ty);
+    if(i>=0){G.splice(i,1);got++;SND.play('ok',1);mgBurstP(FX,P.x+8,P.y+8,14,['#6fe8ff','#fff'],2);if(got===3)c.fin(1,700)}
+  };
+  mgLoop(c,()=>{
+    t++;
+    if(frz>0){if(--frz===0)Object.assign(P,{tx:1,ty:1,x:16,y:16,mv:0})}
+    else{
+      if(!P.mv){const d=K.u?[0,-1]:K.d?[0,1]:K.l?[-1,0]:K.r?[1,0]:0;
+        if(d){if(d[0])P.f=d[0];const nx=P.tx+d[0],ny=P.ty+d[1];if(M[ny][nx]!=='#'){P.dx=d[0];P.dy=d[1];P.mv=8;P.tx=nx;P.ty=ny}}}
+      if(P.mv){P.x+=P.dx*2;P.y+=P.dy*2;P.w++;if(--P.mv===0)arrive()}
+    }
+    if(st){
+      gd.y+=gd.d*.05;if(gd.y>=6){gd.y=6;gd.d=-1}if(gd.y<=1){gd.y=1;gd.d=1}
+      const px=P.x+8,py=P.y+8,gx=56,gy=gd.y*16+8;
+      if(!frz&&px>gx+10&&px<gx+72&&Math.abs(py-gy)<=16){bad++;frz=50;SND.play('alarm',1);if(bad>=3){c.fin(0,900);return}}
+    }else if(--left<=0){c.fin(got/3,300);return}
+    for(let j=0;j<8;j++)for(let i=0;i<10;i++){
+      const ch=M[j][i],x=i*16,y=j*16;
+      if(st){g.fillStyle=(i+j)%2?'#3b3552':'#443d5e';g.fillRect(x,y,16,16);g.fillStyle='#2e2942';g.fillRect(x+3,y+5,2,1);g.fillRect(x+10,y+11,2,1)}
+      else{g.fillStyle=(i+j)%2?'#3f9a4b':'#46a653';g.fillRect(x,y,16,16);g.fillStyle='#2f7f3d';g.fillRect(x+3,y+4,1,2);g.fillRect(x+11,y+10,1,2);g.fillRect(x+7,y+13,1,2)}
+      if(ch==='#'){if(st){g.fillStyle='#6a6483';g.fillRect(x,y,16,16);g.fillStyle='#4b4663';g.fillRect(x,y+5,16,1);g.fillRect(x,y+11,16,1);g.fillRect(x+(j%2?4:10),y,1,5);g.fillRect(x+(j%2?11:3),y+5,1,6);g.fillRect(x+8,y+11,1,5);g.fillStyle='#8a84a8';g.fillRect(x,y,16,1)}else mgD(g,'tree',x,y+1,1)}
+      if(ch==='D'){g.fillStyle='#5c3820';g.fillRect(x,y,16,16);g.fillStyle='#9a6238';for(let k=2;k<16;k+=4)g.fillRect(x+k,y+1,2,14);g.fillStyle='#ffd23d';g.fillRect(x+3,y+8,2,2)}
+    }
+    G.forEach(q=>{if((t>>4)%3){mgD(g,'gem',q[0]*16+5,q[1]*16+5,1);if(t%20<8){g.fillStyle='#fff';g.fillRect(q[0]*16+3,q[1]*16+7,2,1);g.fillRect(q[0]*16+12,q[1]*16+4,1,2)}}});
+    if(st){
+      g.globalAlpha=.3;g.fillStyle='#ffe35a';for(let k=0;k<4;k++){const h=16+k*8;g.fillRect(66+k*16,gd.y*16+8-h/2,16,h)}g.globalAlpha=1;
+      mgD(g,'guard',48,gd.y*16,2);if(frz>0){g.fillStyle='#e53950';g.fillRect(62,gd.y*16-8,3,6);g.fillRect(62,gd.y*16,3,2)}
+    }
+    mgD(g,P.mv&&(P.w>>2)&1?'hero2':'hero',P.x,P.y,2,P.f<0);
+    mgParts(g,FX);
+    if(st)mgHearts(g,3-bad,3);else{mgD(g,'gem',3,3,1);mgTxt(g,got+'/3',22,10,'#fff');g.fillStyle='#0f0820';g.fillRect(0,124,160,4);g.fillStyle='#ffd23d';g.fillRect(0,124,160*left/1500,4)}
+    if(frz>0){g.fillStyle='rgba(229,57,80,.28)';g.fillRect(0,0,160,128);mgTxt(g,'VISTO!',80,66,'#fff',12)}
+  });
+}
+mgG.stealth=c=>mgTop(c,1);mgG.search=c=>mgTop(c,0);
+/* TIRO AL BERSAGLIO: uccelli di latta che volano sulla bancarella. */
+mgG.shoot=c=>{
+  const g=c.g,N=9,B=[],F=[];let n=0,hit=0,t=0,cur={x:80,y:60},fl=0,endT=0;
+  c.ctl.innerHTML='<div class="mut" style="text-align:center">Tocca la scena per sparare</div>';
+  c.cv.onpointermove=e=>{cur=mgPt(c,e)};
+  c.cv.onpointerdown=e=>{e.preventDefault();if(c.off)return;cur=mgPt(c,e);fl=4;SND.play('shot',1);
+    const b=B.find(b=>!b.d&&Math.abs(cur.x-(b.x+9))<12&&Math.abs(cur.y-(b.y+5))<10);
+    if(b){b.d=1;b.vy=-2;hit++;mgBurstP(F,b.x+9,b.y+5,10,['#ffd23d','#fff'],2)}else mgBurstP(F,cur.x,cur.y,4,['#aab0c4'],1)};
+  c.cleanup=()=>{c.cv.onpointerdown=c.cv.onpointermove=null};
+  mgLoop(c,()=>{
+    t++;
+    if(n<N&&t%58===1){n++;const l=Math.random()<.5;B.push({x:l?-12:168,y:26+Math.random()*44,vx:(l?1:-1)*(1+n*.12+Math.random()*.4),ph:Math.random()*6,d:0,vy:0})}
+    B.forEach(b=>{if(b.d){b.vy+=.25;b.y+=b.vy;b.x+=b.vx*.3}else{b.x+=b.vx;b.y+=Math.sin(t/9+b.ph)*.5}});
+    for(let i=B.length-1;i>=0;i--)if(B[i].x<-14||B[i].x>172||B[i].y>140)B.splice(i,1);
+    if(n>=N&&!B.length&&!endT)endT=t;if(endT&&t-endT>20){c.fin(hit/N,200);return}
+    mgSky(g,'day',104,t);
+    g.fillStyle='#3a8a4a';for(let x=0;x<160;x+=4)g.fillRect(x,78-8*Math.sin(x/17)-4*Math.sin(x/7),4,40);
+    for(let i=0;i<20;i++){g.fillStyle=i%2?'#e53950':'#fff';g.fillRect(i*8,0,8,18);g.fillRect(i*8+2,18,4,3)}
+    g.fillStyle='#5c3820';g.fillRect(0,0,5,128);g.fillRect(155,0,5,128);
+    B.forEach(b=>mgD(g,b.d||(t>>2)%2?'bird2':'bird',b.x,b.y,2,b.vx<0));
+    g.fillStyle='#c98a14';g.fillRect(0,104,160,4);g.fillStyle='#9a6238';g.fillRect(0,108,160,20);g.fillStyle='#5c3820';for(let y=114;y<128;y+=6)g.fillRect(0,y,160,1);
+    g.fillStyle='#5d647c';for(let k=0;k<18;k++){const q=k/18;g.fillRect(Math.round(80+(cur.x-80)*q),Math.round(124+(cur.y-124)*q*.86),2,2)}
+    mgParts(g,F);
+    g.fillStyle='#fff';g.fillRect(cur.x-6,cur.y,5,1);g.fillRect(cur.x+2,cur.y,5,1);g.fillRect(cur.x,cur.y-6,1,5);g.fillRect(cur.x,cur.y+2,1,5);g.fillStyle='#e53950';g.fillRect(cur.x,cur.y,1,1);
+    if(fl>0){fl--;g.fillStyle='#fff8c0';g.fillRect(cur.x-2,cur.y-2,5,5)}
+    mgTxt(g,'COLPITI '+hit+'/'+N,80,32,'#fff');
+  });
+};
+/* COLPO A TEMPO (scasso, sacco, dialogo): ferma il segno nella zona verde. */
+mgG.timing=c=>{
+  const g=c.g,N=3,A=c.art,SC={lock:6,bag:5,face:6}[A]||5,F=[];let r=0,hits=0,pos=0,dir=1,zc=0,zw=0,sp=0,t=0,sh=0,msg='',mt=0,live=1;
+  c.ctl.innerHTML=`<button style="width:100%;height:56px">${c.lbl}</button>`;
+  const setup=()=>{zw=26-r*5;zc=24+Math.random()*52;sp=1.4+r*.7;c.H('Tentativo '+(r+1)+' di '+N)};
+  const act=e=>{if(e)e.preventDefault();if(!live||c.off)return;const d=Math.abs(pos-zc),k=d<=zw/2?1:d<=zw/2+8?.5:0;hits+=k;msg=k===1?'PERFETTO!':k?'QUASI…':'MANCATO';mt=30;sh=10;SND.play(k===1?'ok':k?'click':'danger',1);mgBurstP(F,80,50,12,k?['#ffd23d','#fff']:['#e53950','#8a1d38'],2.5);if(++r>=N){live=0;c.fin(hits/N,900)}else setup()};
+  c.ctl.firstChild.onpointerdown=act;c.cv.onpointerdown=act;c.cleanup=()=>{c.cv.onpointerdown=null};setup();
+  mgLoop(c,()=>{
+    t++;pos+=dir*sp;if(pos>=100){pos=100;dir=-1}if(pos<=0){pos=0;dir=1}if(sh>0)sh--;
+    mgSky(g,'dusk',92,t);g.fillStyle='#2a1c18';g.fillRect(0,92,160,36);g.fillStyle='#3d2a22';for(let y=94;y<128;y+=8)g.fillRect(0,y,160,1);
+    const s=mgSC[A]||mgSpr(A),w=s.width*SC,h=s.height*SC,ox=sh%2?2:0,oy=A==='bag'?Math.sin(t/14)*2+(sh>0?-3:0):0;
+    mgD(g,A,80-w/2+ox,46-h/2+oy,SC);
+    if(A==='lock')for(let i=0;i<N;i++){g.fillStyle=i<r?'#42d884':'#3a2a4a';g.fillRect(56+i*18,4,14,6)}
+    g.fillStyle='#0f0820';g.fillRect(17,100,126,16);g.fillStyle='#1c1238';g.fillRect(19,102,122,12);
+    g.fillStyle='#42d884';g.fillRect(20+(zc-zw/2)*1.2,102,zw*1.2,12);
+    g.fillStyle='#fff';g.fillRect(20+pos*1.2-1,98,3,20);
+    mgParts(g,F);if(mt>0){mt--;mgTxt(g,msg,80,28,msg==='MANCATO'?'#ff5a72':'#ffd23d',10)}
+  });
+};
+/* MEMORIA: quattro rune luminose da ripetere. */
+mgG.puzzle=c=>{
+  const g=c.g,L=5,seq=Array.from({length:L},()=>Math.random()*4|0),PD=[[16,18],[84,18],[16,68],[84,68]],CO=[['#8a1d38','#ff5a72'],['#1f4a9a','#5ab4ff'],['#a77a10','#ffe04d'],['#176a40','#52f09a']];
+  let lit=-1,k=0,ph=0,t=0,live=1;c.ctl.innerHTML='<div class="mut" style="text-align:center">Tocca le rune</div>';c.H('Osserva la sequenza…');
+  seq.forEach((s,i)=>setTimeout(()=>{if(c.off||!c.box.isConnected)return;lit=s;SND.play('click',1);setTimeout(()=>lit=-1,380)},900+i*650));
+  setTimeout(()=>{ph=1;c.H('Ripeti la sequenza')},900+L*650);
+  c.cv.onpointerdown=e=>{e.preventDefault();if(ph!==1||!live)return;const q=mgPt(c,e),i=PD.findIndex(p=>q.x>=p[0]&&q.x<p[0]+60&&q.y>=p[1]&&q.y<p[1]+46);if(i<0)return;lit=i;setTimeout(()=>lit=-1,180);SND.play('click',1);
+    if(i===seq[k]){if(++k>=L){live=0;c.fin(1,700)}}else{live=0;SND.play('danger',1);c.fin(k/L,700)}};
+  c.cleanup=()=>{c.cv.onpointerdown=null};
+  mgLoop(c,()=>{
+    t++;mgSky(g,'night',128,t);g.fillStyle='#16225e';g.fillRect(2,2,156,124);g.fillStyle='#04060f';g.fillRect(4,4,152,120);mgSky(g,'night',120,t);
+    PD.forEach((p,i)=>{const on=lit===i,x=p[0],y=p[1],cx=x+30,cy=y+23;
+      g.fillStyle='#0f0820';g.fillRect(x-2,y-2,64,50);g.fillStyle=CO[i][on?1:0];g.fillRect(x,y,60,46);if(on){g.fillStyle='#fff';g.fillRect(x,y,60,3);g.fillRect(x,y+43,60,3)}
+      g.fillStyle=on?'#fff':CO[i][1];
+      if(i===0)for(let r=0;r<10;r++)g.fillRect(cx-r,cy-5+r,2*r+1,1);
+      if(i===1)for(let y2=-6;y2<=6;y2++){const w=Math.round(Math.sqrt(36-y2*y2));g.fillRect(cx-w,cy+y2,2*w,1)}
+      if(i===2)g.fillRect(cx-6,cy-6,12,12);
+      if(i===3)for(let y2=-7;y2<=7;y2++){const w=7-Math.abs(y2);g.fillRect(cx-w,cy+y2,2*w+1,1)}});
+    for(let i=0;i<L;i++){g.fillStyle=ph===1&&i<k?'#52f09a':'#2c4296';g.fillRect(56+i*10,118,6,4)}
+  });
+};
+/* SCALATA: tocca il lato giusto per afferrare l'appiglio prima che scada il tempo. */
+mgG.climb=c=>{
+  const g=c.g,S=12,H=[];for(let i=0;i<S;i++)H.push(Math.random()<.5?-1:1);
+  let st=0,slip=0,tm=100,t=0,cam=0,sh=0,F=[];c.ctl.innerHTML=PADS.lr;
+  c.H('Afferra l\'appiglio evidenziato: ◀ o ▶ (o tocca la scena).');
+  const go=side=>{if(c.off)return;if(side===H[st]){st++;tm=100;SND.play('ok',1);mgBurstP(F,80+side*30,70,6,['#c98a14','#9a6238'],1.5);if(st>=S)c.fin(1,700)}else{slip++;sh=14;tm=100;SND.play('danger',1);if(slip>=3)c.fin(st/S,700)}};
+  c.ctl.querySelectorAll('[data-k]').forEach(b=>{b.onpointerdown=e=>{e.preventDefault();go(b.dataset.k==='l'?-1:1)}});
+  c.cv.onpointerdown=e=>{e.preventDefault();go(mgPt(c,e).x<80?-1:1)};c.cleanup=()=>{c.cv.onpointerdown=null};
+  mgLoop(c,()=>{
+    t++;tm-=.75+st*.05;if(tm<=0)go(0);if(sh>0)sh--;cam+=(st*22-cam)*.12;
+    g.fillStyle='#2c2a3a';g.fillRect(0,0,160,128);
+    for(let y=-24;y<150;y+=12){const yy=((y+cam)%24+24)%24+y-(y%24);for(let x=0;x<160;x+=20){const o=(Math.floor((y+cam)/12)%2)*10;g.fillStyle='#3a374a';g.fillRect(x+o,((y+cam)%12+12)%12+y-((y)%12)-0,18,10)}}
+    g.fillStyle='#4b4663';for(let y=0;y<128;y+=12)g.fillRect(0,(y+cam%12),160,1);
+    for(let i=0;i<S;i++){const y=96-(i-st)*22-4;if(y<-10||y>128)continue;mgD(g,'hold',80+H[i]*30-6,y,2);if(i===st&&(t>>3)%2){g.fillStyle='#ffd23d';g.fillRect(80+H[i]*30-8,y-4,20,2)}}
+    g.fillStyle='#c98a14';g.fillRect(78,0,4,128);
+    mgD(g,'heroup',70+(sh%2?2:0),80,3);
+    mgParts(g,F);mgHearts(g,3-slip,3);g.fillStyle='#0f0820';g.fillRect(0,124,160,4);g.fillStyle=tm<30?'#e53950':'#42d884';g.fillRect(0,124,160*tm/100,4);
+    mgTxt(g,st+'/'+S,142,10,'#fff');
+  });
+};
+/* SCHIVATA: massi che cadono, muoviti a destra e sinistra per evitarli. */
+mgG.dodge=c=>{
+  const g=c.g,R=[],F=[],P={x:76};let t=0,hits=0,inv=0;const T=720;
+  c.ctl.innerHTML=PADS.lr;const K=mgIn(c);
+  c.cv.onpointermove=e=>{if(e.buttons||e.pointerType==='touch')P.x=mgPt(c,e).x-8};c.cv.onpointerdown=e=>{P.x=mgPt(c,e).x-8};c.cleanup2=c.cleanup;
+  const cl=c.cleanup;c.cleanup=()=>{cl();c.cv.onpointermove=c.cv.onpointerdown=null};
+  c.H('Schiva i massi per 12 secondi!');
+  mgLoop(c,()=>{
+    t++;P.x=Math.max(4,Math.min(140,P.x+((K.r?1:0)-(K.l?1:0))*2.4));if(inv>0)inv--;
+    if(t%Math.max(10,28-Math.floor(t/60))===0&&t<T-30)R.push({x:Math.random()*144+4,y:-10,v:1.6+t/400});
+    R.forEach(r=>{r.y+=r.v});
+    for(let i=R.length-1;i>=0;i--){const r=R[i];
+      if(!inv&&r.y+12>104&&r.y<122&&r.x+12>P.x+2&&r.x<P.x+14){hits++;inv=45;SND.play('danger',1);mgBurstP(F,P.x+8,110,12,['#e53950','#ffd23d'],2.5);R.splice(i,1);if(hits>=3){c.fin(0,700);return}continue}
+      if(r.y>132)R.splice(i,1)}
+    if(t>=T){c.fin(Math.max(0,1-hits*.34),500);return}
+    mgSky(g,'fire',110,t);g.fillStyle='#2a1612';g.fillRect(0,122,160,6);g.fillStyle='#4a2a1c';g.fillRect(0,118,160,4);
+    R.forEach(r=>{mgD(g,'rock',r.x,r.y,2);g.fillStyle='rgba(0,0,0,.25)';g.fillRect(r.x,121,16,2)});
+    if(!(inv%6>3))mgD(g,(t>>3)&1?'hero':'hero2',P.x,106,2);
+    mgParts(g,F);mgHearts(g,3-hits,3);g.fillStyle='#0f0820';g.fillRect(0,0,160,2);g.fillStyle='#ffd23d';g.fillRect(0,0,160*t/T,2);
+  });
+};
+
+const MG_ART={lock:'lock',punch:'bag',talk:'face',shoot:'bird',run:'rock',stealth:'guard',search:'gem',puzzle:'gem',climb:'hold',dodge:'rock'};
+const MG_FN={lock:'timing',punch:'timing',talk:'timing',shoot:'shoot',run:'run',stealth:'stealth',search:'search',puzzle:'puzzle',climb:'climb',dodge:'dodge'};
+const MG_THEME={lock:'dusk',punch:'dusk',talk:'dusk',shoot:'day',run:'day',stealth:'night',search:'day',puzzle:'night',climb:'dusk',dodge:'fire'};
+const MG_BYSK={furtivita:'stealth',mira:'shoot',notare:'search',rissa:'punch',mischia:'punch',velocita:'dodge',atletica:'climb',convincere:'talk',intimidire:'talk',empatia:'talk',istruzione:'puzzle',concentrazione:'puzzle',creativita:'puzzle'};
+const MG_MUS={lock:'mistero',shoot:'festa',run:'combattimento',stealth:'pericolo',search:'scoperta',punch:'combattimento',talk:'generico',puzzle:'mistero',climb:'scoperta',dodge:'pericolo'};
+const MG_LBL={lock:'SCATTA',punch:'COLPISCI',talk:'ARGOMENTA'};
+const MG_HOW={
+ lock:'Ferma il segno nella zona verde per far scattare i perni: 3 tentativi.',
+ shoot:'Spara agli uccelli: tocca la scena per fare fuoco. Ne passano 9.',
+ run:'Corri e salta i dirupi fino alla bandiera: ◀ ▶ per muoverti, SALTA per saltare. Tre cadute e sei fuori.',
+ stealth:'Muoviti come in un vecchio gioco di ruolo: raggiungi la porta senza entrare nel cono di luce della guardia.',
+ search:'Esplora la zona e trova le 3 gemme nascoste prima che scada il tempo.',
+ punch:'Colpisci quando il segno è nella zona verde: 3 colpi.',
+ talk:'Scegli il momento giusto per ogni argomento: ferma il segno nella zona verde.',
+ puzzle:'Guarda la sequenza di rune e ripetila a memoria.',
+ climb:'Scala la parete: afferra l\'appiglio evidenziato prima che scada il tempo. Tre scivoloni e cadi.',
+ dodge:'Schiva i massi che cadono per 12 secondi: ◀ ▶ oppure trascina il dito sulla scena.'
+};
+const mgGame=mg=>{const m=String(mg.minigame_id||'').match(/^([a-z]+)_/);if(m&&MG_KEYS.includes(m[1]))return m[1];const S=mgFind(AB,mg.mechanic.suggested_skill);return(S&&MG_BYSK[S[0]])||'talk'};
+const evMus=e=>e.mg?MG_MUS[mgGame(e.mg)]:(e.ek||'generico');
+/* anteprima statica nella schermata iniziale */
+function mgIntro(c,key){
+  const g=c.g,A=MG_ART[key];mgSky(g,MG_THEME[key],92,5);g.fillStyle='#3a2a1c';g.fillRect(0,92,160,36);g.fillStyle='#42d884';g.fillRect(0,92,160,3);
+  const s=mgSpr(A),k={lock:6,bag:5,face:5,bird:4,rock:4,guard:3,gem:5,hold:6}[A]||4;
+  mgD(g,A,110-s.width*k/2,92-s.height*k+ (A==='bird'?-24:0),k,A==='guard');mgD(g,'hero',30,68,3);
+}
+/* finali: un'animazione diversa per ogni esito */
+function mgEnd(c,tier,anim){
+  const g=c.g,P=[];let t=anim?0:200;c.off=0;const wrap=c.cv.parentNode,th={crit:'dusk',ok:'day',ko:'night',fiasco:'fire'}[tier];
+  const col=['#ffd23d','#ff5a72','#6fe8ff','#fff','#42d884'];
+  mgLoop(c,()=>{
+    t++;mgSky(g,th,92,t);g.fillStyle=tier==='ko'?'#2a2a36':'#3a2a1c';g.fillRect(0,92,160,36);g.fillStyle=tier==='ko'?'#444458':'#42d884';g.fillRect(0,92,160,3);
+    if(tier==='crit'){
+      if(t%18===1)mgBurstP(P,30+Math.random()*100,18+Math.random()*34,28,col,2.6);
+      mgD(g,'trophy',65,Math.max(12,52-t*.9),3);mgD(g,'heroup',68,66-Math.abs(Math.sin(t/8))*18,3);
+      if(t<20){g.fillStyle='rgba(255,220,80,'+.5*(1-t/20)+')';g.fillRect(0,0,160,128)}
+    }else if(tier==='ok'){
+      if(t===1)mgBurstP(P,80,50,16,['#ffd23d','#fff'],2);
+      if(t<90&&t%2===0)P.push({x:Math.random()*160,y:-4,vx:Math.random()-.5,vy:.8+Math.random(),c:col[t%5],l:200,sz:3});
+      mgD(g,'gem',68,24+Math.sin(t/12)*3,4);mgD(g,'hero',68,68-Math.abs(Math.sin(t/10))*8,3);
+    }else if(tier==='ko'){
+      g.fillStyle='#555a70';g.fillRect(40,10,70,10);g.fillRect(52,4,46,8);g.fillRect(100,14,30,8);
+      g.fillStyle='#6fb0ff';for(let i=0;i<26;i++)g.fillRect((i*29+t*.5)%160,(t*3+i*17)%92,1,4);
+      g.save();g.translate(80,94);g.rotate(Math.min(.7,t/40));mgD(g,'hero',-12,-24,3);g.restore();
+      g.fillStyle='rgba(0,0,0,.3)';g.fillRect(0,0,160,128);
+    }else{
+      if(t===1){mgBurstP(P,80,70,54,['#ff9440','#ffd23d','#e53950','#fff'],4);if(anim)wrap.classList.add('shk')}
+      if(t<24){g.fillStyle='rgba(255,40,60,'+.5*(1-t/24)+')';g.fillRect(0,0,160,128)}
+      const hx=68+t*1.4,hy=68-t*1.2+t*t*.03;g.save();g.translate(hx+12,hy+12);g.rotate(t/6);mgD(g,'hero',-12,-12,3);g.restore();
+      if(t>30)mgD(g,'skull',65,18+Math.sin(t/10)*3,3);
+    }
+    mgParts(g,P);
+  });
+}
+function mgCss(){
+  if(document.getElementById('mgcss'))return;
+  const s=document.createElement('style');s.id='mgcss';
+  s.textContent=`.mg{width:100%;margin-top:14px;text-align:center}
+.mg-cv{line-height:0;border:4px solid var(--ink);box-shadow:4px 4px 0 var(--ink),0 0 0 3px var(--ec,var(--acc))}
+.mg-cv.shk{animation:shake .4s steps(4) 3}
+.mg-cv canvas{width:100%;height:auto;display:block;image-rendering:pixelated;touch-action:none;user-select:none;-webkit-user-select:none}
+.mg-env{margin:14px 0 4px;font-style:italic}.mg-act{font-weight:700;margin:0 0 8px}
+.mg-hud{min-height:30px;margin:10px 0 4px}
+.mg-pool{border:2px dashed var(--ec,var(--acc));padding:8px 10px;margin:8px 0;font-size:.92em}
+.mg .dice{margin:12px 0 6px}.mg .die{width:42px;height:42px;font-size:13px;border-width:3px}
+.mg-g{display:inline-block;margin:3px;padding:4px 8px;border:2px solid var(--ok);color:var(--ok);font:400 10px/1.4 var(--f-px)}.mg-g.x{border-color:#888;color:#888}
+.mg-big{font:400 14px/1.6 var(--f-px);margin:8px 0 4px;text-shadow:2px 2px 0 var(--ink)}.mg-big.ok{color:var(--ok)}.mg-big.ko{color:var(--danger)}
+.dp{display:grid;grid-template-columns:repeat(3,64px);gap:6px;justify-content:center;margin-top:10px}.dp i{display:block}
+.pd{display:flex;gap:8px;margin-top:10px}.pd button{flex:1;height:58px;font-size:18px}.pd .jb{flex:2}
+.dp button,.pd button{height:54px;font-size:20px;touch-action:none;user-select:none;-webkit-user-select:none}`;
+  document.head.append(s);
+}
 function mgMount(box,e){
   mgCss();
-  const p=me(),mg=e.mg,mc=mg.mechanic||{},vt=mg.visual_theme||{},o=mg.outcomes||{},game=mgGame(mg),ico=evIco(e)==='🎮'?'🎯':evIco(e),old=mgRes(e,p),sk=mgFind(AB,mc.suggested_skill);
-  box.innerHTML=`<div class="mg"><div class="mg-scene g-${game}"><div class="mg-sky"></div><div class="mg-floor"></div><div class="mg-spr">${esc(ico)}</div><div class="mg-fx"></div><div class="mg-hand l">✋</div><div class="mg-hand">✋</div></div><div class="mg-hud"></div><div class="mg-ctl"></div></div>`;
-  const Q=s=>box.querySelector(s),sc=Q('.mg-scene'),hud=Q('.mg-hud'),ctl=Q('.mg-ctl'),spr=Q('.mg-spr'),H=h=>{hud.innerHTML=h};
+  const p=me(),mg=e.mg,mc=mg.mechanic||{},vt=mg.visual_theme||{},o=mg.outcomes||{},key=mgGame(mg),old=mgRes(e,p),sk=mgFind(AB,mc.suggested_skill);
+  box.innerHTML='<div class="mg"><div class="mg-cv"><canvas width="160" height="128"></canvas></div><div class="mg-hud"></div><div class="mg-ctl"></div></div>';
+  const Q=s=>box.querySelector(s),cv=Q('canvas'),hud=Q('.mg-hud'),ctl=Q('.mg-ctl'),g=cv.getContext('2d'),H=h=>{hud.innerHTML=h};
+  g.imageSmoothingEnabled=false;
+  const c={box,cv,g,ctl,H,art:MG_ART[key],lbl:MG_LBL[key]||'AGISCI',off:0};
+  c.fin=(s,d)=>{c.off=1;if(c.cleanup){c.cleanup();c.cleanup=null}setTimeout(()=>mid(s),d||700)};
+  let busy=0;const star=s=>s>=.75?'⭐⭐⭐':s>=.4?'⭐⭐':'⭐';
   const btn=(l,fn)=>{ctl.innerHTML=`<button style="width:100%">${l}</button>`;ctl.firstChild.onclick=fn};
-  const star=s=>s>=.75?'⭐⭐⭐':s>=.4?'⭐⭐':'⭐';
   const end=(res,anim)=>{
     const tier=MG_TIER(res.inc,res.need),X=MG_T[tier],base=(res.ok?o.success_text:o.failure_text)||'';
     const x=tier==='ko'?(res.need-res.inc===1?'Per un soffio…':'Non è bastato.'):X.x;
-    sc.classList.remove('still');sc.classList.add('fin','t-'+tier);
-    if(anim){
-      SND.stopMusic();
-      ({crit:()=>{SND.play('fanfare',1);setTimeout(()=>SND.play('crit',1),600);mgBurst(sc,['✨','⭐','🎉','💫'],34)},ok:()=>{SND.play('quest',1);mgBurst(sc,['✨','⭐'],14)},ko:()=>{SND.play('danger',1);mgBurst(sc,['💨','💧'],10)},fiasco:()=>{SND.play('alarm',1);mgBurst(sc,['💢','💥','☠️'],22);spr.textContent='💥';setTimeout(()=>spr.textContent='💀',650)}})[tier]();
-      if(navigator.vibrate)try{navigator.vibrate(res.ok?[40,40,90]:[200,80,200])}catch(z){}
-    }else if(tier==='fiasco')spr.textContent='💀';
+    mgEnd(c,tier,anim);
+    if(anim){SND.stopMusic();({crit:()=>{SND.play('fanfare',1);setTimeout(()=>SND.play('crit',1),600)},ok:()=>SND.play('quest',1),ko:()=>SND.play('danger',1),fiasco:()=>SND.play('alarm',1)})[tier]();if(navigator.vibrate)try{navigator.vibrate(res.ok?[40,40,90]:[200,80,200])}catch(z){}}
     setTimeout(()=>H(`<div class="mg-big ${res.ok?'ok':'ko'}">${X.h}</div><div class="mg-big" style="font-size:11px">${res.inc}/${res.need} INCREMENTI · PROVA ${star(res.sc||0)}</div><p style="margin:6px 0">${esc(base)}</p><p class="mut" style="margin:0">${esc(x)}</p>`),anim?1700:0);
   };
   const roll=async s=>{
-    if(box.dataset.busy||mgRes(e,p))return;box.dataset.busy=1;
+    if(busy||mgRes(e,p))return;busy=1;
     const pl=mgPool(p,mg),need=mgClamp(mc.difficulty_increments),d=Array.from({length:pl.n},()=>rollD(10)),R=mgInc(d);
     const res={d,inc:R.g.length,ok:R.g.length>=need,need,t:pl.t,a:pl.a,sc:Math.round(s*100)/100,ts:Date.now()};
     /* salvato PRIMA dell'animazione: chiudere o ricaricare non permette di ritirare */
     const ev=Object.entries({...(p.evRes||{}),[mgKey(e)]:res}).sort((x,y)=>(y[1].ts||0)-(x[1].ts||0)).slice(0,20);
-    if(!(await guard(db.collection('players').doc(uid).update({evRes:Object.fromEntries(ev)}).then(()=>1)))){delete box.dataset.busy;return}
-    H('<div class="mg-big">🎲 I DADI DECIDONO…</div>');
+    if(!(await guard(db.collection('players').doc(uid).update({evRes:Object.fromEntries(ev)}).then(()=>1)))){busy=0;return}
+    H('<div class="mg-big">I DADI DECIDONO…</div>');
     mgDice(ctl,res,true,()=>setTimeout(()=>end(res,true),1300));
   };
   const mid=s=>{
-    sc.classList.remove('still');spr.style.transform='';
+    ctl.innerHTML='';
+    g.fillStyle='rgba(8,4,20,.55)';g.fillRect(0,0,160,128);mgTxt(g,star(s).length>2?'PROVA SUPERATA':'PROVA FINITA',80,64,'#ffd23d',10);
     const pl=mgPool(p,mg),need=mgClamp(mc.difficulty_increments),tl=pl.T?pl.T[1]:mc.suggested_trait,sl=pl.S?pl.S[1]:mc.suggested_skill;
     H(`<div class="mg-big ok">${star(s)}</div><div class="mut">${s>=.75?'Esecuzione impeccabile.':s>=.4?'Una prova discreta.':'Una prova incerta.'}</div><div class="mg-pool"><b>${esc(String(tl).toUpperCase())}</b> ${pl.t||0}${pl.tb?' (+'+pl.tb+')':''} + <b>${esc(String(sl).toUpperCase())}</b> ${pl.a||0}${pl.sb?' (+'+pl.sb+')':''} = <b>${pl.n}d10</b><br><span class="mut">Servono ${need} incrementi: a metà prova sono i dadi a decidere come va a finire.</span></div>`);
-    btn(`🎲 TIRA ${pl.n} d10`,()=>roll(s));
+    btn(`TIRA ${pl.n} d10`,()=>roll(s));
   };
-  const play=()=>{
-    sc.classList.add('still');spr.style.transform='';
-    MG_G[game]({box,sc,ctl,spr,H,ico,lbl:MG_LBL[sk&&sk[0]]||'AGISCI',done:s=>{ctl.innerHTML='';mid(s)}});
-  };
+  const play=()=>{c.off=0;c.cleanup=null;H('');mgG[MG_FN[key]](c)};
   if(old){end(old,false);mgDice(ctl,old,false);return}
-  H(`<div class="mg-env">${esc(vt.environment_description||'')}</div><div class="mg-act">${esc(mc.action_prompt||'')}</div><div class="mut">${MG_HOW[game]}</div>`);
+  mgIntro(c,key);
+  H(`<div class="mg-env">${esc(vt.environment_description||'')}</div><div class="mg-act">${esc(mc.action_prompt||'')}</div><div class="mut">${MG_HOW[key]}</div>`);
   btn('▶ INIZIA LA PROVA',play);
 }
+
 
 {const _re=renderMaster;renderMaster=function(){if(tab==='events')return masterEvents();return _re()}}
 
