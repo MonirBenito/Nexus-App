@@ -2959,10 +2959,11 @@ const mgRes=(e,p)=>p&&p.evRes&&p.evRes[mgKey(e)];
 const mgClamp=n=>Math.max(1,Math.min(8,parseInt(n)||3));
 
 /* idea creativa → JSON standard */
-function mgGen(idea){
-  const z=nzs(idea),R=MG_RULES.find(x=>x.r.test(z));
+const MG_NAMES={lock:'Scasso (lucchetto)',shoot:'Tiro al bersaglio (uccelli)',run:'Corsa e salti (platform)',stealth:'Furtività (guardia, stile Pokémon)',search:'Ricerca gemme (esplorazione)',punch:'Colpo a tempo (sacco)',talk:'Dialogo a tempo (convincere)',puzzle:'Memoria (rune)',climb:'Scalata',dodge:'Schivata di massi',fish:'Pesca',drive:'Guida',rhythm:'Ritmo (musica)',duel:'Duello (parate)',pour:'Versare (pozione)',balance:'Equilibrio sul filo',throw:'Lancio (dardi)',dig:'Scavo del tesoro',hack:'Hacking (numeri)',maze:'Labirinto al buio'};
+function mgGen(idea,fk){
+  const z=nzs(idea||''),R=fk?MG_RULES.find(x=>x.k===fk):MG_RULES.find(x=>x.r.test(z));
   const diff=/impossibil|epic|leggendari/.test(z)?5:/difficil|duro|ostico|complicat/.test(z)?4:/facile|semplice|banale/.test(z)?2:3;
-  const ttl=idea.replace(/^\s*[«"']|[»"']\s*$/g,'').trim();
+  const ttl=(idea||(R&&MG_NAMES[R.k])||'Prova').replace(/^\s*[«"']|[»"']\s*$/g,'').trim();
   const title=(ttl[0]||'M').toUpperCase()+ttl.slice(1,60);
   const T=R?TR.find(x=>x[0]===R.t):TR.find(x=>x[0]==='acume'),S=R?AB.find(x=>x[0]===R.s):AB.find(x=>x[0]==='notare');
   return {mg:{
@@ -3015,7 +3016,8 @@ function mgPool(p,mg){
 }
 
 const MG_IDEA=[
-  {l:'🎮 Minigioco (opzionale): scrivi un\'idea creativa, es. «scassina la serratura»',n:'idea',t:'area'},
+  {l:'🎮 Scegli un minigioco dalla lista (se scrivi anche un\'idea, la scena segue l\'idea ma il gioco è quello scelto)',n:'pick',t:'select',o:['— nessuno —',...Object.values(MG_NAMES)]},
+  {l:'Oppure scrivi un\'idea creativa, es. «scassina la serratura»',n:'idea',t:'area'},
   {l:'Oppure incolla qui un JSON già pronto (opzionale, ha la precedenza sull\'idea)',n:'json',t:'area'}];
 const mgFields=()=>[
   {l:'Emoji del bersaglio (una sola, opzionale)',n:'icon'},
@@ -3030,10 +3032,12 @@ const mgFields=()=>[
   {l:'Se fallisce (testo)',n:'ko',t:'area'}];
 /* idea/JSON → minigioco rivisto dal Master. null = evento normale, 0 = annullato */
 async function mgBuild(r){
-  if(!r.idea&&!r.json)return null;
+  const pk=Object.keys(MG_NAMES).find(q=>MG_NAMES[q]===r.pick);
+  if(!r.idea&&!r.json&&!pk)return null;
   let mg,icon='🎯';
   if(r.json){mg=mgParseJson(r.json);if(!mg)return 0}
-  else{const g=mgGen(r.idea);mg=g.mg;icon=g.icon;if(!g.known)toast('Idea non riconosciuta: controlla tratto e abilità')}
+  else if(r.idea){const g=mgGen(r.idea);mg=g.mg;icon=g.icon;if(pk)mg.minigame_id=pk+'_'+mgSlug(r.idea);else if(!g.known)toast('Idea non riconosciuta: controlla tratto e abilità')}
+  else{const g=mgGen('',pk);mg=g.mg;icon=g.icon}
   mg.title=r.title;
   const x=await ask('🎮 Rivedi il minigioco',mgFields(),mgForm(mg,icon),'Salva');
   return x?{mg:mgObj({...x,title:r.title,id:mg.minigame_id}),icon:x.icon}:0;
