@@ -2925,19 +2925,29 @@ function masterEvents(){
    Il player apre l'evento, vede la scena fissa in pixel art e tira (Tratto + Abilità) d10: ogni incremento = un gruppo di dadi che arriva a 10+. */
 const MG_RULES=[
  {r:/scass|serratur|lucchett|grimaldell|forzar|chiave/,t:'acume',s:'furtivita',m:'🔒',k:'lock',spr:'Una grossa serratura di ferro con il buco della chiave, illuminata da una luce fioca',env:'Sei chino davanti a una porta chiusa a chiave, in prima persona, con il corridoio buio alle spalle.',act:'Infili i grimaldelli nel meccanismo e senti i perni scattare uno a uno.',ok:'Click! La serratura cede e la porta si apre senza fare rumore.',ko:'Il grimaldello si spezza nel buco e il rumore rimbomba nel corridoio.'},
+ {r:/pesc|canna|lenza|\bamo\b|pesce/,t:'acume',s:'concentrazione',m:'🎣',k:'fish',spr:'Un pesce sotto il pelo dell\'acqua, vicino al galleggiante',env:'Sei seduto sul molo, in prima persona, con la canna in mano e il galleggiante che dondola.',act:'Senti la lenza tirare: tieni la tensione giusta e stanca il pesce.',ok:'Il pesce abbocca e finisce sul molo: una cattura da raccontare.',ko:'La lenza si spezza e il pesce sparisce nelle profondità.'},
+ {r:/lancia|lancio|freccett|giavellott|bowling|\bsasso|\bpalla/,t:'agilita',s:'mira',m:'🎯',k:'throw',spr:'Un bersaglio concentrico appeso a una parete di legno',env:'Sei in una taverna, in prima persona, con il braccio teso e il bersaglio davanti.',act:'Prendi la mira, respiri e lanci.',ok:'Centro perfetto: la sala esplode in un applauso.',ko:'Il lancio va lungo: il bersaglio resta intatto.'},
  {r:/uccell|bersagli|spara|tiro a segno|bancarell|pistol|fucil|freccia|\barco\b|\bmira\b/,t:'agilita',s:'mira',m:'🐦',k:'shoot',spr:'Sagome di uccelli di latta che scorrono in fila su una bancarella da luna park',env:'Sei davanti a una bancarella del luna park, in prima persona, con il fucile ad aria compressa tra le mani.',act:'Prendi la mira e sparisci gli uccelli di latta che scorrono davanti a te.',ok:'Colpo dopo colpo gli uccelli cadono: il banchista ti consegna il premio.',ko:'I colpi vanno a vuoto e gli uccelli sfilano indisturbati. Nessun premio.'},
+ {r:/guid|macchin|automobil|\bmoto\b|inseguiment|pilot|volante|\bauto\b|cavalc/,t:'agilita',s:'velocita',m:'🚗',k:'drive',spr:'Una strada che corre verso l\'orizzonte, con auto che arrivano di fronte',env:'Sei al volante, in prima persona, con la strada che scorre sotto le ruote.',act:'Stringi il volante e cambi corsia schivando il traffico.',ok:'Lasci tutti indietro: il traguardo è tuo.',ko:'Un impatto violento: perdi il controllo e devi fermarti.'},
  {r:/scapp|fugg|inseguit|evad|scampa|via di qua/,t:'agilita',s:'velocita',m:'🏃',k:'run',spr:'Un corridoio che si allunga davanti a te, con la porta d\'uscita in fondo e le ombre che ti inseguono',env:'Corri in prima persona lungo un passaggio stretto: i passi dell\'inseguitore sono sempre più vicini.',act:'Scatti in avanti, schivi gli ostacoli e punti dritto verso l\'uscita.',ok:'Sbatti la porta alle tue spalle: sei salvo, per ora.',ko:'Una mano ti afferra il braccio: la fuga è finita.'},
+ {r:/duell|schermagl|scherma|\bspada|\blama\b|parat|sfida/,t:'vigore',s:'mischia',m:'🤺',k:'duel',spr:'Un cavaliere in armatura che alza la spada contro di te',env:'Sei in un cortile, in prima persona, di fronte a un avversario armato.',act:'Leggi i suoi movimenti e pari il colpo all\'altezza giusta.',ok:'Disarmi l\'avversario con una parata perfetta.',ko:'Il colpo ti raggiunge e ti manda a terra.'},
  {r:/pungiball|sacco|pugn|rissa|colpisc|picchi|boxe/,t:'vigore',s:'rissa',m:'🥊',k:'punch',spr:'Un pesante sacco da boxe appeso a una catena',env:'Sei in una palestra polverosa, in prima persona, con le nocche fasciate e il sacco davanti.',act:'Carichi il braccio e scarichi una serie di pugni sul sacco.',ok:'L\'ultimo colpo fa oscillare il sacco con un tonfo: tutti si voltano a guardarti.',ko:'I pugni sono goffi e deboli: il sacco quasi non si muove.'},
- {r:/spada|mischia|lama|duell|ascia|martello|scherma/,t:'vigore',s:'mischia',m:'⚔️',k:'punch',spr:'Un manichino da addestramento con un\'armatura ammaccata',env:'Sei in un cortile d\'addestramento, in prima persona, con l\'arma salda in pugno.',act:'Avanzi di un passo e concateni fendenti contro il manichino.',ok:'L\'armatura si spacca con un clangore: la tua tecnica è impeccabile.',ko:'L\'arma rimbalza sul metallo e ti sfugge di mano.'},
+ {r:/mischia|ascia|martello|clava|bastone/,t:'vigore',s:'mischia',m:'⚔️',k:'punch',spr:'Un manichino da addestramento con un\'armatura ammaccata',env:'Sei in un cortile d\'addestramento, in prima persona, con l\'arma salda in pugno.',act:'Avanzi di un passo e concateni fendenti contro il manichino.',ok:'L\'armatura si spacca con un clangore: la tua tecnica è impeccabile.',ko:'L\'arma rimbalza sul metallo e ti sfugge di mano.'},
+ {r:/equilibr|funamb|\btrave\b|passerell|\bponte\b|cornice|sul filo|sulla fune|fune tesa/,t:'agilita',s:'atletica',m:'🤹',k:'balance',spr:'Una fune tesa sopra un canyon profondo',env:'Sei in bilico su una fune, in prima persona, con il vento che soffia forte.',act:'Ti muovi piano e compensi ogni spinta del vento.',ok:'Raggiungi l\'altro lato senza cadere.',ko:'Perdi l\'equilibrio e precipiti nel vuoto.'},
  {r:/scal|arrampic|salta|\bmuro\b|parete|\bfune\b|corda|ostacol|sollev|spingi/,t:'vigore',s:'atletica',m:'🧗',k:'climb',spr:'Una parete di roccia con appigli sporgenti',env:'Sei aggrappato a una parete, in prima persona, con il vuoto sotto di te.',act:'Cerchi l\'appiglio successivo e ti tiri su con tutta la forza delle braccia.',ok:'Raggiungi la cima e ti issi oltre il bordo, senza fiato.',ko:'La presa cede e scivoli giù lungo la parete.'},
  {r:/nascond|furtiv|sgattaiol|pedin|borseggi|\bruba|scivol|silenzio/,t:'agilita',s:'furtivita',m:'🕵️',k:'stealth',spr:'Un angolo buio dietro una pila di casse, con una guardia che passa sullo sfondo',env:'Sei acquattato nell\'ombra, in prima persona, e trattieni il respiro.',act:'Ti muovi piano, da un nascondiglio all\'altro, senza fare rumore.',ok:'Nessuno si accorge di te: sei passato come un fantasma.',ko:'Una tavola scricchiola: la guardia si volta di scatto.'},
  {r:/convinc|persuad|negozi|trattat|mercanteggi|bluff|seduc|discors|parlament/,t:'panache',s:'convincere',m:'💬',k:'talk',spr:'Il volto dell\'interlocutore, serio e diffidente, davanti a te',env:'Sei faccia a faccia con qualcuno che non vuole cedere, in prima persona.',act:'Scegli le parole giuste e cerchi di far pendere l\'ago dalla tua parte.',ok:'L\'interlocutore sospira e annuisce: hai vinto la discussione.',ko:'Il tuo discorso cade nel vuoto: l\'altro scuote la testa e volta le spalle.'},
  {r:/intimid|minacc|spavent|terroriz/,t:'vigore',s:'intimidire',m:'💀',k:'talk',spr:'Un avversario che indietreggia, con gli occhi sbarrati',env:'Sei a pochi passi da un avversario, in prima persona, e lo fissi senza battere ciglio.',act:'Ti avvicini, abbassi la voce e fai pesare ogni parola.',ok:'L\'avversario trema e cede di fronte alla tua presenza.',ko:'L\'avversario ride: la tua minaccia non lo smuove.'},
+ {r:/scav|seppell|tesoro|\bpala\b|\bbuca|dissotterr/,t:'acume',s:'notare',m:'⛏️',k:'dig',spr:'Una distesa di terra smossa dove potrebbe esserci un tesoro nascosto',env:'Sei in un campo aperto, in prima persona, con una pala in mano.',act:'Scegli dove scavare seguendo gli indizi della terra.',ok:'La pala urta qualcosa di duro: hai trovato il tesoro!',ko:'Hai scavato ovunque e non c\'è niente: hai perso tempo.'},
+ {r:/hack|terminal|computer|password|circuit|cablagg|disinnesc|bomba|\bfili\b|pannello/,t:'acume',s:'istruzione',m:'💻',k:'hack',spr:'Un pannello di comando con numeri che lampeggiano',env:'Sei davanti a un terminale acceso, in prima persona, con il tempo che scorre.',act:'Inserisci la sequenza giusta, un numero dopo l\'altro, senza sbagliare.',ok:'L\'accesso viene concesso: il sistema è tuo.',ko:'Sistema bloccato: scatta l\'allarme.'},
+ {r:/labirint|caverna|grotta|cunicol|catacomb|miniera|al buio|nel buio/,t:'acume',s:'concentrazione',m:'🕯️',k:'maze',spr:'Un dedalo di corridoi di pietra, illuminato solo da poche torce',env:'Sei nel buio, in prima persona, con una torcia che tremola.',act:'Segui i corridoi e le torce cercando l\'uscita.',ok:'Vedi la luce in fondo al tunnel: sei fuori.',ko:'Il tempo finisce e la torcia si spegne: resti intrappolato.'},
  {r:/cerca|osserva|indizi|scrut|notare|trova|ricerc|ispezion|perquisi/,t:'acume',s:'notare',m:'🔎',k:'search',spr:'Una stanza disordinata con un dettaglio fuori posto che quasi non si nota',env:'Sei al centro di una stanza silenziosa, in prima persona, con gli occhi che scandagliano ogni angolo.',act:'Passi in rassegna ogni oggetto, cercando ciò che gli altri non vedono.',ok:'Lo trovi: un dettaglio nascosto che cambia tutto.',ko:'Hai guardato ovunque, ma l\'indizio ti sfugge.'},
  {r:/enigm|indovinell|decifr|codice|\brune\b|puzzle|cifra|studia|libro/,t:'acume',s:'istruzione',m:'🧩',k:'puzzle',spr:'Una tavola di simboli antichi incisi nella pietra',env:'Sei davanti a una parete coperta di simboli, in prima persona, con una lanterna in mano.',act:'Confronti i simboli, ricordi ciò che hai studiato e provi a comporre la soluzione.',ok:'I simboli si illuminano uno dopo l\'altro: l\'enigma è risolto.',ko:'La combinazione è sbagliata e i simboli si spengono di colpo.'},
  {r:/medit|concentr|nexus|rituale|incantes|magia|potere|sigillo/,t:'nexus',s:'concentrazione',m:'🔮',k:'puzzle',spr:'Un\'orbita di luce che pulsa davanti ai tuoi occhi',env:'Sei in silenzio, in prima persona, e senti il NEXUS vibrare sotto la pelle.',act:'Chiudi gli occhi, respiri piano e guidi l\'energia verso il centro della luce.',ok:'La luce si stabilizza e obbedisce al tuo volere.',ko:'La concentrazione si spezza e l\'energia si disperde in scintille.'},
  {r:/calm|consol|ascolta|empati|confort|supporto|lacrim/,t:'panache',s:'empatia',m:'💞',k:'talk',spr:'Una persona abbattuta, seduta con lo sguardo basso',env:'Sei seduto accanto a qualcuno che soffre, in prima persona.',act:'Ascolti senza fretta e scegli con cura il gesto e la parola giusti.',ok:'Le spalle si rilassano: ti sei guadagnato la sua fiducia.',ko:'Le tue parole suonano vuote: l\'altro si chiude in sé stesso.'},
- {r:/dipin|crea|invent|compon|suona|canta|costruisc|\barte\b|scolpi|improvvis/,t:'panache',s:'creativita',m:'🎨',k:'puzzle',spr:'Una tela bianca, un cavalletto e una tavolozza di colori accesi',env:'Sei davanti a una tela vuota, in prima persona, con il pennello in mano.',act:'Lasci correre l\'ispirazione e dai forma a ciò che hai in mente.',ok:'L\'opera prende vita: tutti restano a bocca aperta.',ko:'Il risultato è confuso e privo di slancio. Nessuno è colpito.'},
+ {r:/ritmo|danz|\bballo|music|suona|canta|strument|chitarr|batteri|concert|karaoke/,t:'panache',s:'creativita',m:'🎵',k:'rhythm',spr:'Un palco illuminato con le note che scendono verso la linea del ritmo',env:'Sei sul palco, in prima persona, con il pubblico che ti guarda nel buio.',act:'Segui il ritmo e colpisci ogni nota al momento giusto.',ok:'Il pubblico esplode in applausi: è un trionfo.',ko:'Perdi il tempo e la musica si spegne tra i fischi.'},
+ {r:/pozion|mescol|cucin|alchim|versa|miscela|cocktail|bevand|ricetta|cuoc|dosa/,t:'acume',s:'creativita',m:'⚗️',k:'pour',spr:'Una fiala vuota con un segno sul vetro e un liquido da versare',env:'Sei in un laboratorio, in prima persona, con la boccetta in una mano e la fiala nell\'altra.',act:'Versi con mano ferma fino al segno preciso.',ok:'La dose è perfetta: la miscela brilla.',ko:'La dose è sbagliata e la miscela sfrigola.'},
+ {r:/dipin|crea|invent|compon|costruisc|\barte\b|scolpi|improvvis/,t:'panache',s:'creativita',m:'🎨',k:'puzzle',spr:'Una tela bianca, un cavalletto e una tavolozza di colori accesi',env:'Sei davanti a una tela vuota, in prima persona, con il pennello in mano.',act:'Lasci correre l\'ispirazione e dai forma a ciò che hai in mente.',ok:'L\'opera prende vita: tutti restano a bocca aperta.',ko:'Il risultato è confuso e privo di slancio. Nessuno è colpito.'},
  {r:/veloc|gara|sprint|schiva|evita|riflessi/,t:'agilita',s:'velocita',m:'⚡',k:'dodge',spr:'Un ostacolo che ti viene incontro a tutta velocità',env:'Sei fermo in posizione, in prima persona, con i muscoli tesi.',act:'Al momento giusto scatti di lato e anticipi il colpo.',ok:'Lo schivi per un soffio: nemmeno ti ha sfiorato.',ko:'Troppo lento: l\'impatto ti coglie in pieno.'}
 ];
 const MG_ALIAS={prontezza:'agilita',intelletto:'acume',intelligenza:'acume',forza:'vigore',carisma:'panache',riflessi:'velocita',mischia:'mischia',furtivita:'furtivita'};
@@ -2970,7 +2980,7 @@ function mgForm(mg,icon,e){
     icon:icon||'',dur:(e&&e.dur)||0,to:(e&&e.to)||[],id:mg.minigame_id||'',gk:((String(mg.minigame_id||'').match(/^([a-z]+)_/)||[])[1]||'auto')};
 }
 
-const mgId=r=>(r.gk&&r.gk!=='auto'?r.gk+'_':'')+String(r.id||mgSlug(r.title)).replace(/^(lock|shoot|run|stealth|search|punch|talk|puzzle|climb|dodge)_/,'');
+const mgId=r=>(r.gk&&r.gk!=='auto'?r.gk+'_':'')+String(r.id||mgSlug(r.title)).replace(/^(lock|shoot|run|stealth|search|punch|talk|puzzle|climb|dodge|fish|drive|rhythm|duel|pour|balance|throw|dig|hack|maze)_/,'');
 const mgObj=r=>({minigame_id:mgId(r),title:r.title.slice(0,80),
   visual_theme:{background_type:'first_person_view',target_sprite:(r.spr||'').slice(0,250),environment_description:(r.env||'').slice(0,500)},
   mechanic:{action_prompt:(r.act||'').slice(0,400),suggested_trait:r.tr,suggested_skill:r.sk,difficulty_increments:mgClamp(r.diff)},
@@ -3014,7 +3024,7 @@ const mgFields=()=>[
   {l:'Azione che il giocatore compie',n:'act',t:'area'},
   {l:'Tratto associato',n:'tr',t:'select',o:MG_TRL()},
   {l:'Abilità associata',n:'sk',t:'select',o:MG_ABL()},
-  {l:'Tipo di gioco: auto, lock=scasso, shoot=tiro a bersaglio, run=corsa e salti, stealth=furtività alla Pokémon, search=ricerca gemme, punch=colpo a tempo, talk=dialogo a tempo, puzzle=memoria, climb=scalata, dodge=schivata massi',n:'gk',t:'select',o:['auto','lock','shoot','run','stealth','search','punch','talk','puzzle','climb','dodge']},
+  {l:'Tipo di gioco: auto, lock=scasso, shoot=tiro a bersaglio, run=corsa e salti, stealth=furtività alla Pokémon, search=ricerca gemme, punch=colpo a tempo, talk=dialogo a tempo, puzzle=memoria, climb=scalata, dodge=schivata massi, fish=pesca, drive=guida, rhythm=ritmo, duel=duello, pour=versare, balance=equilibrio, throw=lancio, dig=scavo, hack=hacking, maze=labirinto',n:'gk',t:'select',o:['auto','lock','shoot','run','stealth','search','punch','talk','puzzle','climb','dodge','fish','drive','rhythm','duel','pour','balance','throw','dig','hack','maze']},
   {l:'Difficoltà (incrementi richiesti, di solito 2, 3 o 4)',n:'diff',t:'number'},
   {l:'Se riesce (testo)',n:'ok',t:'area'},
   {l:'Se fallisce (testo)',n:'ko',t:'area'}];
@@ -3051,7 +3061,7 @@ function mgDice(ctl,res,anim,cb){
 }
 
 /* ---- motore grafico a pixel: canvas 160x128, sprite disegnati in codice ---- */
-const MG_W=160,MG_H=128,MG_KEYS=['lock','shoot','run','stealth','search','punch','talk','puzzle','climb','dodge'];
+const MG_W=160,MG_H=128,MG_KEYS=['lock','shoot','run','stealth','search','punch','talk','puzzle','climb','dodge','fish','drive','rhythm','duel','pour','balance','throw','dig','hack','maze'];
 const MGP={k:'#0f0820',w:'#ffffff',r:'#e53950',R:'#8a1d38',y:'#ffd23d',Y:'#c98a14',g:'#42d884',G:'#1f8a55',b:'#4aa8ff',B:'#2757b5',p:'#b07bff',n:'#9a6238',N:'#5c3820',s:'#f2c9a0',e:'#aab0c4',E:'#5d647c',o:'#ff9440',c:'#6fe8ff'};
 const MGS={
  hero:['..RRRR..','.RRRRRR.','.ssksks.','.ssssss.','..BBBB..','.sBBBBs.','..BBBB..','..N..N..'],
@@ -3092,7 +3102,7 @@ function mgSky(g,th,h,t){
 function mgTxt(g,s,x,y,col,sz){g.font='bold '+(sz||8)+'px monospace';g.textAlign='center';g.fillStyle='#0f0820';g.fillText(s,x+1,y+1);g.fillStyle=col||'#fff';g.fillText(s,x,y)}
 function mgLoop(c,fn){
   let last=performance.now(),acc=0;
-  const f=t=>{if(!c.box.isConnected||c.off)return;acc=Math.min(100,acc+t-last);last=t;while(acc>=16.7&&!c.off){acc-=16.7;fn()}requestAnimationFrame(f)};
+  const f=t=>{if(!c.box.isConnected||c.off)return;acc=Math.min(100,acc+t-last);last=t;while(acc>=16.7&&!c.off){acc-=16.7;fn();if(c.ft>0){c.g.fillStyle='rgba(8,4,20,'+c.ft/22+')';c.g.fillRect(0,0,160,128);c.ft--}}requestAnimationFrame(f)};
   requestAnimationFrame(f);
 }
 function mgIn(c){
@@ -3112,6 +3122,34 @@ const PADS={
  lr:'<div class="pd"><button data-k="l">◀</button><button data-k="r">▶</button></div>',
  dp:'<div class="dp"><i></i><button data-k="u">▲</button><i></i><button data-k="l">◀</button><button data-k="d">▼</button><button data-k="r">▶</button></div>'
 };
+
+Object.assign(MGS,{
+ fish:['..oooo..o','.oooooooo','oowkooooo','.oooooooo','..oooo..o'],
+ knight:['...eeee...','..eEEEEe..','..eEkkEe..','..eEEEEe..','...eEEe...','.reeEEeer.','rrreEEeerr','.r.eEEe.r.','...eEEe...','...eE.Ee..','...kk..kk.'],
+ chest:['..yyyyyy..','.yYYYYYYy.','yYYYYYYYYy','yyyyyyyyyy','yYYYyyYYYy','yYYYyyYYYy','yYYYYYYYYy','yyyyyyyyyy'],
+ cloud:['....wwww........','..wwwwwwww..ww..','.wwwwwwwwwwwwww.','wwwwwwwwwwwwwwww','.wwwwwwwwwwwwww.','..wwwwwwwwwwww..'],
+ torch:['.o..','oyo.','oyo.','.o..','.N..','.N..','.N..'],
+ bottle:['..ee..','..nn..','..ee..','.eeee.','eeeeee','eggggE','eggggE','eggggE','EggggE','EEEEEE'],
+ dart:['rrr.....','.kwwwwww','rrr.....'],
+ car:['..kkkkkkkk..','.kRRRRRRRRk.','kRcccccccRRk','kRRRRRRRRRRk','kRRyRRRRyRRk','kRRRRRRRRRRk','kkkkkkkkkkkk','.kk......kk.'],
+ chip:['kkkkkk','kggggk','kgkkgk','kgkkgk','kggggk','kkkkkk']
+});
+const mgShadow=(g,x,y,w)=>{g.fillStyle='rgba(0,0,0,.3)';g.fillRect(Math.round(x),Math.round(y),w,2);g.fillRect(Math.round(x)+1,Math.round(y)+2,w-2,1)};
+function mgClouds(g,t,cam,y0){[[10,y0],[70,y0+14],[120,y0-4],[170,y0+10]].forEach((q,i)=>{const x=((q[0]-t*.08*(1+i%2)-cam*.2)%220+220)%220-30;g.globalAlpha=.85;mgD(g,'cloud',x,q[1],i%2?1:2);g.globalAlpha=1})}
+function mgBtns(c,labs,fn,keys){
+  c.ctl.innerHTML='<div class="pd">'+labs.map((l,i)=>`<button data-i="${i}">${l}</button>`).join('')+'</div>';
+  c.ctl.querySelectorAll('button').forEach(b=>{b.onpointerdown=e=>{e.preventDefault();fn(+b.dataset.i)}});
+  const kd=e=>{const i=(keys||{})[e.key];if(i!=null&&!e.repeat){e.preventDefault();fn(i)}};addEventListener('keydown',kd);
+  c.cleanup=()=>{removeEventListener('keydown',kd);c.cv.onpointerdown=null};
+}
+function mgHold(c,lab){
+  c.ctl.innerHTML=`<button style="width:100%;height:60px;touch-action:none">${lab}</button>`;
+  const S={on:0},b=c.ctl.firstChild,on=e=>{e.preventDefault();S.on=1},off=()=>{S.on=0};
+  b.onpointerdown=on;b.onpointerup=b.onpointerleave=b.onpointercancel=off;c.cv.onpointerdown=on;c.cv.onpointerup=c.cv.onpointerleave=off;
+  const kd=e=>{if(e.key===' '){S.on=1;e.preventDefault()}},ku=e=>{if(e.key===' ')S.on=0};addEventListener('keydown',kd);addEventListener('keyup',ku);
+  c.cleanup=()=>{removeEventListener('keydown',kd);removeEventListener('keyup',ku);c.cv.onpointerdown=c.cv.onpointerup=c.cv.onpointerleave=null};
+  return S;
+}
 
 const mgG={};
 /* CORSA E SALTI: platform a scorrimento, come Super Mario. Dirupi, massi, bandiera. */
@@ -3133,28 +3171,38 @@ mgG.run=c=>{
     if(P.x>=494){c.fin(Math.max(0,1-falls*.34),900);msg=-1}
     /* disegno */
     mgSky(g,'day',88,t);
-    g.fillStyle='#e8f4ff';[[20,18],[90,30],[140,14]].forEach(q=>{const x=((q[0]-cam*.2)%200+200)%200-20;g.fillRect(x,q[1],18,4);g.fillRect(x+3,q[1]-3,10,3)});
+    mgClouds(g,t,cam,12);
     g.fillStyle='#4a6ab8';for(let x=0;x<160;x+=4){const h=22+14*Math.sin((x+cam*.3)/24)+7*Math.sin((x+cam*.3)/9);g.fillRect(x,88-h,4,h)}
     g.fillStyle='#2f9a5a';for(let x=0;x<160;x+=4){const h=8+6*Math.sin((x+cam*.6)/13);g.fillRect(x,88-h,4,h)}
     SOL.slice(0,4).forEach(s=>{const x=s[0]-cam;g.fillStyle='#5c3820';g.fillRect(x,88,s[2],40);g.fillStyle='#9a6238';for(let i=0;i<s[2];i+=8)g.fillRect(x+i+((i/8)%2)*3,96+((i/8)%3)*9,4,3);g.fillStyle='#42d884';g.fillRect(x,88,s[2],3);g.fillStyle='#1f8a55';g.fillRect(x,91,s[2],1)});
     mgD(g,'rock',216-cam,76,2);mgD(g,'rock',348-cam,64,2);mgD(g,'rock',348-cam,76,2);
     g.fillStyle='#aab0c4';g.fillRect(500-cam,52,2,36);g.fillStyle='#ffd23d';g.fillRect(499-cam,50,4,3);
     g.fillStyle='#e53950';for(let i=0;i<11;i++)g.fillRect(502-cam+i,53+Math.round(Math.sin(t/8+i/2)*1.5),1,7);
-    mgD(g,(P.on&&Math.abs(P.vx)>.3&&(t>>3)&1)||!P.on?'hero2':'hero',P.x-3-cam,P.y-2,2,P.vx<0);
+    if(P.on)mgShadow(g,P.x-cam,P.y+14,10);mgD(g,(P.on&&Math.abs(P.vx)>.3&&(t>>3)&1)||!P.on?'hero2':'hero',P.x-3-cam,P.y-2,2,P.vx<0);
     mgHearts(g,3-falls,3);
     if(msg>0){msg--;mgTxt(g,'AHIA!',80,44,'#ff5a72',10)}
     if(msg<0)mgTxt(g,'TRAGUARDO!',80,44,'#ffd23d',10);
   });
 };
-/* ZONA TOP-DOWN alla Pokémon: griglia a passi. stealth = guardia con cono di luce; search = gemme nascoste. */
-function mgTop(c,st){
-  const g=c.g,M=st?['##########','#S...#...#','#....#...#','#........D','#....#...#','#....#...#','#....#...#','##########']:['##########','#S.......#','#.##..##.#','#........#','#.#..#...#','#...##.#.#','#........#','##########'];
+/* ZONA TOP-DOWN alla Pokémon: griglia a passi con telecamera. stealth = guardia e cono di luce; search = gemme; maze = labirinto al buio con torce. */
+function mgTop(c,mode){
+  const g=c.g,st=mode==='stealth',mz=mode==='maze';let M;
+  if(mz){
+    const cw=10,ch=7,W=cw*2+1,Hh=ch*2+1,A=Array.from({length:Hh},()=>Array(W).fill('#')),seen={'1,1':1},stk=[[1,1]];A[1][1]='.';
+    while(stk.length){const[x,y]=stk[stk.length-1],nb=[[2,0],[-2,0],[0,2],[0,-2]].filter(d=>{const a=x+d[0],b=y+d[1];return a>0&&b>0&&a<W-1&&b<Hh-1&&!seen[a+','+b]});
+      if(!nb.length){stk.pop();continue}const d=nb[Math.random()*nb.length|0],a=x+d[0],b=y+d[1];A[y+d[1]/2][x+d[0]/2]='.';A[b][a]='.';seen[a+','+b]=1;stk.push([a,b])}
+    for(let i=0;i<12;i++){const x=2+(Math.random()*(W-4)|0),y=2+(Math.random()*(Hh-4)|0);if(A[y][x]==='#'&&((A[y][x-1]==='.'&&A[y][x+1]==='.')||(A[y-1][x]==='.'&&A[y+1][x]==='.')))A[y][x]='.'}
+    A[Hh-2][W-2]='D';M=A.map(r=>r.join(''));
+  }else M=st?['##########','#S...#...#','#....#...#','#........D','#....#...#','#....#...#','#....#...#','##########']:['##########','#S.......#','#.##..##.#','#........#','#.#..#...#','#...##.#.#','#........#','##########'];
+  const MW=M[0].length,MH=M.length,TL=[];
+  if(st)TL.push([3,0],[7,0]);
+  if(mz)for(let n=0;n<14;n++){const x=1+(Math.random()*(MW-2)|0),y=1+(Math.random()*(MH-3)|0);if(M[y][x]==='#'&&M[y+1][x]==='.')TL.push([x,y])}
   c.ctl.innerHTML=PADS.dp;const K=mgIn(c),P={tx:1,ty:1,x:16,y:16,dx:0,dy:0,mv:0,f:1,w:0},G=[],gd={y:1,d:1},FX=[];
-  let bad=0,t=0,frz=0,left=1500,got=0;
-  if(!st)while(G.length<3){const x=1+Math.floor(Math.random()*8),y=1+Math.floor(Math.random()*6);if(M[y][x]==='.'&&Math.abs(x-1)+Math.abs(y-1)>3&&!G.some(q=>q[0]===x&&q[1]===y))G.push([x,y])}
-  c.H(st?'Raggiungi la porta senza entrare nel cono di luce della guardia.':'Esplora e trova le 3 gemme nascoste!');
+  let bad=0,t=0,frz=0,got=0,cx=0,cy=0;const LIM=mz?2700:1500;let left=LIM;
+  if(!st&&!mz)while(G.length<3){const x=1+Math.floor(Math.random()*8),y=1+Math.floor(Math.random()*6);if(M[y][x]==='.'&&Math.abs(x-1)+Math.abs(y-1)>3&&!G.some(q=>q[0]===x&&q[1]===y))G.push([x,y])}
+  c.H(st?'Raggiungi la porta senza entrare nel cono di luce della guardia.':mz?'Trova l\'uscita nel labirinto buio! Le torce illuminano la strada.':'Esplora e trova le 3 gemme nascoste!');
   const arrive=()=>{
-    if(M[P.ty][P.tx]==='D'){SND.play('ok',1);c.fin(Math.max(0,1-bad*.34),700);return}
+    if(M[P.ty][P.tx]==='D'){SND.play('ok',1);c.fin(mz?Math.max(.4,1-(LIM-left)/LIM*.6):Math.max(0,1-bad*.34),700);return}
     const i=G.findIndex(q=>q[0]===P.tx&&q[1]===P.ty);
     if(i>=0){G.splice(i,1);got++;SND.play('ok',1);mgBurstP(FX,P.x+8,P.y+8,14,['#6fe8ff','#fff'],2);if(got===3)c.fin(1,700)}
   };
@@ -3170,26 +3218,33 @@ function mgTop(c,st){
       gd.y+=gd.d*.05;if(gd.y>=6){gd.y=6;gd.d=-1}if(gd.y<=1){gd.y=1;gd.d=1}
       const px=P.x+8,py=P.y+8,gx=56,gy=gd.y*16+8;
       if(!frz&&px>gx+10&&px<gx+72&&Math.abs(py-gy)<=16){bad++;frz=50;SND.play('alarm',1);if(bad>=3){c.fin(0,900);return}}
-    }else if(--left<=0){c.fin(got/3,300);return}
-    for(let j=0;j<8;j++)for(let i=0;i<10;i++){
-      const ch=M[j][i],x=i*16,y=j*16;
-      if(st){g.fillStyle=(i+j)%2?'#3b3552':'#443d5e';g.fillRect(x,y,16,16);g.fillStyle='#2e2942';g.fillRect(x+3,y+5,2,1);g.fillRect(x+10,y+11,2,1)}
-      else{g.fillStyle=(i+j)%2?'#3f9a4b':'#46a653';g.fillRect(x,y,16,16);g.fillStyle='#2f7f3d';g.fillRect(x+3,y+4,1,2);g.fillRect(x+11,y+10,1,2);g.fillRect(x+7,y+13,1,2)}
-      if(ch==='#'){if(st){g.fillStyle='#6a6483';g.fillRect(x,y,16,16);g.fillStyle='#4b4663';g.fillRect(x,y+5,16,1);g.fillRect(x,y+11,16,1);g.fillRect(x+(j%2?4:10),y,1,5);g.fillRect(x+(j%2?11:3),y+5,1,6);g.fillRect(x+8,y+11,1,5);g.fillStyle='#8a84a8';g.fillRect(x,y,16,1)}else mgD(g,'tree',x,y+1,1)}
-      if(ch==='D'){g.fillStyle='#5c3820';g.fillRect(x,y,16,16);g.fillStyle='#9a6238';for(let k=2;k<16;k+=4)g.fillRect(x+k,y+1,2,14);g.fillStyle='#ffd23d';g.fillRect(x+3,y+8,2,2)}
+    }else if(--left<=0){c.fin(mz?0:got/3,300);return}
+    cx=Math.max(0,Math.min(MW*16-160,Math.round(P.x+8-80)));cy=Math.max(0,Math.min(MH*16-128,Math.round(P.y+8-64)));
+    g.fillStyle='#0f0820';g.fillRect(0,0,160,128);g.save();g.translate(-cx,-cy);
+    for(let j=0;j<MH;j++)for(let i=0;i<MW;i++){
+      const ch=M[j][i],x=i*16,y=j*16;if(x+16<cx||x>cx+160||y+16<cy||y>cy+128)continue;
+      if(st||mz){g.fillStyle=(i+j)%2?'#3b3552':'#443d5e';g.fillRect(x,y,16,16);g.fillStyle='#2e2942';g.fillRect(x+3,y+5,2,1);g.fillRect(x+10,y+11,2,1)}
+      else{g.fillStyle=(i+j)%2?'#3f9a4b':'#46a653';g.fillRect(x,y,16,16);g.fillStyle='#2f7f3d';g.fillRect(x+3,y+4,1,2);g.fillRect(x+11,y+10,1,2);g.fillRect(x+7,y+13,1,2);if((i*7+j*3+(t>>5))%11===0)g.fillRect(x+5,y+2,1,2)}
+      if(ch==='#'){if(st||mz){g.fillStyle='#6a6483';g.fillRect(x,y,16,16);g.fillStyle='#4b4663';g.fillRect(x,y+5,16,1);g.fillRect(x,y+11,16,1);g.fillRect(x+(j%2?4:10),y,1,5);g.fillRect(x+(j%2?11:3),y+5,1,6);g.fillRect(x+8,y+11,1,5);g.fillStyle='#8a84a8';g.fillRect(x,y,16,1);g.fillStyle='#2a2540';g.fillRect(x,y+15,16,1)}else mgD(g,'tree',x,y+1,1)}
+      if(ch==='D'){g.fillStyle='#5c3820';g.fillRect(x,y,16,16);g.fillStyle='#9a6238';for(let k=2;k<16;k+=4)g.fillRect(x+k,y+1,2,14);g.fillStyle='#ffd23d';g.fillRect(x+3,y+8,2,2);if(mz){g.fillStyle='rgba(255,210,61,.25)';g.fillRect(x-2,y-2,20,20)}}
     }
+    TL.forEach(q=>{const x=q[0]*16,y=q[1]*16,f=(t>>2)%3;g.fillStyle='rgba(255,170,60,'+(.18+f*.04)+')';g.fillRect(x-4,y-2,24,20);mgD(g,'torch',x+4,y+3,2)});
     G.forEach(q=>{if((t>>4)%3){mgD(g,'gem',q[0]*16+5,q[1]*16+5,1);if(t%20<8){g.fillStyle='#fff';g.fillRect(q[0]*16+3,q[1]*16+7,2,1);g.fillRect(q[0]*16+12,q[1]*16+4,1,2)}}});
     if(st){
       g.globalAlpha=.3;g.fillStyle='#ffe35a';for(let k=0;k<4;k++){const h=16+k*8;g.fillRect(66+k*16,gd.y*16+8-h/2,16,h)}g.globalAlpha=1;
-      mgD(g,'guard',48,gd.y*16,2);if(frz>0){g.fillStyle='#e53950';g.fillRect(62,gd.y*16-8,3,6);g.fillRect(62,gd.y*16,3,2)}
+      mgShadow(g,50,gd.y*16+14,12);mgD(g,'guard',48,gd.y*16,2);if(frz>0){g.fillStyle='#e53950';g.fillRect(62,gd.y*16-8,3,6);g.fillRect(62,gd.y*16,3,2)}
     }
-    mgD(g,P.mv&&(P.w>>2)&1?'hero2':'hero',P.x,P.y,2,P.f<0);
+    mgShadow(g,P.x+3,P.y+14,10);mgD(g,P.mv&&(P.w>>2)&1?'hero2':'hero',P.x,P.y,2,P.f<0);
     mgParts(g,FX);
-    if(st)mgHearts(g,3-bad,3);else{mgD(g,'gem',3,3,1);mgTxt(g,got+'/3',22,10,'#fff');g.fillStyle='#0f0820';g.fillRect(0,124,160,4);g.fillStyle='#ffd23d';g.fillRect(0,124,160*left/1500,4)}
+    if(mz){const fr=(t>>3)%2?4:0;for(let j=0;j<MH;j++)for(let i=0;i<MW;i++){const x=i*16,y=j*16;if(x+16<cx||x>cx+160||y+16<cy||y>cy+128)continue;
+      let d=Math.hypot(x+8-P.x-8,y+8-P.y-8)-fr;TL.forEach(q=>{d=Math.min(d,Math.hypot(x+8-q[0]*16-8,y+8-q[1]*16-8)*1.5)});
+      const a=d<26?0:d<42?.35:d<58?.65:.93;if(a){g.fillStyle='rgba(4,2,16,'+a+')';g.fillRect(x,y,16,16)}}}
+    g.restore();
+    if(st)mgHearts(g,3-bad,3);else{g.fillStyle='#0f0820';g.fillRect(0,124,160,4);g.fillStyle=mz&&left<LIM*.2?'#e53950':'#ffd23d';g.fillRect(0,124,160*left/LIM,4);if(!mz){mgD(g,'gem',3,3,1);mgTxt(g,got+'/3',22,10,'#fff')}}
     if(frz>0){g.fillStyle='rgba(229,57,80,.28)';g.fillRect(0,0,160,128);mgTxt(g,'VISTO!',80,66,'#fff',12)}
   });
 }
-mgG.stealth=c=>mgTop(c,1);mgG.search=c=>mgTop(c,0);
+mgG.stealth=c=>mgTop(c,'stealth');mgG.search=c=>mgTop(c,'search');mgG.maze=c=>mgTop(c,'maze');
 /* TIRO AL BERSAGLIO: uccelli di latta che volano sulla bancarella. */
 mgG.shoot=c=>{
   const g=c.g,N=9,B=[],F=[];let n=0,hit=0,t=0,cur={x:80,y:60},fl=0,endT=0;
@@ -3205,7 +3260,7 @@ mgG.shoot=c=>{
     B.forEach(b=>{if(b.d){b.vy+=.25;b.y+=b.vy;b.x+=b.vx*.3}else{b.x+=b.vx;b.y+=Math.sin(t/9+b.ph)*.5}});
     for(let i=B.length-1;i>=0;i--)if(B[i].x<-14||B[i].x>172||B[i].y>140)B.splice(i,1);
     if(n>=N&&!B.length&&!endT)endT=t;if(endT&&t-endT>20){c.fin(hit/N,200);return}
-    mgSky(g,'day',104,t);
+    mgSky(g,'day',104,t);mgClouds(g,t,0,30);
     g.fillStyle='#3a8a4a';for(let x=0;x<160;x+=4)g.fillRect(x,78-8*Math.sin(x/17)-4*Math.sin(x/7),4,40);
     for(let i=0;i<20;i++){g.fillStyle=i%2?'#e53950':'#fff';g.fillRect(i*8,0,8,18);g.fillRect(i*8+2,18,4,3)}
     g.fillStyle='#5c3820';g.fillRect(0,0,5,128);g.fillRect(155,0,5,128);
@@ -3300,11 +3355,203 @@ mgG.dodge=c=>{
   });
 };
 
-const MG_ART={lock:'lock',punch:'bag',talk:'face',shoot:'bird',run:'rock',stealth:'guard',search:'gem',puzzle:'gem',climb:'hold',dodge:'rock'};
-const MG_FN={lock:'timing',punch:'timing',talk:'timing',shoot:'shoot',run:'run',stealth:'stealth',search:'search',puzzle:'puzzle',climb:'climb',dodge:'dodge'};
-const MG_THEME={lock:'dusk',punch:'dusk',talk:'dusk',shoot:'day',run:'day',stealth:'night',search:'day',puzzle:'night',climb:'dusk',dodge:'fire'};
+/* PESCA: tieni la barra sul pesce, come nei giochi di pesca a pixel. */
+mgG.fish=c=>{
+  const g=c.g,S=mgHold(c,'TIRA LA LENZA (tieni premuto)'),BH=28,F=[];let bar=60,vb=0,fish=50,ft=50,prog=30,t=0;const T=900;
+  c.H('Tieni la barra verde sul pesce!');
+  mgLoop(c,()=>{
+    t++;vb+=S.on?-.22:.16;vb=Math.max(-3.2,Math.min(3.2,vb));bar+=vb;if(bar<0){bar=0;vb=0}if(bar>100-BH){bar=100-BH;vb=-vb*.3}
+    if(t%55===1)ft=8+Math.random()*84;fish+=(ft-fish)*.045;
+    const on=fish>=bar&&fish<=bar+BH;prog=Math.max(0,Math.min(100,prog+(on?.36:-.22)));
+    if(prog>=100){c.fin(1,600);mgBurstP(F,60,76,24,['#fff','#6fe8ff'],2.5)}
+    if(t>=T){c.fin(prog/100,500);return}
+    mgSky(g,'day',70,t);mgClouds(g,t,0,8);
+    for(let y=70;y<128;y+=3){g.fillStyle=(y/3|0)%2?'#2a6ad0':'#245fc0';g.fillRect(0,y,160,3)}
+    g.fillStyle='#8ec8ff';for(let y=74;y<128;y+=7)for(let x=(y*5)%23;x<160;x+=23)g.fillRect(x+Math.round(Math.sin(t/20+y)*3),y,6,1);
+    g.fillStyle='#9a6238';g.fillRect(0,68,46,5);g.fillStyle='#5c3820';g.fillRect(0,73,46,2);for(let x=4;x<46;x+=10)g.fillRect(x,75,3,22);
+    const bob=Math.sin(t/12)*1.5,bx=96,by=72+bob;
+    if(on){g.fillStyle='rgba(15,8,32,.35)';g.fillRect(bx-9+Math.sin(t/9)*3,by+8,18,4)}
+    for(let k=0;k<30;k++){const q=k/29;g.fillStyle='#e8e8f0';g.fillRect(Math.round(30+(bx-30)*q),Math.round(52+(by-52)*q+Math.sin(q*3.14)*-8),1,1)}
+    g.fillStyle='#5c3820';g.fillRect(28,50,2,2);g.fillRect(22,54,8,1);
+    g.fillStyle='#fff';g.fillRect(bx-1,by-3,3,3);g.fillStyle='#e53950';g.fillRect(bx-1,by,3,2);
+    mgD(g,'hero',12,54,2);mgShadow(g,12,70,16);
+    g.fillStyle='#0f0820';g.fillRect(126,8,28,112);g.fillStyle='#1f56b0';g.fillRect(128,10,16,108);g.fillStyle=on?'rgba(66,216,132,.75)':'rgba(66,216,132,.4)';g.fillRect(128,10+bar,16,BH);
+    mgD(g,'fish',132,10+fish-2,1);
+    g.fillStyle='#2c4296';g.fillRect(146,10,6,108);g.fillStyle=prog>60?'#42d884':prog>30?'#ffd23d':'#e53950';const hh=prog*1.08;g.fillRect(146,118-hh,6,hh);
+    mgParts(g,F);
+  });
+};
+/* GUIDA: strada in prospettiva, schiva le auto cambiando corsia. */
+mgG.drive=c=>{
+  const g=c.g,R=[],F=[];let t=0,hits=0,inv=0,tl=0,off=0;const T=840,hw=tt=>8+tt*72;
+  c.ctl.innerHTML=PADS.lr;const K=mgIn(c);c.H('Sterza tra le corsie ed evita le auto!');
+  mgLoop(c,()=>{
+    t++;if(inv>0)inv--;tl=Math.max(-1.1,Math.min(1.1,tl+((K.r?1:0)-(K.l?1:0))*.07));off+=3+t/260;
+    if(t%Math.max(26,55-(t/25|0))===0&&t<T-60)R.push({l:Math.floor(Math.random()*3)-1,p:0,c:['#3d8bff','#42d884','#ffd23d','#b07bff'][Math.random()*4|0]});
+    R.forEach(r=>r.p+=.0105+t/120000);
+    for(let i=R.length-1;i>=0;i--){const r=R[i];
+      if(!inv&&r.p>.86&&r.p<1.02&&Math.abs(r.l-tl)<.75){hits++;inv=50;SND.play('danger',1);mgBurstP(F,80+tl*42,112,16,['#ff9440','#ffd23d','#fff'],3);R.splice(i,1);if(hits>=3){c.fin(0,700);return}continue}
+      if(r.p>1.15)R.splice(i,1)}
+    if(t>=T){c.fin(Math.max(0,1-hits*.34),500);return}
+    mgSky(g,'dusk',52,t);g.fillStyle='#ffd23d';g.fillRect(104,20,12,12);g.fillStyle='#4a2c8a';for(let x=0;x<160;x+=4)g.fillRect(x,50-12-9*Math.sin(x/15)-4*Math.sin(x/6),4,14);
+    for(let y=50;y<128;y++){const tt=(y-50)/78,w=hw(tt),b=Math.floor(8/(tt+.08)+off/10)%2;
+      g.fillStyle=b?'#2f9a5a':'#3dac66';g.fillRect(0,y,160,1);g.fillStyle=b?'#4a4a5c':'#54546a';g.fillRect(80-w,y,w*2,1);
+      g.fillStyle=b?'#e53950':'#fff';g.fillRect(80-w-Math.max(1,tt*5),y,Math.max(1,tt*5),1);g.fillRect(80+w,y,Math.max(1,tt*5),1);
+      if(b){g.fillStyle='#e8e8f0';const d=Math.max(1,tt*2);g.fillRect(80-w*.33,y,d,1);g.fillRect(80+w*.33,y,d,1)}}
+    R.slice().sort((a,b)=>a.p-b.p).forEach(r=>{const tt=Math.min(1.1,r.p),y=50+tt*78,s=.12+tt*1,x=80+r.l*hw(tt)*.55,w=26*s,h=15*s;
+      g.fillStyle='rgba(0,0,0,.3)';g.fillRect(x-w/2,y,w,Math.max(1,2*s));g.fillStyle=r.c;g.fillRect(x-w/2,y-h,w,h);g.fillStyle='#9ad8ff';g.fillRect(x-w*.38,y-h*.9,w*.76,h*.35);g.fillStyle='#ff5a72';g.fillRect(x-w/2,y-h*.4,w*.2,h*.2);g.fillRect(x+w*.3,y-h*.4,w*.2,h*.2);g.fillStyle='#0f0820';g.fillRect(x-w/2,y-h*.12,w*.2,h*.14);g.fillRect(x+w*.3,y-h*.12,w*.2,h*.14)});
+    if(!(inv%6>3)){mgShadow(g,80+tl*42-12,121,24);mgD(g,'car',80+tl*42-12,104,2)}
+    mgParts(g,F);mgHearts(g,3-hits,3);g.fillStyle='#0f0820';g.fillRect(0,0,160,2);g.fillStyle='#ffd23d';g.fillRect(0,0,160*t/T,2);
+  });
+};
+/* RITMO: le note scendono sulle tre corsie, premi quando toccano la linea. */
+mgG.rhythm=c=>{
+  const g=c.g,N=14,notes=[],F=[],CO=['#ff5a72','#ffe04d','#52f09a'],fl=[0,0,0];let t=0,sc=0,msg='',mt=0,s=40;
+  for(let i=0;i<N;i++){notes.push({l:Math.random()*3|0,s,h:0,m:0});s+=30+Math.random()*14|0}
+  const ny=n=>(t-n.s)*2.2-8;
+  const press=l=>{if(c.off)return;let b=null,bd=99;notes.forEach(n=>{const d=Math.abs(ny(n)-104);if(n.l===l&&!n.h&&!n.m&&d<bd){b=n;bd=d}});
+    if(b&&bd<20){b.h=1;const k=bd<=8?1:.5;sc+=k;msg=k===1?'PERFETTO!':'OK';mt=24;fl[l]=8;SND.play(k===1?'ok':'click',1);mgBurstP(F,40+l*40,104,10,[CO[l],'#fff'],2.5)}else{msg='MANCATO';mt=24;fl[l]=-8;SND.play('danger',1)}};
+  mgBtns(c,['◀','▲','▶'],press,{ArrowLeft:0,a:0,ArrowUp:1,w:1,ArrowDown:1,s:1,ArrowRight:2,d:2});
+  c.cv.onpointerdown=e=>{e.preventDefault();press(Math.min(2,Math.floor(mgPt(c,e).x/53.4)))};
+  const cl=c.cleanup;c.cleanup=()=>{cl();c.cv.onpointerdown=null};c.H('Premi quando la nota tocca la linea!');
+  mgLoop(c,()=>{
+    t++;notes.forEach(n=>{if(!n.h&&!n.m&&ny(n)>124)n.m=1});
+    if(t>notes[N-1].s+75){c.fin(sc/N,300);return}
+    mgSky(g,'night',128,t);
+    for(let i=0;i<3;i++){g.globalAlpha=.13;g.fillStyle=CO[i];g.beginPath();g.moveTo(40+i*40-4,0);g.lineTo(40+i*40+4,0);g.lineTo(40+i*40+26,104);g.lineTo(40+i*40-26,104);g.fill();g.globalAlpha=1}
+    for(let i=0;i<3;i++){const x=40+i*40;g.fillStyle='#0b0820';g.fillRect(x-17,0,34,128);g.fillStyle=fl[i]>0?CO[i]:'#2c4296';g.fillRect(x-17,0,1,128);g.fillRect(x+16,0,1,128);if(fl[i]>0){fl[i]--;g.globalAlpha=.3;g.fillStyle=CO[i];g.fillRect(x-16,60,32,44);g.globalAlpha=1}else if(fl[i]<0){fl[i]++;g.fillStyle='rgba(229,57,80,.3)';g.fillRect(x-16,0,32,128)}}
+    g.fillStyle='#fff';g.fillRect(20,104,120,2);g.fillStyle='rgba(255,255,255,.25)';g.fillRect(20,98,120,14);
+    notes.forEach(n=>{if(n.h)return;const y=ny(n);if(y<-10||y>130)return;const x=40+n.l*40;g.fillStyle=n.m?'#555a70':CO[n.l];g.fillRect(x-11,y-5,22,10);g.fillStyle='rgba(255,255,255,.6)';g.fillRect(x-9,y-4,18,2);g.fillStyle='#0f0820';g.fillRect(x-11,y+4,22,1)});
+    mgD(g,'hero',72,4+Math.sin(t/6)*2,2);for(let x=4;x<160;x+=12){g.fillStyle='#04060f';g.fillRect(x,120+Math.sin(x)*2,9,8)}
+    mgParts(g,F);if(mt>0){mt--;mgTxt(g,msg,80,62,msg==='MANCATO'?'#ff5a72':'#ffd23d',10)}
+  });
+};
+/* DUELLO: leggi dove colpisce l'avversario e para all'altezza giusta. */
+mgG.duel=c=>{
+  const g=c.g,N=6,F=[],Y=[48,64,80];let k=0,ok=0,t=0,wait=50,at=-1,tm=0,sh=0,msg='',mt=0,pr=-1,pt=0;
+  const next=()=>{k++;at=-1;if(k>=N){c.off=1;c.fin(ok/N,500);return}wait=45+Math.random()*40|0};
+  const press=i=>{if(c.off||at<0)return;pr=i;pt=10;if(i===at){ok++;msg='PARATA!';SND.play('ok',1);mgBurstP(F,70,Y[i]+1,12,['#ffd23d','#fff'],2.5)}else{msg='COLPITO!';sh=12;SND.play('danger',1)}mt=30;next()};
+  mgBtns(c,['▲ ALTO','● CENTRO','▼ BASSO'],press,{ArrowUp:0,ArrowRight:1,ArrowLeft:1,ArrowDown:2});c.H('Para dove colpisce il nemico!');
+  mgLoop(c,()=>{
+    t++;if(sh>0)sh--;if(pt>0)pt--;
+    if(at<0){if(--wait<=0){at=Math.random()*3|0;tm=Math.max(30,56-k*4)}}
+    else if(--tm<=0){msg='COLPITO!';mt=30;sh=12;SND.play('danger',1);next()}
+    mgSky(g,'dusk',84,t);g.fillStyle='#3a2a1c';g.fillRect(0,92,160,36);g.fillStyle='#53403a';for(let x=0;x<160;x+=16)g.fillRect(x,100+(x/16%2)*8,14,1);
+    g.fillStyle='#e53950';g.fillRect(8,10,10,30);g.fillRect(142,10,10,30);g.fillStyle='#ffd23d';g.fillRect(8,40,10,2);g.fillRect(142,40,10,2);
+    const ox=sh%2?2:0;mgShadow(g,18+ox,90,26);mgShadow(g,112,90,30);
+    mgD(g,'hero',18+ox,66,3);mgD(g,'knight',112,56,3,0);
+    if(at>=0){g.fillStyle=(t>>2)&1?'#ff5a72':'#e53950';g.fillRect(70,Y[at]-1,40,4);g.fillStyle='#fff';g.fillRect(70,Y[at],40,1);mgTxt(g,'!',130,48,'#ff5a72',12)}else{g.fillStyle='#aab0c4';g.fillRect(108,50,3,22)}
+    g.fillStyle='#aab0c4';const hy=pr>=0&&pt>0?Y[pr]:70;g.fillRect(40,hy-1,28,3);g.fillStyle='#ffd23d';g.fillRect(40,hy-3,3,7);
+    mgParts(g,F);if(mt>0){mt--;mgTxt(g,msg,80,32,msg==='PARATA!'?'#ffd23d':'#ff5a72',10)}
+    g.fillStyle='#0f0820';g.fillRect(0,0,160,3);g.fillStyle='#ffd23d';g.fillRect(0,0,160*k/N,3);
+  });
+};
+/* VERSARE: tieni premuto per versare, rilascia sul segno. */
+mgG.pour=c=>{
+  const g=c.g,N=3,CL=['#42d884','#ff5a72','#6fe8ff'],S=mgHold(c,'VERSA (tieni premuto, rilascia sul segno)'),B=[];
+  let r=0,lv=0,tg=0,v=0,pouring=0,t=0,pts=0,wait=0,msg='',mt=0;
+  const setup=()=>{lv=0;tg=40+Math.random()*45;v=0;wait=0;c.H('Fiala '+(r+1)+' di '+N+': riempi fino al segno giallo')};setup();
+  const res=()=>{const d=Math.abs(lv-tg),k=d<=3?1:d<=9?.5:0;pts+=k;msg=k===1?'PERFETTO!':k?'QUASI…':'TROPPO!';mt=50;wait=60;pouring=0;SND.play(k===1?'ok':k?'click':'danger',1)};
+  mgLoop(c,()=>{
+    t++;
+    if(wait>0){if(--wait===0){if(++r>=N){c.fin(pts/N,300);return}setup()}}
+    else if(S.on){v=Math.min(.9,v+.03);lv+=v;pouring=1;if(t%3===0)B.push({x:68+Math.random()*24,y:108,vy:-.6-Math.random()*.4});if(lv>=100){lv=100;res()}}
+    else{if(pouring)res();v=0}
+    g.fillStyle='#3a2a1c';g.fillRect(0,0,160,128);g.fillStyle='#53403a';for(let y=0;y<128;y+=8)g.fillRect(0,y,160,1);
+    g.fillStyle='#5c3820';g.fillRect(0,40,36,3);g.fillRect(124,40,36,3);g.fillRect(0,84,36,3);g.fillRect(124,84,36,3);
+    [[4,22],[18,22],[130,22],[144,22],[10,66],[136,66]].forEach((q,i)=>{mgSC.bottle&&0;mgD(g,'bottle',q[0],q[1]+ (i%2?2:0),2)});
+    g.fillStyle='#0b0820';g.fillRect(62,18,36,98);g.fillStyle='rgba(180,220,255,.18)';g.fillRect(64,20,32,94);
+    const top=112-lv*.92;g.fillStyle=CL[r%3];g.fillRect(64,top,32,112-top);g.fillStyle='rgba(255,255,255,.35)';g.fillRect(64,top,32,2);
+    B.forEach(b=>{b.y+=b.vy;g.fillStyle='rgba(255,255,255,.5)';g.fillRect(b.x,b.y,2,2)});for(let i=B.length-1;i>=0;i--)if(B[i].y<top)B.splice(i,1);
+    g.fillStyle='#ffd23d';g.fillRect(58,112-tg*.92,44,2);g.fillRect(54,112-tg*.92-2,4,6);g.fillRect(102,112-tg*.92-2,4,6);
+    g.fillStyle='#fff';g.fillRect(62,18,2,98);g.fillRect(96,18,2,98);g.fillRect(62,114,36,2);
+    g.save();g.translate(84,-10);g.rotate(pouring?2.7:3.4);mgD(g,'bottle',-9,-30,3);g.restore();
+    if(pouring){g.fillStyle=CL[r%3];g.fillRect(78+Math.round(Math.sin(t/3)),22,3,top-22)}
+    if(mt>0){mt--;mgTxt(g,msg,80,12,msg==='TROPPO!'?'#ff5a72':'#ffd23d',10)}
+    for(let i=0;i<N;i++){g.fillStyle=i<r?'#42d884':'#2c4296';g.fillRect(4+i*10,120,8,4)}
+  });
+};
+/* EQUILIBRIO: filo sospeso sul canyon, contrasta il vento. */
+mgG.balance=c=>{
+  const g=c.g,F=[];c.ctl.innerHTML=PADS.lr;const K=mgIn(c);let tilt=0,tv=0,t=0,falls=0,fa=0;const T=660;
+  c.H('Tieni l\'equilibrio: ◀ ▶ contro il vento!');
+  mgLoop(c,()=>{
+    t++;const wind=Math.sin(t/37)*.0016+Math.sin(t/11)*.0009;
+    if(fa>0){if(--fa===0){tilt=0;tv=0}}
+    else{tv=(tv+wind+tilt*.0012+((K.r?1:0)-(K.l?1:0))*.003)*.985;tilt+=tv;if(Math.abs(tilt)>=1){falls++;fa=60;SND.play('danger',1);if(falls>=3){c.fin(0,900)}}}
+    if(t>=T){c.fin(Math.max(0,1-falls*.34),500);return}
+    mgSky(g,'fire',70,t);g.fillStyle='#a0402a';for(let x=0;x<160;x+=4)g.fillRect(x,66-10-8*Math.sin(x/21+1)-4*Math.sin(x/8),4,40);
+    g.fillStyle='#5a1a22';g.fillRect(0,96,160,32);g.fillStyle='#74182c';for(let x=0;x<160;x+=4)g.fillRect(x,96+Math.sin(x/9)*3,4,10);
+    g.fillStyle='#7a3a22';g.fillRect(0,88,28,40);g.fillRect(132,88,28,40);g.fillStyle='#9a5a32';g.fillRect(0,88,28,3);g.fillRect(132,88,28,3);
+    g.fillStyle='#e8e8f0';for(let x=28;x<132;x++)g.fillRect(x,92+Math.round(Math.sin((x-28)/104*3.14)*3),1,1);
+    g.fillStyle='rgba(255,255,255,.4)';for(let i=0;i<8;i++)g.fillRect((i*41+t*(2+i%3))%160,20+i*7,10,1);
+    const sag=3,y0=92+sag;
+    if(fa>0){const f=60-fa;g.save();g.translate(80+tilt*30,y0-24+f*f*.07);g.rotate(f/5*Math.sign(tilt||1));mgD(g,'hero',-12,-12,3);g.restore()}
+    else{g.save();g.translate(80,y0);g.rotate(tilt*.6);mgD(g,'hero',-12,-24,3);g.fillStyle='#5c3820';g.save();g.rotate(tilt*.4);g.fillRect(-28,-14,56,2);g.fillStyle='#ffd23d';g.fillRect(-28,-15,3,4);g.fillRect(25,-15,3,4);g.restore();g.restore()}
+    g.fillStyle='#0f0820';g.fillRect(30,4,100,6);g.fillStyle='#2c4296';g.fillRect(31,5,98,4);g.fillStyle=Math.abs(tilt)>.7?'#e53950':'#42d884';g.fillRect(80+tilt*48-2,3,5,8);
+    mgHearts(g,3-falls,3);g.fillStyle='#0f0820';g.fillRect(0,124,160,4);g.fillStyle='#ffd23d';g.fillRect(0,124,160*t/T,4);
+  });
+};
+/* LANCIO: blocca prima la posizione orizzontale, poi quella verticale. */
+mgG.throw=c=>{
+  const g=c.g,N=3,F=[],D=[];let r=0,ph=0,x=80,y=56,lx=80,t=0,pts=0,fly=0,fx=0,fy=0,msg='',mt=0;
+  c.ctl.innerHTML='<button style="width:100%;height:56px">LANCIA</button>';c.H('Premi per fissare prima la mira orizzontale, poi quella verticale.');
+  const act=e=>{if(e)e.preventDefault();if(c.off||fly)return;SND.play('click',1);if(ph===0){lx=x;ph=1}else{fx=lx;fy=y;fly=1;ph=2;SND.play('shot',1)}};
+  c.ctl.firstChild.onpointerdown=act;c.cv.onpointerdown=act;c.cleanup=()=>{c.cv.onpointerdown=null};
+  mgLoop(c,()=>{
+    t++;
+    if(ph===0)x=80+Math.sin(t/(14-r*2))*52;if(ph===1)y=56+Math.sin(t/(11-r*2))*40;
+    if(fly&&++fly>22){const d=Math.hypot(fx-80,fy-56),k=d<=6?1:d<=16?.7:d<=28?.4:d<=38?.15:0;pts+=k;D.push([fx,fy]);msg=k>=1?'CENTRO!':k>=.7?'OTTIMO':k>=.4?'BUONO':k?'RASENTE':'FUORI';mt=40;mgBurstP(F,fx,fy,8,['#fff','#ffd23d'],1.6);SND.play(k>=.7?'ok':'click',1);fly=0;ph=0;if(++r>=N){c.fin(pts/N,700);return}}
+    g.fillStyle='#4a3020';g.fillRect(0,0,160,128);g.fillStyle='#5c3a26';for(let i=0;i<128;i+=16)g.fillRect(0,i,160,1);for(let i=0;i<160;i+=40)g.fillRect(i,0,1,128);
+    g.fillStyle='#0f0820';g.fillRect(80-42,56-42,84,84);for(let rr=38;rr>0;rr-=7){g.fillStyle=((38-rr)/7|0)%2?'#fff':'#e53950';for(let yy=-rr;yy<=rr;yy++){const w=Math.round(Math.sqrt(rr*rr-yy*yy));g.fillRect(80-w,56+yy,w*2,1)}}
+    g.fillStyle='#42d884';g.fillRect(78,54,5,5);
+    D.forEach(d=>mgD(g,'dart',d[0]-2,d[1]-1,1));
+    if(ph>=0&&!fly){g.globalAlpha=.8;g.fillStyle='#ffd23d';if(ph===0)g.fillRect(Math.round(x),8,1,96);else{g.fillRect(Math.round(lx),8,1,96);g.fillRect(20,Math.round(y),120,1)}g.globalAlpha=1}
+    if(fly){const q=fly/22,sc=3-q*2;g.save();g.translate(80+(fx-80)*q,128-(128-fy)*q);g.scale(sc/2,sc/2);mgD(g,'dart',-4,-2,2);g.restore()}
+    mgParts(g,F);mgD(g,'hero',6,98,3);for(let i=0;i<N;i++)mgD(g,'dart',130+(i<N-r?0:100),104+i*7,1);
+    if(mt>0){mt--;mgTxt(g,msg,80,16,'#ffd23d',10)}
+  });
+};
+/* SCAVO: tocca le zolle; il colore dice quanto sei vicino al tesoro. */
+mgG.dig=c=>{
+  const g=c.g,CW=8,CH=5,TX=Math.random()*CW|0,TY=Math.random()*CH|0,D={},F=[];let used=0,t=0,found=0;const MAXD=8;
+  c.ctl.innerHTML='<div class="mut" style="text-align:center">Tocca una zolla per scavare</div>';c.H('Rosso = vicinissimo · arancio = vicino · blu = lontano');
+  c.cv.onpointerdown=e=>{e.preventDefault();if(c.off||found)return;const p=mgPt(c,e),cx=Math.floor(p.x/20),cy=Math.floor((p.y-24)/20),k=cx+','+cy;if(cx<0||cx>=CW||cy<0||cy>=CH||D[k])return;
+    used++;SND.play('click',1);const d=Math.abs(cx-TX)+Math.abs(cy-TY);D[k]=d;mgBurstP(F,cx*20+10,24+cy*20+10,10,['#9a6238','#5c3820'],2);
+    if(d===0){found=1;SND.play('fanfare',1);mgBurstP(F,cx*20+10,24+cy*20+10,26,['#ffd23d','#fff'],3);c.fin(Math.max(.3,1-(used-1)*.1),1200)}else if(used>=MAXD)c.fin(0,900)};
+  c.cleanup=()=>{c.cv.onpointerdown=null};
+  mgLoop(c,()=>{
+    t++;mgSky(g,'day',24,t);g.fillStyle='#ffd23d';g.fillRect(140,4,10,10);g.fillStyle='#3f9a4b';g.fillRect(0,20,160,4);
+    for(let j=0;j<CH;j++)for(let i=0;i<CW;i++){const x=i*20,y=24+j*20,d=D[i+','+j];
+      g.fillStyle=(i+j)%2?'#9a6238':'#8a5530';g.fillRect(x,y,20,20);g.fillStyle='#5c3820';g.fillRect(x+4,y+6,2,2);g.fillRect(x+13,y+13,2,2);g.fillRect(x+9,y+3,1,1);
+      if(d!==undefined){g.fillStyle='#2a160c';g.fillRect(x+2,y+2,16,16);g.fillStyle=d===0?'#ffd23d':d<=1?'rgba(229,57,80,.7)':d<=3?'rgba(255,148,64,.6)':'rgba(74,168,255,.5)';g.fillRect(x+2,y+2,16,16);if(d===0)mgD(g,'chest',x+5,y+6,1)}}
+    mgD(g,'hero',4,12,1);for(let i=0;i<MAXD;i++){g.fillStyle=i<MAXD-used?'#ffd23d':'#2c4296';g.fillRect(40+i*8,8,6,6)}
+    mgParts(g,F);
+  });
+};
+/* HACKING: tocca i numeri in ordine crescente il più in fretta possibile. */
+mgG.hack=c=>{
+  const g=c.g,N=9,cells=[],F=[];for(let i=0;i<20;i++)cells.push(i);cells.sort(()=>Math.random()-.5);
+  const chips=cells.slice(0,N).map((q,i)=>({n:i+1,x:8+(q%5)*30,y:18+((q/5)|0)*26,d:0}));let nx=1,t=0,fl=0;const T=720;
+  c.ctl.innerHTML='<div class="mut" style="text-align:center">Tocca i numeri da 1 a 9 in ordine</div>';c.H('Più sei veloce, meglio è!');
+  c.cv.onpointerdown=e=>{e.preventDefault();if(c.off)return;const p=mgPt(c,e),h=chips.find(q=>!q.d&&p.x>=q.x&&p.x<q.x+24&&p.y>=q.y&&p.y<q.y+18);if(!h)return;
+    if(h.n===nx){h.d=1;nx++;SND.play('ok',1);mgBurstP(F,h.x+12,h.y+9,8,['#52f09a','#fff'],2);if(nx>N)c.fin(Math.max(.5,1-t/T*.5),700)}else{t+=45;fl=8;SND.play('danger',1)}};
+  c.cleanup=()=>{c.cv.onpointerdown=null};
+  mgLoop(c,()=>{
+    t++;if(t>=T){c.fin((nx-1)/N*.5,500);return}
+    g.fillStyle=fl>0?'#2a0a14':'#04140c';g.fillRect(0,0,160,128);if(fl>0)fl--;
+    g.fillStyle='#0b3a22';g.font='7px monospace';g.textAlign='left';for(let i=0;i<14;i++){g.fillText(String((i*7+(t>>3))%2),i*12+2,(t*.9+i*23)%128)}
+    for(let y=0;y<128;y+=3){g.fillStyle='rgba(0,0,0,.25)';g.fillRect(0,y,160,1)}
+    chips.forEach(q=>{g.fillStyle=q.d?'#0b3a22':'#0f2a1c';g.fillRect(q.x,q.y,24,18);g.fillStyle=q.d?'#1f8a55':'#52f09a';g.fillRect(q.x,q.y,24,1);g.fillRect(q.x,q.y+17,24,1);g.fillRect(q.x,q.y,1,18);g.fillRect(q.x+23,q.y,1,18);if(!q.d)mgTxt(g,String(q.n),q.x+12,q.y+13,'#a8ffd0',10);else mgTxt(g,'OK',q.x+12,q.y+12,'#1f8a55',7)});
+    mgParts(g,F);g.fillStyle='#0f0820';g.fillRect(0,122,160,6);g.fillStyle=t>T*.75?'#e53950':'#52f09a';g.fillRect(0,123,160*(1-t/T),4);
+  });
+};
+
+const MG_ART={lock:'lock',punch:'bag',talk:'face',shoot:'bird',run:'rock',stealth:'guard',search:'gem',puzzle:'gem',climb:'hold',dodge:'rock',fish:'fish',drive:'car',rhythm:'gem',duel:'knight',pour:'bottle',balance:'hero',throw:'dart',dig:'chest',hack:'chip',maze:'torch'};
+const MG_FN={lock:'timing',punch:'timing',talk:'timing',shoot:'shoot',run:'run',stealth:'stealth',search:'search',puzzle:'puzzle',climb:'climb',dodge:'dodge',fish:'fish',drive:'drive',rhythm:'rhythm',duel:'duel',pour:'pour',balance:'balance',throw:'throw',dig:'dig',hack:'hack',maze:'maze'};
+const MG_THEME={lock:'dusk',punch:'dusk',talk:'dusk',shoot:'day',run:'day',stealth:'night',search:'day',puzzle:'night',climb:'dusk',dodge:'fire',fish:'day',drive:'dusk',rhythm:'night',duel:'dusk',pour:'dusk',balance:'fire',throw:'dusk',dig:'day',hack:'night',maze:'night'};
 const MG_BYSK={furtivita:'stealth',mira:'shoot',notare:'search',rissa:'punch',mischia:'punch',velocita:'dodge',atletica:'climb',convincere:'talk',intimidire:'talk',empatia:'talk',istruzione:'puzzle',concentrazione:'puzzle',creativita:'puzzle'};
-const MG_MUS={lock:'mistero',shoot:'festa',run:'combattimento',stealth:'pericolo',search:'scoperta',punch:'combattimento',talk:'generico',puzzle:'mistero',climb:'scoperta',dodge:'pericolo'};
+const MG_MUS={lock:'mistero',shoot:'festa',run:'combattimento',stealth:'pericolo',search:'scoperta',punch:'combattimento',talk:'generico',puzzle:'mistero',climb:'scoperta',dodge:'pericolo',fish:'scoperta',drive:'combattimento',rhythm:'festa',duel:'combattimento',pour:'mistero',balance:'pericolo',throw:'festa',dig:'scoperta',hack:'pericolo',maze:'mistero'};
 const MG_LBL={lock:'SCATTA',punch:'COLPISCI',talk:'ARGOMENTA'};
 const MG_HOW={
  lock:'Ferma il segno nella zona verde per far scattare i perni: 3 tentativi.',
@@ -3316,14 +3563,24 @@ const MG_HOW={
  talk:'Scegli il momento giusto per ogni argomento: ferma il segno nella zona verde.',
  puzzle:'Guarda la sequenza di rune e ripetila a memoria.',
  climb:'Scala la parete: afferra l\'appiglio evidenziato prima che scada il tempo. Tre scivoloni e cadi.',
- dodge:'Schiva i massi che cadono per 12 secondi: ◀ ▶ oppure trascina il dito sulla scena.'
+ dodge:'Schiva i massi che cadono per 12 secondi: ◀ ▶ oppure trascina il dito sulla scena.',
+ fish:'Tieni premuto per alzare la barra verde e seguire il pesce: riempi la barra di cattura.',
+ drive:'Sterza con ◀ ▶ tra le tre corsie ed evita le auto per 14 secondi. Tre botte e sei fuori.',
+ rhythm:'Premi la corsia giusta quando la nota tocca la linea: 14 note.',
+ duel:'Il nemico colpisce alto, al centro o in basso: para all\'altezza giusta prima che sia tardi.',
+ pour:'Tieni premuto per versare e rilascia quando il liquido arriva al segno giallo: 3 fiale.',
+ balance:'Contrasta il vento con ◀ ▶ per restare in equilibrio sul filo. Tre cadute e sei fuori.',
+ throw:'Fissa prima la mira orizzontale e poi quella verticale: 3 lanci al bersaglio.',
+ dig:'Hai 8 colpi di pala: il colore della buca dice quanto sei vicino al tesoro.',
+ hack:'Tocca i numeri da 1 a 9 in ordine crescente. Ogni errore costa tempo.',
+ maze:'Esplora un labirinto al buio: ti vedi solo vicino a te e alle torce. Trova la porta!'
 };
 const mgGame=mg=>{const m=String(mg.minigame_id||'').match(/^([a-z]+)_/);if(m&&MG_KEYS.includes(m[1]))return m[1];const S=mgFind(AB,mg.mechanic.suggested_skill);return(S&&MG_BYSK[S[0]])||'talk'};
 const evMus=e=>e.mg?MG_MUS[mgGame(e.mg)]:(e.ek||'generico');
 /* anteprima statica nella schermata iniziale */
 function mgIntro(c,key){
   const g=c.g,A=MG_ART[key];mgSky(g,MG_THEME[key],92,5);g.fillStyle='#3a2a1c';g.fillRect(0,92,160,36);g.fillStyle='#42d884';g.fillRect(0,92,160,3);
-  const s=mgSpr(A),k={lock:6,bag:5,face:5,bird:4,rock:4,guard:3,gem:5,hold:6}[A]||4;
+  const s=mgSpr(A),k={lock:6,bag:5,face:5,bird:4,rock:4,guard:3,gem:5,hold:6,fish:6,car:5,knight:4,bottle:5,dart:6,chest:6,chip:8,torch:7,hero:5}[A]||4;
   mgD(g,A,110-s.width*k/2,92-s.height*k+ (A==='bird'?-24:0),k,A==='guard');mgD(g,'hero',30,68,3);
 }
 /* finali: un'animazione diversa per ogni esito */
@@ -3358,7 +3615,8 @@ function mgCss(){
   if(document.getElementById('mgcss'))return;
   const s=document.createElement('style');s.id='mgcss';
   s.textContent=`.mg{width:100%;margin-top:14px;text-align:center}
-.mg-cv{line-height:0;border:4px solid var(--ink);box-shadow:4px 4px 0 var(--ink),0 0 0 3px var(--ec,var(--acc))}
+.mg-cv{position:relative;line-height:0;border:4px solid var(--ink);box-shadow:4px 4px 0 var(--ink),0 0 0 3px var(--ec,var(--acc))}
+.mg-cv:after{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(0,0,0,.1) 0 1px,transparent 1px 3px),radial-gradient(ellipse at center,transparent 62%,rgba(0,0,0,.35))}
 .mg-cv.shk{animation:shake .4s steps(4) 3}
 .mg-cv canvas{width:100%;height:auto;display:block;image-rendering:pixelated;touch-action:none;user-select:none;-webkit-user-select:none}
 .mg-env{margin:14px 0 4px;font-style:italic}.mg-act{font-weight:700;margin:0 0 8px}
@@ -3406,7 +3664,7 @@ function mgMount(box,e){
     H(`<div class="mg-big ok">${star(s)}</div><div class="mut">${s>=.75?'Esecuzione impeccabile.':s>=.4?'Una prova discreta.':'Una prova incerta.'}</div><div class="mg-pool"><b>${esc(String(tl).toUpperCase())}</b> ${pl.t||0}${pl.tb?' (+'+pl.tb+')':''} + <b>${esc(String(sl).toUpperCase())}</b> ${pl.a||0}${pl.sb?' (+'+pl.sb+')':''} = <b>${pl.n}d10</b><br><span class="mut">Servono ${need} incrementi: a metà prova sono i dadi a decidere come va a finire.</span></div>`);
     btn(`TIRA ${pl.n} d10`,()=>roll(s));
   };
-  const play=()=>{c.off=0;c.cleanup=null;H('');mgG[MG_FN[key]](c)};
+  const play=()=>{c.off=0;c.cleanup=null;c.ft=22;H('');mgG[MG_FN[key]](c)};
   if(old){end(old,false);mgDice(ctl,old,false);return}
   mgIntro(c,key);
   H(`<div class="mg-env">${esc(vt.environment_description||'')}</div><div class="mg-act">${esc(mc.action_prompt||'')}</div><div class="mut">${MG_HOW[key]}</div>`);
