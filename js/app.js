@@ -662,13 +662,37 @@ const masterPlayers=()=>{
 };
 /* ===== v7: inventario, messaggi, ferite, editor player ===== */
 let invTab='arma',editing=false,draft={};
-const PN={head:'Testa',torso:'Torso',armR:'Braccio destro',armL:'Braccio sinistro',legR:'Gamba destra',legL:'Gamba sinistra'};
+const PN={head:'Testa',neck:'Collo',torso:'Petto',abdomen:'Addome',armR:'Braccio destro',armL:'Braccio sinistro',foreR:'Avambraccio destro',foreL:'Avambraccio sinistro',handR:'Mano destra',handL:'Mano sinistra',legR:'Coscia destra',legL:'Coscia sinistra',shinR:'Gamba destra',shinL:'Gamba sinistra',footR:'Piede destro',footL:'Piede sinistro'};
 const LV=['Sano','Lieve','Media','Grave'],WC=['#d3d9e6','#e0b100','#e07b1a','#d6334f'];
-const PARTS=[['head','<circle cx="100" cy="38" r="26"/>'],['torso','<rect x="62" y="70" width="76" height="112" rx="20"/>'],['armR','<rect x="24" y="74" width="32" height="124" rx="16"/>'],['armL','<rect x="144" y="74" width="32" height="124" rx="16"/>'],['legR','<rect x="64" y="188" width="34" height="140" rx="17"/>'],['legL','<rect x="102" y="188" width="34" height="140" rx="17"/>']];
-const sil=(w,click)=>`<svg viewBox="0 0 200 340" style="width:100%;max-width:210px;margin:0 auto;display:block">${PARTS.map(([k,s])=>`<g data-part="${k}" fill="${WC[w[k]||0]}" stroke="#5b6478" stroke-width="2" style="${click?'cursor:pointer':''}">${s}</g>`).join('')}</svg>`;
-const woundCard=(p,M)=>{const w=p.wounds||{},ks=Object.keys(w).filter(k=>w[k]>0);if(!M&&!ks.length)return '';return `<div class="card"><h3>🩹 ${M?'SAGOMA':'FERITE'}</h3>${M?'<div class="mut" style="text-align:center">Tocca un arto per segnalare una ferita al player</div>':''}${sil(w,M)}<div class="row" style="flex-wrap:wrap;gap:6px;margin-top:8px;justify-content:center">${ks.map(k=>`<span class="pill" style="border-color:${WC[w[k]]};color:${WC[w[k]]}">${PN[k]} · ${LV[w[k]]}</span>`).join('')||'<span class="pill eu">Nessuna ferita</span>'}</div></div>`};
+/* sagoma anatomica: 16 zone. Il lato "R" è a sinistra di chi guarda (destra del personaggio) */
+const _pl=pts=>`<polygon points="${pts.map(q=>q.join(',')).join(' ')}" stroke-linejoin="round"/>`,_mir=pts=>pts.map(([x,y])=>[220-x,y]);
+const _lim=(k,pts,ex)=>[k,_pl(pts)+(ex||'')];
+const PARTS=[
+ ['head','<ellipse cx="110" cy="38" rx="22" ry="27"/><ellipse cx="87" cy="42" rx="4" ry="8"/><ellipse cx="133" cy="42" rx="4" ry="8"/>'],
+ ['neck','<path d="M99 62 h22 l4 20 h-30 z" stroke-linejoin="round"/>'],
+ ['torso','<path d="M60 92 Q66 80 98 80 H122 Q154 80 160 92 L155 134 Q110 144 65 134 Z" stroke-linejoin="round"/>'],
+ ['abdomen','<path d="M67 137 Q110 147 153 137 L151 186 Q148 200 110 202 Q72 200 69 186 Z" stroke-linejoin="round"/>'],
+ _lim('armR',[[50,90],[66,94],[61,150],[41,148]]),_lim('armL',_mir([[50,90],[66,94],[61,150],[41,148]])),
+ _lim('foreR',[[41,153],[61,155],[55,208],[37,204]]),_lim('foreL',_mir([[41,153],[61,155],[55,208],[37,204]])),
+ ['handR','<ellipse cx="46" cy="222" rx="10" ry="14" transform="rotate(8 46 222)"/>'],['handL','<ellipse cx="174" cy="222" rx="10" ry="14" transform="rotate(-8 174 222)"/>'],
+ _lim('legR',[[70,198],[109,198],[104,280],[77,280]]),_lim('legL',_mir([[70,198],[109,198],[104,280],[77,280]])),
+ _lim('shinR',[[77,285],[103,285],[98,364],[82,364]]),_lim('shinL',_mir([[77,285],[103,285],[98,364],[82,364]])),
+ ['footR','<path d="M82 368 H98 L104 384 Q106 394 96 394 H72 Q65 394 68 384 Z" stroke-linejoin="round"/>'],['footL','<path d="M138 368 H122 L116 384 Q114 394 124 394 H148 Q155 394 152 384 Z" stroke-linejoin="round"/>']
+];
+/* centro di ogni zona: serve per i segni di ferita e per il numero dei danni */
+const PCEN={head:[110,38],neck:[110,72],torso:[110,108],abdomen:[110,168],armR:[52,120],armL:[168,120],foreR:[47,180],foreL:[173,180],handR:[46,222],handL:[174,222],legR:[90,240],legL:[130,240],shinR:[90,325],shinL:[130,325],footR:[84,381],footL:[136,381]};
+const _det='<g fill="none" stroke="rgba(20,18,26,.28)" stroke-width="1.2" pointer-events="none"><path d="M96 82 Q110 90 124 82"/><path d="M80 100 Q96 108 106 104 M140 100 Q124 108 114 104"/><path d="M76 116 Q96 124 106 120 M144 116 Q124 124 114 120"/><path d="M110 92 V132"/><circle cx="110" cy="170" r="1.8"/><path d="M92 200 Q110 206 128 200"/><circle cx="90" cy="282" r="5"/><circle cx="130" cy="282" r="5"/><circle cx="51" cy="151" r="3.5"/><circle cx="169" cy="151" r="3.5"/><path d="M104 32 q3 2 6 0 M110 28 v10 M104 46 q6 4 12 0" /></g>';
+/* marchio di ferita: graffio (lieve), taglio (media), squarcio con goccia (grave) */
+const _wmark=(lv,x,y)=>lv===1?`<g stroke="#7a1f1f" stroke-width="2" stroke-linecap="round" pointer-events="none"><path d="M${x-6} ${y-4} l12 8"/><path d="M${x-6} ${y+2} l8 5" opacity=".6"/></g>`:lv===2?`<g pointer-events="none"><path d="M${x-8} ${y-7} l16 14" stroke="#5a0f14" stroke-width="3.2" stroke-linecap="round"/><path d="M${x-8} ${y-7} l16 14" stroke="#e8423f" stroke-width="1.6" stroke-linecap="round"/></g>`:lv>=3?`<g pointer-events="none"><path d="M${x-9} ${y-8} l18 16 M${x+9} ${y-8} l-18 16" stroke="#3b0a0f" stroke-width="3.6" stroke-linecap="round"/><path d="M${x-9} ${y-8} l18 16 M${x+9} ${y-8} l-18 16" stroke="#ff4a52" stroke-width="1.8" stroke-linecap="round"/><path d="M${x} ${y+9} q-4 5 0 8 q4 -3 0 -8z" fill="#d6334f"/></g>`:'';
+const sil=(w,click,o)=>{o=o||{};const dm=o.dmg||{};
+  return `<svg viewBox="0 0 220 400" style="width:100%;max-width:${o.w||230}px;margin:0 auto;display:block"><defs><radialGradient id="skg" cx="50%" cy="30%" r="80%"><stop offset="0" stop-color="#fff" stop-opacity=".35"/><stop offset="1" stop-color="#000" stop-opacity=".18"/></radialGradient></defs>`+
+  PARTS.map(([k,s])=>{const lv=w[k]||0,hl=o.hl===k;return `<g data-part="${k}" fill="${WC[lv]}" stroke="${hl?'#fff':lv?WC[lv]:'#5b6478'}" stroke-width="${hl?3:2}" style="${click?'cursor:pointer':''}${lv>=3?';filter:drop-shadow(0 0 4px #d6334f)':''}">${s}</g><g fill="url(#skg)" stroke="none" pointer-events="none">${s}</g>`}).join('')+
+  _det+PARTS.map(([k])=>(w[k]||0)>0?_wmark(w[k],PCEN[k][0],PCEN[k][1]):'').join('')+
+  PARTS.map(([k])=>dm[k]>0?`<g pointer-events="none"><rect x="${PCEN[k][0]-15}" y="${PCEN[k][1]+(w[k]>0?9:-8)}" width="30" height="15" rx="7" fill="#14121a" stroke="${WC[w[k]||1]}" stroke-width="1.5"/><text x="${PCEN[k][0]}" y="${PCEN[k][1]+(w[k]>0?20:3)}" text-anchor="middle" font-size="11" font-weight="700" fill="#fff" font-family="sans-serif">−${dm[k]}</text></g>`:'').join('')+`</svg>`;
+};
+const woundCard=(p,M)=>{const w=p.wounds||{},dm=p.woundDmg||{},ks=Object.keys(w).filter(k=>w[k]>0&&PN[k]),tot=ks.reduce((s,k)=>s+(dm[k]||0),0);if(!M&&!ks.length)return '';return `<div class="card"><h3>🩹 ${M?'SAGOMA':'FERITE'}</h3>${M?'<div class="mut" style="text-align:center">Tocca una zona del corpo: scegli gravità e danni subiti (si sottraggono agli HP)</div>':''}${sil(w,M,{dmg:dm})}<div class="row" style="flex-wrap:wrap;gap:6px;margin-top:8px;justify-content:center">${ks.map(k=>`<span class="pill" style="border-color:${WC[w[k]]};color:${WC[w[k]]}">${PN[k]} · ${LV[w[k]]}${dm[k]?` · −${dm[k]} HP`:''}</span>`).join('')||'<span class="pill eu">Nessuna ferita</span>'}</div>${tot?`<div class="mut" style="text-align:center;margin-top:6px">Danni totali da ferite: <b style="color:var(--red2)">−${tot} HP</b></div>`:''}</div>`};
 const msgFrom=m=>m.from&&m.from.t==='npc'?'🧙 '+esc(m.from.name):m.from&&m.from.t==='pl'?(m.kind==='chat'?'👤 ':'💸 ')+esc(m.from.name):'⚙️ SISTEMA';
-const msgText=m=>m.kind==='ego'?'⚡ '+esc(m.text):m.kind==='obiettivo'?'🏆 Obiettivo completato: «'+esc(m.text)+'»':m.kind==='invite'?'🏕️ Invito al party «'+esc(m.text)+'»':m.kind==='ferita'?(m.lv?`🩹 ${PN[m.part]}: ferita ${LV[m.lv].toLowerCase()}`:`💚 ${PN[m.part]}: guarito`)+(m.text?' — '+esc(m.text):''):m.kind==='money'?`🪙 +${m.v}`+(m.text?' — '+esc(m.text):''):esc(m.text);
+const msgText=m=>m.kind==='ego'?'⚡ '+esc(m.text):m.kind==='obiettivo'?'🏆 Obiettivo completato: «'+esc(m.text)+'»':m.kind==='invite'?'🏕️ Invito al party «'+esc(m.text)+'»':m.kind==='ferita'?(m.lv?`🩹 ${PN[m.part]||''}: ferita ${LV[m.lv].toLowerCase()}${m.dmg?` · −${m.dmg} HP`:''}`:`💚 ${PN[m.part]||''}: guarito${m.heal?` · +${m.heal} HP`:''}`)+(m.hm?` · ❤️ ${m.hp}/${m.hm}`:'')+(m.text?' — '+esc(m.text):''):m.kind==='money'?`🪙 +${m.v}`+(m.text?' — '+esc(m.text):''):esc(m.text);
 const msgAv=m=>m.from&&m.from.photo?`<img class="avatar" src="${esc(m.from.photo)}">`:`<div class="avatar">${m.kind==='ferita'?'🩹':m.kind==='money'?'🪙':m.kind==='obiettivo'?'🏆':m.kind==='ego'?'⚡':m.from&&m.from.t==='npc'?'🧙':m.kind==='chat'?'👤':'⚙️'}</div>`;
 const openMsgs=new Set();
 const msgReward=(m,force)=>{
@@ -757,13 +781,38 @@ async function composeMsg(pre,from){
   toast('Messaggio inviato');
 }
 async function woundDlg(id,part){
-  const p=S.players[id],cur=(p.wounds||{})[part]||0;
-  const r=await ask('🩹 '+PN[part]+' di '+p.username,[{l:'Gravità',n:'lv',t:'select',o:['lieve','media','grave','guarito']},{l:'Nota per il player (opzionale)',n:'note',t:'area'}],{lv:cur?['','lieve','media','grave'][cur]:'lieve'});
-  if(!r)return;
-  const lv=['guarito','lieve','media','grave'].indexOf(r.lv),mid=uid8();
-  await guard(db.collection('players').doc(id).update({wounds:{...(p.wounds||{}),[part]:lv}}));
-  guard(db.collection('msgs').doc(mid).set({id:mid,to:[id],from:{t:'sys',name:'SISTEMA'},kind:'ferita',part,lv,text:r.note||'',ts:Date.now()}));
-  toast('Segnalato al player');
+  const p=S.players[id];if(!p||!PN[part])return;
+  const cur=(p.wounds||{})[part]||0,curD=(p.woundDmg||{})[part]||0,v=vit(p),arm=armorOf(p);
+  const res=await new Promise(res=>{
+    const m=document.createElement('div');m.className='modal';
+    m.innerHTML=`<div><h3>🩹 ${esc(PN[part])} di ${esc(p.username)}</h3>${sil({[part]:cur||1},false,{hl:part,w:130,dmg:{[part]:curD}})}
+    <div class="mut" style="text-align:center;margin:4px 0">❤️ HP attuali: <b>${v.h}/${v.hm}</b>${cur?` · ferita attuale: ${LV[cur].toLowerCase()}${curD?' (−'+curD+' HP)':''}`:''}</div>
+    <label class="mut">Gravità</label><select name="lv"><option>lieve</option><option>media</option><option>grave</option><option>guarito</option></select>
+    <div data-w="hit"><label class="mut">Danni subiti (HP persi: si sottraggono subito agli HP)</label><input name="dmg" type="number" min="0" value="0" inputmode="numeric">
+    ${arm>0?`<label class="row" style="margin:6px 0"><input type="checkbox" name="arm" checked style="width:auto;margin:0">Applica armatura (🛡️ −${arm} danni)</label>`:''}</div>
+    <div data-w="heal" style="display:none"><label class="mut">HP recuperati con la guarigione (0 = nessuno)</label><input name="heal" type="number" min="0" value="0" inputmode="numeric"></div>
+    <div name="pv" class="pill" style="display:block;text-align:center;margin:8px 0;white-space:normal"></div>
+    <label class="mut">Nota per il player (opzionale)</label><textarea name="note" rows="2"></textarea>
+    <div class="row"><button class="g grow" data-x>Annulla</button><button class="grow" data-ok>Segnala</button></div></div>`;
+    document.body.append(m);
+    const q=n=>m.querySelector(`[name=${n}]`),lvS=q('lv'),dI=q('dmg'),hI=q('heal'),aC=q('arm'),pv=q('pv');let touched=false;
+    lvS.value=cur?['','lieve','media','grave'][cur]:'lieve';
+    const calc=()=>{const heal=lvS.value==='guarito',raw=Math.max(0,parseInt(dI.value)||0),a=(aC&&aC.checked&&!heal)?arm:0,eff=heal?0:Math.max(0,raw-a),hg=heal?Math.max(0,parseInt(hI.value)||0):0,nh=Math.max(0,Math.min(v.hm,v.h-eff+hg));return {heal,raw,a,eff,hg,nh}};
+    const upd=()=>{const c=calc();m.querySelector('[data-w=hit]').style.display=c.heal?'none':'';m.querySelector('[data-w=heal]').style.display=c.heal?'':'none';
+      pv.textContent=c.heal?`💚 Zona guarita${c.hg?` · +${c.hg} HP → ${c.nh}/${v.hm}`:''}`:`💥 ${c.raw}${c.a?` − 🛡️${Math.min(c.a,c.raw)}`:''} = −${c.eff} HP → ${c.nh}/${v.hm}${c.nh<=0?' · ☠️ HP a zero!':''}`;
+      pv.style.color=c.heal?'var(--ok)':c.nh<=0?'var(--danger)':''};
+    dI.oninput=()=>{if(!touched&&lvS.value!=='guarito'){const r=Math.max(0,parseInt(dI.value)||0)/Math.max(1,v.hm);lvS.value=r>.35?'grave':r>.15?'media':'lieve'}upd()};
+    lvS.onchange=()=>{touched=true;upd()};if(aC)aC.onchange=upd;hI.oninput=upd;upd();
+    m.onclick=e=>{if(e.target.dataset.x!==undefined||e.target===m){m.remove();res(null)}
+      if(e.target.dataset.ok!==undefined){const c=calc(),o={lv:['guarito','lieve','media','grave'].indexOf(lvS.value),note:q('note').value.trim(),...c};m.remove();res(o)}};
+  });
+  if(!res)return;
+  const fresh=S.players[id]||p,wd={...(fresh.woundDmg||{})},w={...(fresh.wounds||{}),[part]:res.lv},vf=vit(fresh);
+  if(res.lv===0)delete wd[part];else wd[part]=(wd[part]||0)+res.eff;
+  const hp=Math.max(0,Math.min(vf.hm,vf.h-res.eff+res.hg)),mid=uid8();
+  await guard(db.collection('players').doc(id).update({wounds:w,woundDmg:wd,hp}));
+  guard(db.collection('msgs').doc(mid).set({id:mid,to:[id],from:{t:'sys',name:'SISTEMA'},kind:'ferita',part,lv:res.lv,text:res.note||'',dmg:res.eff,raw:res.raw,arm:res.a,heal:res.hg,hp,hm:vf.hm,ts:Date.now()}));
+  toast(res.lv===0?'💚 Guarigione segnalata'+(res.hg?' · +'+res.hg+' HP':''):'🩹 Segnalato: −'+res.eff+' HP ('+hp+'/'+vf.hm+')');
 }
 function rebindMP(){
   if(!tab){selP=null;editing=false}
@@ -811,7 +860,7 @@ function checkM(){
   const title=w?(m.lv?'SEI STATO FERITO':'FERITA GUARITA'):m.kind==='money'?'HAI RICEVUTO NUMMUS':m.kind==='invite'?'INVITO AL PARTY':m.kind==='obiettivo'?'OBIETTIVO COMPLETATO':m.kind==='ego'?'EGO SVELATO':'NUOVO MESSAGGIO';
   const av=m.from&&m.from.photo?`<img src="${esc(m.from.photo)}">`:(w?'🩹':m.kind==='money'?'🪙':m.kind==='invite'?'🏕️':m.kind==='obiettivo'?'🏆':m.kind==='ego'?'⚡':m.from&&m.from.t==='npc'?'🧙':'⚙️');
   const el=document.createElement('div');el.className='modal notif-m'+(h?' hurt':'');
-  el.innerHTML=`<div class="notif ${h&&m.lv>=3?'shake':''}" style="--nc:${c};text-align:center;border:2px solid ${c}"><h2 class="newenc" style="color:${c};font-size:1.6em">${title}</h2><div class="encav" style="border-color:${c}">${av}</div><h3>${msgFrom(m)}</h3><p style="white-space:pre-wrap">${m.kind==='obiettivo'?'«'+esc(m.text)+'»<br><span class="mut">Apri il messaggio per leggere le ricompense.</span>':msgText(m)}</p><div class="row" style="margin-top:14px">${m.kind==='invite'?'<button class="g grow" data-c>Dopo</button><button class="d grow" data-no>Rifiuta</button><button class="grow" data-yes>Accetta</button>':'<button class="g grow" data-c>Chiudi</button><button class="grow" data-i>'+(m.kind==='obiettivo'?'Apri messaggio':m.kind==='ego'?'Vedi EGO':'Apri messaggi')+'</button>'}</div></div>`;
+  el.innerHTML=`<div class="notif ${h&&m.lv>=3?'shake':''}" style="--nc:${c};text-align:center;border:2px solid ${c}"><h2 class="newenc" style="color:${c};font-size:1.6em">${title}</h2><div class="encav" style="border-color:${c}">${av}</div><h3>${msgFrom(m)}</h3>${w&&PN[m.part]?`<div style="max-width:150px;margin:6px auto">${sil({[m.part]:m.lv},false,{hl:m.part,w:150})}</div>`:''}${w&&m.dmg?`<div style="font-size:2.4em;font-weight:700;color:${c};line-height:1.1">−${m.dmg} HP</div>${m.arm?`<div class="mut">🛡️ Armatura: −${Math.min(m.arm,m.raw||m.arm)} danni</div>`:''}`:''}${w&&!m.lv&&m.heal?`<div style="font-size:2.2em;font-weight:700;color:var(--ok)">+${m.heal} HP</div>`:''}${w&&m.hm?`<div class="mut" style="margin:4px 0">❤️ HP rimasti: <b>${m.hp}/${m.hm}</b>${m.hp<=0?' · ☠️':''}</div>`:''}<p style="white-space:pre-wrap">${m.kind==='obiettivo'?'«'+esc(m.text)+'»<br><span class="mut">Apri il messaggio per leggere le ricompense.</span>':msgText(m)}</p><div class="row" style="margin-top:14px">${m.kind==='invite'?'<button class="g grow" data-c>Dopo</button><button class="d grow" data-no>Rifiuta</button><button class="grow" data-yes>Accetta</button>':'<button class="g grow" data-c>Chiudi</button><button class="grow" data-i>'+(m.kind==='obiettivo'?'Apri messaggio':m.kind==='ego'?'Vedi EGO':'Apri messaggi')+'</button>'}</div></div>`;
   document.body.append(el);
   notifBurst(el.firstElementChild,w?(m.lv?'ferita':'cura'):m.kind);
   if(navigator.vibrate)try{navigator.vibrate(h?(m.lv>=3?[300,100,300]:[150]):[40])}catch(e){}
