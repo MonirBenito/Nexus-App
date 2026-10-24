@@ -447,6 +447,11 @@ function renderMaster(){
 }
 /* ===== v3: profilo, incontri, shop ===== */
 const LD={},visN=n=>n.active!==false&&(!(n.to&&n.to.length)||n.to.includes(uid));
+/* armi dell'inventario mostrate anche nel profilo, sotto le skill */
+const weaponsCard=p=>{
+  const W=(p.inv||[]).filter(e=>(e.cat||'oggetto')==='arma');
+  return `<div class="card"><div class="row sp"><h3>⚔️ ARMI</h3><span class="pill">${W.length}</span></div>`+(W.map(e=>`<div class="move" style="border-left-color:var(--danger)"><div style="font-size:1.6em">${e.photo?`${itImg(e.photo,48)}`:CATI.arma}</div><div class="grow"><b>${esc(e.name)}</b><div class="mut">${[hasDmg(e)?'<span style="color:var(--danger)">💥 '+dmgTxt(e)+'</span>':'',e.uses!=null?e.uses+(e.uses===1?' uso':' usi'):'',bonusesOf(e).length?'<span style="color:var(--ok)">'+bonusTxt(e)+'</span>':'',costTxt(e)?'<span style="color:var(--nx)">'+costTxt(e)+' / uso</span>':''].filter(Boolean).join(' · ')||'♾ Infinito'}</div>${e.desc?`<div class="mut" style="white-space:pre-wrap;margin-top:4px">${esc(e.desc)}</div>`:''}</div>${hasDmg(e)?`<button class="mini" data-atk="${e.id}">💥 Attacca</button>`:''}</div>`).join('')||'<p class="mut">Nessuna arma nell\'inventario.</p>')+`</div>`;
+};
 const profileHtml=p=>{
   const t=trOf(p),a=abOf(p),pT=p.points||0,pA=p.pointsAb||0,g=egoOf(p),md=modOf(p),COL=Array(5).fill('var(--acc)');
   return hdr('👤 Profilo',1)+
@@ -456,6 +461,7 @@ const profileHtml=p=>{
   `<div class="card"><div class="row sp"><h3>🧬 TRATTI</h3><span class="pill">Punti tratti: ${pT}</span></div>${TR.map(([k,l],i)=>`<div style="margin-top:12px"><div class="row sp"><b>${l}</b><div class="row"><b style="color:${COL[i]}">${t[k]}${t[k]<=5?'/5':''}${md.tr[k]?` <span style="color:var(--ok)">+${md.tr[k]}</span>`:''}</b><button class="mini" data-tr="${k}" ${pT<1||t[k]>=5?'disabled':''}>+</button></div></div><div class="meter"><i style="width:${Math.min(100,t[k]*20)}%;background:${COL[i]}"></i></div></div>`).join('')}</div>`+
   `<div class="card"><div class="row sp"><h3>🎯 ABILITÀ</h3><span class="pill">Punti abilità: ${pA}</span></div><div class="abg">${AB.map(([k,l])=>`<div class="chip"><span>${l}</span><div class="row" style="gap:6px"><b>${a[k]}${md.ab[k]?`<span style="color:var(--ok)">+${md.ab[k]}</span>`:''}</b><button class="mini" data-ab="${k}" ${pA<1?'disabled':''}>+</button></div></div>`).join('')}</div></div>`+
   `<div class="card"><div class="row sp"><h3>🗡️ SKILL</h3><button id="skA">+ Mossa</button></div>${(p.skills||[]).map((s,i)=>skillCard(s,i,p)).join('')||'<p class="mut">Nessuna mossa per ora.</p>'}</div>`+
+  weaponsCard(p)+
   `<h3>Ultimi acquisti</h3>`+((p.history||[]).slice(0,5).map(h=>`<div class="mut">${esc(h.n)} · −🪙 ${h.p}</div>`).join('')||'<p class="mut">Nessun acquisto.</p>');
 };
 let encOpen=false;
