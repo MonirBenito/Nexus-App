@@ -503,66 +503,177 @@ const uploadPhoto=async f=>{if(!assets){toast('Upload non disponibile');return '
 const egoBoard=p=>{const g=egoOf(p),X=(p.egoX||[]).filter(x=>!x.h);return hdr('⚡ EGO',1)+`<div class="ego big"><div class="row sp"><span class="lab">IL POTERE DEL PERSONAGGIO</span><button class="g" id="egoE">✎</button></div>${g.t||g.e?`<div class="et" style="font-size:2em;text-align:center;margin:18px 0">${esc(g.t)}</div><div class="mut" style="letter-spacing:3px">EFFETTO</div><p style="white-space:pre-wrap;font-size:1.05em;margin:6px 0">${esc(g.e)}</p>`:'<p class="mut" style="margin:40px 0;text-align:center">Nessun EGO scritto.<br>Tocca ✎ per definire il tuo potere.</p>'}</div>`+X.map(x=>`<div class="ego"><span class="lab">${esc(String(x.t).toUpperCase())}</span><p style="white-space:pre-wrap;margin:8px 0 0">${esc(x.e)}</p></div>`).join('')};
 const ITF=()=>[{l:'Nome',n:'name'},{l:'Prezzo (Nummus)',n:'price',t:'number'},{l:'Tipo',n:'cat',t:'select',o:['oggetto','arma','armatura']},{l:'Foto (max 2 MB)',n:'photo',t:'file'},{l:'Cosa dice il mercante (descrizione)',n:'desc',t:'area'},{l:'Utilizzo',n:'use',t:'select',o:['infinito','utilizzabile']},{l:'Numero di usi (solo se utilizzabile)',n:'uses',t:'number'},{l:'Bonus a tratti e abilità (uno per riga, es. "Mira +2" oppure "Vigore +1")',n:'bks',t:'area'},{l:'Riduzione danni (solo armature: punti di danno in meno a ogni colpo, 0 = nessuna)',n:'arm',t:'number'},{l:'Zone del corpo protette (solo armature: nessuna selezionata = tutto il corpo; es. un elmo protegge la testa)',n:'zn',t:'multi',o:Object.entries(PN)},...DMGF.map(f=>({...f,l:f.l+' (solo armi)'})),...COSTF,{l:'Scorte (0 = illimitate)',n:'stock',t:'number'}];
 async function itData(r,old){const o={name:r.name,price:r.price,cat:r.cat,desc:r.desc,use:r.use,uses:r.use==='utilizzabile'?Math.max(1,r.uses):0,bonus:null,bonuses:bonusParse(r.bks),arm:r.cat==='armatura'?Math.min(999,Math.max(0,r.arm||0)):0,zn:r.cat==='armatura'?(Array.isArray(r.zn)?r.zn.filter(k=>PN[k]):[]):[],...dmgClean(r,r.cat==='arma'),...costClean(r),stock:r.stock>0?r.stock:null};if(r.photo){const u=await uploadPhoto(r.photo);if(u)o.photo=u}else if(!old)o.photo='';return o}
-/* ===== oggetto casuale per i mercanti (arma, armatura o oggetto) ===== */
+/* ===== oggetto casuale per i mercanti (arma, armatura o oggetto): temi, effetti, descrizioni, difetti ===== */
 const RND_RAR=[['comune',50],['non comune',30],['raro',15],['leggendario',5]];
 const rndI=(a,b)=>a+Math.floor(Math.random()*(b-a+1)),rndP=a=>a[Math.floor(Math.random()*a.length)];
 const rndW=l=>{let t=l.reduce((s,x)=>s+x[1],0)*Math.random();for(const x of l){if((t-=x[1])<0)return x[0]}return l[0][0]};
 const RND_W={
-  taglio:['Spada','Ascia','Sciabola','Machete','Falcetto da guerra','Daga lunga'],
-  contundente:['Mazza','Martello da guerra','Randello','Tirapugni','Maglio','Mazza chiodata'],
-  perforante:['Lancia','Pugnale','Stiletto','Stocco','Picca','Giavellotto'],
-  distanza:['Arco','Balestra','Fionda','Coltelli da lancio','Arco corto','Balestra a mano'],
-  sparo:['Pistola','Revolver','Fucile','Carabina','Doppietta','Pistola a tamburo'],
-  magia:['Bastone','Verga','Bacchetta','Tomo arcano','Amuleto arcano','Scettro']
+  taglio:['Spada','Ascia','Sciabola','Machete','Falcetto da guerra','Daga lunga','Katana','Scimitarra'],
+  contundente:['Mazza','Martello da guerra','Randello','Tirapugni','Maglio','Mazza chiodata','Flagello','Bastone ferrato'],
+  perforante:['Lancia','Pugnale','Stiletto','Stocco','Picca','Giavellotto','Fioretto','Tridente'],
+  distanza:['Arco','Balestra','Fionda','Coltelli da lancio','Arco corto','Balestra a mano','Arco lungo','Cerbottana'],
+  sparo:['Pistola','Revolver','Fucile','Carabina','Doppietta','Pistola a tamburo','Moschetto','Fucile a leva'],
+  magia:['Bastone','Verga','Bacchetta','Tomo arcano','Amuleto arcano','Scettro','Sfera di cristallo','Falce rituale']
 };
-const RND_A=[['Giubbotto',['torso','abdomen']],['Elmo',['head']],['Corazza',['torso','abdomen']],['Scudo',['armL','foreL','handL']],['Mantello rinforzato',['neck','torso','abdomen','armR','armL']],['Guanti corazzati',['handR','handL']],['Schinieri',['shinR','shinL']],['Gambeson',['torso','abdomen','armR','armL']],['Maglia di anelli',['neck','torso','abdomen','armR','armL']],['Bracciali',['foreR','foreL']],['Stivali',['footR','footL']],['Gambali',['legR','legL','shinR','shinL']]];
+const RND_A=[['Giubbotto',['torso','abdomen']],['Elmo',['head']],['Corazza',['torso','abdomen']],['Scudo',['armL','foreL','handL']],['Mantello rinforzato',['neck','torso','abdomen','armR','armL']],['Guanti corazzati',['handR','handL']],['Schinieri',['shinR','shinL']],['Gambeson',['torso','abdomen','armR','armL']],['Maglia di anelli',['neck','torso','abdomen','armR','armL']],['Bracciali',['foreR','foreL']],['Stivali',['footR','footL']],['Gambali',['legR','legL','shinR','shinL']],['Cappuccio imbottito',['head','neck']],['Spallaccio',['armR']],['Cintura corazzata',['abdomen']],['Visiera',['head']]];
+/* classici: [nome, descrizione, consumabile, effetto(ri)] */
+const HEAL=['1d6','1d8','2d8','4d8'];
 const RND_O=[
-  ['Pozione di cura','Un liquido rossastro che richiude le ferite più leggere.',1],['Tonico NEXUS','Una fiala azzurra che fa tornare lucida la mente.',1],
-  ['Razione da viaggio','Cibo secco e ben conservato: basta per una giornata.',1],['Benda medica','Garza pulita e unguento per fasciare una ferita.',1],
-  ['Antidoto','Un intruglio amaro contro veleni e tossine.',1],['Bomba fumogena','Una sfera che sprigiona una nube fitta e acre.',1],
-  ['Torcia','Brucia a lungo e resiste al vento.',0],['Corda robusta','Dieci metri di fibra intrecciata, pronta a reggere.',0],
-  ['Kit di riparazione','Attrezzi e pezze per rimettere in sesto armi e armature.',1],['Lanterna','Una piccola lanterna a olio con vetro rinforzato.',0],
-  ['Amuleto','Un ciondolo consumato, caldo al tocco.',0],['Mappa consunta','Un foglio ingiallito con appunti a margine.',0],
-  ['Fiala del Nexus','Condensa una scintilla di energia pura.',1],['Occhiali da viaggio','Lenti scure che proteggono gli occhi da polvere e luce.',0]
+  ['Pozione di cura','Un liquido rossastro, denso e dal sapore di ferro.',1,ri=>'Ripristina '+HEAL[ri]+' HP.'],
+  ['Tonico NEXUS','Una fiala azzurra che frizza appena si stappa.',1,ri=>ri?'Ripristina una buona quantità di NEXUS.':'Ripristina un po\' di NEXUS e schiarisce la mente.'],
+  ['Razione da viaggio','Cibo secco, ben conservato e più buono del previsto.',1,()=>'Sazia e dà vigore per una giornata intera.'],
+  ['Benda medica','Garza pulita e un unguento che punge un attimo.',1,()=>'Ferma un\'emorragia e allevia una ferita lieve.'],
+  ['Antidoto','Un intruglio amaro dal colore verde torbido.',1,()=>'Neutralizza un veleno o una tossina.'],
+  ['Bomba fumogena','Una sfera di argilla sigillata con la cera.',1,()=>'Crea una nube fitta di 4 metri che copre la fuga per qualche turno.'],
+  ['Kit di riparazione','Attrezzi, chiodi e pezze di cuoio in una scatola.',1,()=>'Rimette in sesto un\'arma o un\'armatura danneggiata.'],
+  ['Fiala del Nexus','Un\'ampolla che vibra lieve, calda al tatto.',1,ri=>'Rilascia una scintilla di energia pura: '+['1d6','1d8','2d6','2d8'][ri]+' danni a chi colpisce.']
 ];
-const RND_PRE={comune:['Semplice','Rozzo','Consumato','Usato'],'non comune':['Robusto','Ben fatto','Affilato','Solido'],raro:['Runico','Antico','Del Maestro','Temprato'],leggendario:['Leggendario','Sacro','Primordiale','Mitico']};
-const RND_SUF=['dell\'Ombra','del Cacciatore','dell\'Alba','del Custode','del Nexus','della Tempesta','del Viandante','della Volpe','del Lupo','dell\'Eclissi'];
-const RND_DESC={arma:['Ben bilanciata, ha già visto più di una battaglia.','Il manico è consumato da mani che non ci sono più.','Qualcuno ha inciso un simbolo sulla lama prima di venderla.','Pesa il giusto: risponde bene al polso.'],armatura:['Ammaccata in più punti, ma regge ancora.','Cucita con cura da qualcuno che sapeva il fatto suo.','Odora di cuoio e di olio per metalli.','Calza meglio di quanto sembri.'],oggetto:['']};
-function rndItem(cat,rar){
+/* utili e comuni, senza effetto particolare */
+const RND_T=[['Torcia','Brucia a lungo e resiste al vento.'],['Corda robusta','Dieci metri di fibra intrecciata, pronta a reggere.'],['Lanterna','Una piccola lanterna a olio con vetro rinforzato.'],['Mappa consunta','Un foglio ingiallito con appunti scritti a margine.'],['Occhiali da viaggio','Lenti scure che proteggono dalla polvere e dalla luce.'],['Borraccia','Una borraccia di cuoio con un tappo ben chiuso.'],['Acciarino','Pietra e acciaio in un sacchetto: non tradisce mai.'],['Grimaldelli','Un astuccio di ferri sottili, di buona fattura.']];
+const RND_REL=['Amuleto','Talismano','Anello','Ciondolo','Bussola','Diario','Lanterna','Maschera','Fischietto','Medaglione','Braccialetto','Chiave antica'];
+const RND_FORM=['Fiala','Elisir','Polvere','Unguento','Infuso','Bomba','Esca','Filtro'];
+const RND_ORIG=['Opera di un artigiano nomade, firmata con un segno che nessuno riconosce.','Viene da una carovana che non è mai arrivata a destinazione.','Appartenne a una guardia di confine caduta in servizio.','Ha cambiato molti proprietari e ognuno vi ha lasciato un graffio.','Costruzione di recupero, ma con una cura sorprendente.','Porta il marchio di una compagnia di mercenari ormai sciolta.','Giaceva in una cassa sigillata, sotto uno strato d\'olio.','Il venditore non ha voluto dire da dove viene.','Fu un regalo di nozze, poi un pegno, poi una merce.','Lo stile ricorda le botteghe di una città che non esiste più.'];
+const RND_ORIGR=['Un oggetto raccolto da qualcuno che sapeva cosa stava cercando.','Se ne parla poco, e sempre a voce bassa.','Passa da un viaggiatore all\'altro senza mai rimanere a lungo.','Il venditore giura di averlo trovato in un posto dove non doveva essere.','Lo si direbbe antico, ma nessuno sa dire quanto.'];
+const RND_QUIRK=['Al tatto, trasmette sempre un calore leggermente fuori posto.','Di notte emette un sussurro appena udibile.','Gli animali si fanno da parte quando passi.','Il peso varia leggermente con l\'umore del portatore.','Sul retro è incisa una frase in una lingua morta.','Ogni tanto sprigiona un odore di pioggia, anche al chiuso.','Chi lo porta sogna spesso lo stesso corridoio.','Un nome è stato grattato via con cura da qualcuno.'];
+const RND_DRAW=[['Chiede una goccia del tuo sangue a ogni uso.','hp'],['A ogni uso, un bagliore attira sguardi indesiderati.'],['Pesa più del dovuto: i movimenti ne risentono, soprattutto di nascosto.'],['Dopo lunghe trascuratezze, perde smalto e potere.'],['Sussurra nei momenti di silenzio, e c\'è chi giura di averne capito le parole.'],['Reagisce male in presenza di altri oggetti magici.'],['Se viene perso, torna sempre al proprietario... ma non sempre da solo.'],['Rende nervosi gli animali e i bambini.']];
+const RND_TH={
+  fuoco:{sf:['della Brace','del Falò','della Fornace'],ad:['Ardente','Rovente','Incandescente','Fiammeggiante'],leg:['Ultima Brace','Rintocco della Fornace','Sentenza delle Ceneri','Alba di Fuoco'],
+    look:['Venature rosso brace attraversano il materiale.','Ha il colore della cenere dopo un incendio.','Piccole braci sembrano muoversi sotto la superficie.'],
+    bon:[['tr','vigore'],['ab','mischia'],['ab','intimidire']],
+    arma:['I primi colpi di ogni scontro lasciano il bersaglio in fiamme per qualche turno.','Sfregando contro la pietra, si accende e illumina come una torcia.'],
+    armatura:['Emana un calore costante: il freddo ti sfiora appena.','Chi ti colpisce in mischia sente una vampata sul dorso della mano.'],
+    cons:['Esplode in una vampata: accende ogni fiamma entro 5 metri e brucia chi è troppo vicino.','Riempie di calore: per un\'ora ignori il freddo e le ferite si rimarginano più in fretta.'],
+    rel:['Basta un tocco per accendere qualsiasi fiamma, anche sott\'acqua.','Vicino al fuoco recuperi le forze più in fretta.']},
+  gelo:{sf:['del Gelo','dell\'Inverno','del Ghiacciaio'],ad:['Glaciale','Polare','Invernale','Algente'],leg:['Respiro dell\'Inverno','Silenzio Cristallino','Lamento del Ghiacciaio','Brina Eterna'],
+    look:['Una patina di brina non si scioglie mai.','Il materiale ha riflessi azzurri, quasi trasparenti.','Al tatto è gelido, anche vicino a un fuoco.'],
+    bon:[['ab','concentrazione'],['tr','acume'],['ab','notare']],
+    arma:['Il bersaglio colpito rallenta: il gelo gli irrigidisce i movimenti.','Una patina di brina si forma sulla superficie anche in piena estate.'],
+    armatura:['Ti avvolge un velo di freddo: il fuoco ti scotta meno.','Le superfici su cui appoggi la mano si coprono di brina.'],
+    cons:['Congela per un istante l\'acqua o il terreno in un raggio di 3 metri.','Raffredda corpo e mente: per un\'ora resisti meglio al caldo e al panico.'],
+    rel:['Mantiene intatto tutto ciò che vi riponi accanto, cibo compreso.','Il respiro diventa vapore solo quando qualcuno di ostile è vicino.']},
+  tempesta:{sf:['della Tempesta','del Fulmine','del Vento'],ad:['Tonante','Fulminante','Turbinante','Squassante'],leg:['Canto del Fulmine','Occhio del Ciclone','Voce della Tempesta','Ruggito dell\'Uragano'],
+    look:['Piccole scariche danzano sulla superficie.','Odora di aria dopo il temporale.','Segni a zig-zag corrono lungo il materiale.'],
+    bon:[['tr','agilita'],['ab','velocita'],['ab','mira']],
+    arma:['Ogni tanto un lampo corre lungo l\'arma e fa tremare chi è colpito.','Alzando l\'arma, l\'aria si carica e i capelli si rizzano.'],
+    armatura:['Il vento sembra evitarti: frecce e proiettili deviano di poco.','Le tue falcate sono più leggere, come spinte da una brezza.'],
+    cons:['Libera una folata improvvisa che spinge indietro chiunque entro 3 metri.','Ti rende rapido come un lampo per qualche turno.'],
+    rel:['Avvisa con un ronzio l\'arrivo di pioggia e temporali.','Un fischio basta a far alzare il vento a tuo favore.']},
+  ombra:{sf:['dell\'Ombra','dell\'Eclissi','della Notte'],ad:['Silente','Crepuscolare','Spettrale','Sfuggente'],leg:['Ultimo Sospiro','Sudario dell\'Eclissi','Morso della Notte','Promessa Silenziosa'],
+    look:['Sembra assorbire la luce intorno a sé.','Il colore cambia leggermente a seconda dell\'angolazione.','Proietta un\'ombra più lunga di quanto dovrebbe.'],
+    bon:[['ab','furtivita'],['tr','agilita'],['ab','notare']],
+    arma:['Se colpisci chi non ti ha visto, il danno è peggiore e il colpo non fa rumore.','Proietta un\'ombra più lunga del normale, che distrae chi la guarda.'],
+    armatura:['Nell\'oscurità sei più difficile da individuare.','Le tue orme sono lievi e lasciano poche tracce.'],
+    cons:['Per qualche minuto sei avvolto da penombra e passi inosservato.','Spegne ogni luce non magica entro 5 metri.'],
+    rel:['Nasconde un piccolo oggetto agli sguardi di chiunque ti perquisisca.','Permette di vedere nel buio più fitto, ma solo in bianco e nero.']},
+  sangue:{sf:['del Sangue','del Predatore','della Sete'],ad:['Sanguinante','Cremisi','Vorace','Cruente'],leg:['Sete Cremisi','Cuore Vorace','Patto di Sangue','Rimorso Rosso'],
+    look:['Una sfumatura rosso scuro non va mai via.','Sembra umido, anche quando è asciutto.','Piccole venature pulsano appena, come vene.'],
+    bon:[['tr','vigore'],['ab','rissa'],['ab','intimidire']],
+    arma:['Ogni nemico abbattuto ti restituisce qualche HP.','Più è ferito il bersaglio, più sembra affamata l\'arma.'],
+    armatura:['Quando scendi sotto metà HP, si scalda e ti dà nuova forza.','Le ferite lievi smettono di sanguinare quasi subito.'],
+    cons:['Chiude una ferita lieve all\'istante, ma lascia una stanchezza sorda.','Ti riempie di furia per qualche turno: colpisci più forte, ma pensi meno.'],
+    rel:['Fa sentire la presenza di sangue fresco nei dintorni.','Pulsa come un secondo cuore: nel pericolo senti il battito accelerare.']},
+  veleno:{sf:['della Vipera','del Veleno','dello Scorpione'],ad:['Letale','Mortale','Pungente'],leg:['Dolce Rovina','Bacio della Vipera','Ultima Goccia','Serpe Argentea'],
+    look:['Una patina verdastra lo ricopre in alcuni punti.','Ha un odore dolciastro, quasi gradevole.','Le venature hanno un riflesso viola, oleoso.'],
+    bon:[['ab','furtivita'],['ab','convincere'],['ab','creativita']],
+    arma:['Una volta per scontro il bersaglio può restare avvelenato per qualche turno.','La superficie è sempre umida e lascia un odore dolciastro.'],
+    armatura:['Sei più resistente ai veleni e alle tossine.','Chi ti morde o ti graffia sente un sapore amaro in bocca.'],
+    cons:['Una dose di veleno da spalmare su un\'arma o da versare in una bevanda.','Un controveleno potente: cura veleni di ogni tipo, ma lascia sonnolenti.'],
+    rel:['Annerisce a contatto con cibi o bevande avvelenati.','Permette di distillare un veleno semplice da erbe comuni.']},
+  luce:{sf:['dell\'Alba','della Luce','del Mattino'],ad:['Radiante','Splendente','Lucente','Abbagliante'],leg:['Alba Sacra','Sentenza Radiosa','Custode del Mattino','Preghiera d\'Argento'],
+    look:['Brilla di un bagliore dorato, appena percettibile.','La superficie è così levigata da specchiarsi.','Piccole rune dorate affiorano alla luce del sole.'],
+    bon:[['ab','empatia'],['ab','convincere'],['tr','panache']],
+    arma:['Colpisce con maggiore forza non-morti e creature d\'ombra.','Una volta per scontro può emanare un lampo accecante.'],
+    armatura:['Una tenue aura ti circonda e sprona gli alleati accanto a te.','Le ferite lievi si rimarginano un po\' più in fretta.'],
+    cons:['Libera un lampo che acceca per qualche istante chiunque lo guardi.','Dona calma e lucidità: svaniscono paura e confusione.'],
+    rel:['Illumina a giorno una stanza, senza produrre calore.','Rivela le bugie dette in sua presenza con un lieve bagliore.']},
+  nexus:{sf:['del Nexus','dell\'Eco','del Varco'],ad:['Risonante','Astrale','Cangiante','Instabile'],leg:['Eco del Varco','Cuore del Nexus','Risonanza Infinita','Soglia Spezzata'],
+    look:['Linee sottili, quasi luminose, ne seguono i contorni.','Emette un ronzio così basso da sentirsi nelle ossa.','Cambia sfumatura quando nessuno lo guarda.'],
+    bon:[['tr','nexus'],['ab','concentrazione'],['tr','acume']],
+    arma:['Quando colpisci, un\'eco risuona e il tuo NEXUS ricarica leggermente.','Colpisce con precisione chirurgica, ignorando in parte l\'armatura del bersaglio.'],
+    armatura:['Assorbe parte dell\'energia dei colpi e la trasforma in NEXUS.','Amplifica la percezione delle altre fonti di energia nei dintorni.'],
+    cons:['Ricarica una discreta quantità di NEXUS in un istante.','Apre la mente: per un\'ora percepisci le fonti di energia entro 20 metri.'],
+    rel:['Vibra se nelle vicinanze si usa o si apre un varco del Nexus.','Immagazzina un incantesimo semplice da rilasciare in seguito.']},
+  ossa:{sf:['dell\'Ossario','del Sepolcro','del Re Defunto'],ad:['Tombale','Funebre','Sepolcrale'],leg:['Re Senza Corona','Canto d\'Ossa','Memento Mori','Ultimo Pellegrino'],
+    look:['Il materiale ricorda l\'avorio ingiallito.','Schegge d\'osso sono incastonate qua e là.','Emana un freddo da cripta.'],
+    bon:[['ab','intimidire'],['tr','vigore'],['ab','istruzione']],
+    arma:['I colpi risuonano come un crepitio d\'ossa e sbilanciano il bersaglio.','Gli avversari più deboli esitano davanti a un simile spettacolo.'],
+    armatura:['Chi ti vede in questa tenuta esita un attimo: intimidire diventa più facile.','Il materiale è incredibilmente leggero ma resistente.'],
+    cons:['Una polvere d\'ossa: gettata a terra traccia un cerchio che i non-morti faticano a oltrepassare.','Un decotto amaro che toglie la stanchezza, ma non il sonno.'],
+    rel:['Sussurra i nomi di chi è morto nel luogo in cui ti trovi.','Rivela da quanto tempo qualcuno è morto, se lo tocchi.']},
+  natura:{sf:['del Bosco','della Radice','della Foresta'],ad:['Verde','Rampicante','Silvestre','Fiorente'],leg:['Radice Antica','Voce della Foresta','Spina del Bosco','Madre Quercia'],
+    look:['Rametti e foglie sembrano crescere dalla superficie.','Odora di terra bagnata e muschio.','Il materiale ha le venature del legno vivo.'],
+    bon:[['ab','atletica'],['ab','empatia'],['ab','notare']],
+    arma:['Sulle ferite del bersaglio spuntano rampicanti che ne ostacolano i movimenti.','L\'impugnatura si adatta alla tua mano come se fosse viva.'],
+    armatura:['Ti mimetizzi con l\'ambiente naturale e passi inosservato tra la vegetazione.','Qualche foglia ricresce da sola dopo ogni scontro.'],
+    cons:['Fa crescere in un istante un tappeto di rampicanti che blocca chi lo calpesta.','Un infuso che cura piccole ferite e placa il dolore.'],
+    rel:['Fa germogliare qualsiasi seme in pochi minuti.','Guida con piccole vibrazioni verso acqua e riparo.']}
+};
+const RND_PL=/^(Guanti|Schinieri|Bracciali|Stivali|Gambali|Coltelli|Occhiali)/;
+const rndAdj=(b,a)=>RND_PL.test(b)&&a.endsWith('e')?a.slice(0,-1)+'i':a;
+function rndItem(cat,rar,tema){
   if(!['oggetto','arma','armatura'].includes(cat))cat=rndW([['oggetto',40],['arma',35],['armatura',25]]);
-  if(!RND_PRE[rar])rar=rndW(RND_RAR);
-  const ri=RND_RAR.findIndex(x=>x[0]===rar),o={cat,rar,bonuses:[],use:'infinito',uses:0,arm:0,zn:[],dfix:0,dn:0,dt:'d6',dmin:0,atk:'',cnx:0,chp:0};
-  const nb=[0,rndI(0,1),1,rndI(1,2)][ri],pickB=()=>{const t=Math.random()<.5?'tr':'ab',l=t==='tr'?TR:AB,k=rndP(l)[0];return {t,k,v:ri>=3?rndI(1,3):1}};
-  for(let i=0;i<nb;i++){const b=pickB();if(!o.bonuses.some(x=>x.t===b.t&&x.k===b.k))o.bonuses.push(b)}
-  let base;
-  if(cat==='arma'){
-    o.atk=rndP(ATK_KEYS);const nm=rndP(RND_W[o.atk]);
-    const dd=[['d4','d6'],['d6','d8'],['d8','d10'],['d10','d12']][ri];o.dt=rndP(dd);o.dn=[1,1,rndI(1,2),rndI(2,3)][ri];o.dfix=[0,rndI(0,1),rndI(1,3),rndI(3,6)][ri];
-    o.dmin=ri>=2&&Math.random()<.5?2:0;if(o.atk==='magia'||o.atk==='sparo'){o.cnx=o.atk==='magia'?rndI(5,15)*(ri+1):0}
-    base=nm;o.price=Math.round((15+o.dn*({d4:2,d6:3,d8:4,d10:5,d12:6}[o.dt])*4+o.dfix*8)*(1+ri*.9));
-    o.desc=rndP(RND_DESC.arma);
-  }else if(cat==='armatura'){
+  if(!RND_RAR.some(x=>x[0]===rar))rar=rndW(RND_RAR);
+  const ri=RND_RAR.findIndex(x=>x[0]===rar),tk=RND_TH[tema]?tema:rndP(Object.keys(RND_TH)),th=RND_TH[tk];
+  const o={cat,rar,tema:tk,bonuses:[],use:'infinito',uses:0,arm:0,zn:[],dfix:0,dn:0,dt:'d6',dmin:0,atk:'',cnx:0,chp:0,desc:'',price:1,name:''};
+  const pickN=(arr,n)=>{const a=arr.slice(),r=[];while(r.length<n&&a.length)r.push(a.splice(rndI(0,a.length-1),1)[0]);return r};
+  /* tipo di oggetto */
+  let kind=cat;
+  if(cat==='oggetto')kind=ri===0?rndW([['classico',55],['utile',45]]):ri===1?rndW([['classico',35],['tematico',30],['reliquia',35]]):rndW([['tematico',30],['reliquia',70]]);
+  /* bonus: preferiscono il tema */
+  const nb=kind==='utile'||kind==='classico'?0:[0,rndI(0,1),1,rndI(1,2)][ri];
+  for(let i=0;i<nb;i++){const [t,k]=Math.random()<.7?rndP(th.bon):(Math.random()<.5?['tr',rndP(TR)[0]]:['ab',rndP(AB)[0]]);if(!o.bonuses.some(x=>x.t===t&&x.k===k))o.bonuses.push({t,k,v:ri>=3?rndI(1,3):1})}
+  /* effetti narrativi */
+  const bank=kind==='arma'?th.arma:kind==='armatura'?th.armatura:kind==='tematico'?th.cons:th.rel;
+  const ne=kind==='utile'?0:kind==='classico'?1:[0,Math.random()<.4?1:0,1,2][ri];
+  const eff=kind==='classico'?[]:pickN(bank,ne);
+  const dr=(kind==='classico'||kind==='utile'||kind==='tematico')?null:Math.random()<[0,0,.25,.55][ri]?rndP(RND_DRAW.filter(d=>d[1]!=='hp'||kind!=='armatura')):null;
+  let base,flavor;
+  const orig=kind==='reliquia'||kind==='tematico'?rndP(RND_ORIGR):rndP(RND_ORIG),look=rndP(th.look),quirk=ri>=2?rndP(RND_QUIRK):'';
+  if(kind==='arma'){
+    o.atk=(['fuoco','gelo','tempesta','luce','nexus'].includes(tk)&&Math.random()<.45)?'magia':rndP(ATK_KEYS);base=rndP(RND_W[o.atk]);
+    o.dt=rndP([['d4','d6'],['d6','d8'],['d8','d10'],['d10','d12']][ri]);o.dn=[1,1,rndI(1,2),rndI(2,3)][ri];o.dfix=[0,rndI(0,1),rndI(1,3),rndI(3,6)][ri];
+    o.dmin=ri>=2&&Math.random()<.5?2:0;if(o.atk==='magia')o.cnx=rndI(5,15)*(ri+1);
+    o.price=Math.round((15+o.dn*({d4:2,d6:3,d8:4,d10:5,d12:6}[o.dt])*4+o.dfix*8)*(1+ri*.9));
+  }else if(kind==='armatura'){
     const ar=rndP(RND_A);base=ar[0];o.zn=ar[1].slice();o.arm=[1,2,rndI(3,4),rndI(5,6)][ri];
-    o.price=Math.round((20+o.arm*14)*(1+ri*.8));o.desc=rndP(RND_DESC.armatura);
+    o.price=Math.round((20+o.arm*14)*(1+ri*.8));
+  }else if(kind==='classico'){
+    const c=rndP(RND_O);base=c[0]+(ri>=1&&/cura|NEXUS/.test(c[0])?' maggiore':'');flavor=c[1];eff.push(c[3](ri));
+    o.use='utilizzabile';o.uses=rndI(1,3);o.price=Math.round((8+o.uses*6)*(1+ri*1.1));
+  }else if(kind==='utile'){
+    const c=rndP(RND_T);base=c[0];flavor=c[1];o.price=Math.round(6+Math.random()*14);
+  }else if(kind==='tematico'){
+    base=rndP(RND_FORM);o.use='utilizzabile';o.uses=rndI(1,ri>=2?2:3);
+    o.price=Math.round((18+o.uses*10+eff.length*20)*(1+ri*1.1));
   }else{
-    const [nm,ds,cons]=rndP(RND_O);base=nm;o.desc=ds;
-    if(cons){o.use='utilizzabile';o.uses=rndI(1,ri>=2?4:3)}
-    o.price=Math.round((8+(cons?o.uses*6:10))*(1+ri*1.1));
+    base=rndP(RND_REL);o.price=Math.round((24+eff.length*26)*(1+ri*1.2));
   }
-  o.price+=o.bonuses.reduce((t,b)=>t+b.v*(12+ri*8),0);o.price=Math.max(1,o.price);
-  const pre=ri>0||Math.random()<.5?rndP(RND_PRE[rar]):'',suf=ri>=2&&Math.random()<.7?' '+rndP(RND_SUF):'';
-  o.name=((cat==='oggetto'&&ri===0?'':pre+' ')+base).trim()+(cat==='oggetto'&&ri===0?'':suf);
+  o.price+=o.bonuses.reduce((t,b)=>t+b.v*(12+ri*8),0)+(kind==='arma'||kind==='armatura'?eff.length*16*(ri+1):0);
+  if(dr){if(dr[1]==='hp')o.chp=rndI(1,1+ri);o.price=Math.max(1,Math.round(o.price*.85))}
+  o.price=Math.max(1,o.price);
+  /* nome */
+  const sf=rndP(th.sf),ad=rndAdj(base,rndP(th.ad));
+  if(kind==='classico'||kind==='utile')o.name=base;
+  else if(ri===3)o.name=rndP(th.leg)+', '+base.toLowerCase();
+  else if(ri===2)o.name=base+' '+(Math.random()<.5?sf:ad);
+  else if(ri===1)o.name=base+' '+(Math.random()<.5?ad:sf);
+  else o.name=(kind==='tematico'||kind==='reliquia')?base+' '+sf:base;
   if(o.name.length>60)o.name=o.name.slice(0,60);
+  /* descrizione */
+  const build=(q,l)=>[(flavor||[orig,l?look:'',q].filter(Boolean).join(' ')),...eff.map(e=>'✦ '+e),dr?'⚠ '+dr[0]:''].filter(Boolean).join('\n');
+  let d=build(quirk,true);if(d.length>395)d=build('',true);if(d.length>395)d=build('',false);
+  if(flavor&&look&&ri>=1&&kind!=='classico'&&d.length+look.length<395)d=flavor+' '+look+d.slice(flavor.length);
+  o.desc=d.slice(0,398);
   return o;
 }
 function rebindItems(){
   const IT=db.collection('items');
   app.querySelectorAll('[data-ir]').forEach(b=>b.onclick=async()=>{
-    const r=await ask('🎲 Oggetto casuale',[{l:'Tipo',n:'cat',t:'select',o:['casuale','oggetto','arma','armatura']},{l:'Rarità',n:'rar',t:'select',o:['casuale',...RND_RAR.map(x=>x[0])]},{l:'Scorte (0 = illimitate)',n:'stock',t:'number'}],{cat:'casuale',rar:'casuale',stock:1},'🎲 Genera');
+    const r=await ask('🎲 Oggetto casuale',[{l:'Tipo',n:'cat',t:'select',o:['casuale','oggetto','arma','armatura']},{l:'Rarità',n:'rar',t:'select',o:['casuale',...RND_RAR.map(x=>x[0])]},{l:'Tema (dà effetti e atmosfera: fuoco, gelo, ombra…)',n:'tema',t:'select',o:['casuale',...Object.keys(RND_TH)]},{l:'Scorte (0 = illimitate)',n:'stock',t:'number'}],{cat:'casuale',rar:'casuale',stock:1},'🎲 Genera');
     if(!r)return;
-    const g=rndItem(r.cat,r.rar),id=uid8();
+    const g=rndItem(r.cat,r.rar,r.tema),id=uid8();
     await guard(IT.doc(id).set({id,npc:b.dataset.ir,active:true,rtype:'item',amount:0,name:g.name,price:g.price,cat:g.cat,desc:g.desc,use:g.use,uses:g.uses,bonus:null,bonuses:g.bonuses,arm:g.arm,zn:g.zn||[],...dmgClean(g,g.cat==='arma'),...costClean(g),stock:r.stock>0?r.stock:null,photo:''}));
-    toast('🎲 '+CATI[g.cat]+' '+g.name+' ('+g.rar+') · 🪙 '+g.price);
+    toast('🎲 '+CATI[g.cat]+' '+g.name+' ('+g.rar+', '+g.tema+') · 🪙 '+g.price);
   });
   app.querySelectorAll('[data-ia]').forEach(b=>b.onclick=async()=>{const r=await ask('Nuovo oggetto',ITF(),{cat:'oggetto',use:'infinito',bk:'nessuno',dt:'d6'});if(r&&r.name){const id=uid8();guard(IT.doc(id).set({id,npc:b.dataset.ia,active:true,rtype:'item',amount:0,...await itData(r)}))}});
   app.querySelectorAll('[data-ie]').forEach(b=>b.onclick=async()=>{const id=b.dataset.ie,i=S.items[id],r=await ask('Modifica oggetto',ITF(),{...i,use:i.use||'infinito',uses:i.uses||0,bks:bonusInit(i),stock:i.stock??0,...dmgInit(i)});if(r&&r.name)guard(IT.doc(id).update(await itData(r,i)))});
