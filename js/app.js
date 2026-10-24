@@ -664,32 +664,51 @@ const masterPlayers=()=>{
 let invTab='arma',editing=false,draft={};
 const PN={head:'Testa',neck:'Collo',torso:'Petto',abdomen:'Addome',armR:'Braccio destro',armL:'Braccio sinistro',foreR:'Avambraccio destro',foreL:'Avambraccio sinistro',handR:'Mano destra',handL:'Mano sinistra',legR:'Coscia destra',legL:'Coscia sinistra',shinR:'Gamba destra',shinL:'Gamba sinistra',footR:'Piede destro',footL:'Piede sinistro'};
 const LV=['Sano','Lieve','Media','Grave'],WC=['#d3d9e6','#e0b100','#e07b1a','#d6334f'];
-/* sagoma anatomica a curve: 16 zone. «R» = lato sinistro di chi guarda (destra del personaggio); le zone «L» sono lo specchio. */
-const _M=m=>`<g transform="matrix(-1 0 0 1 240 0)">${m}</g>`;
-const _PR={
- head:'<path d="M120 12C139 12 149 28 148 47C147 64 137 78 120 80C103 78 93 64 92 47C91 28 101 12 120 12Z"/><ellipse cx="91" cy="50" rx="4.5" ry="9"/><ellipse cx="149" cy="50" rx="4.5" ry="9"/>',
- neck:'<path d="M107 74C108 83 106 89 99 95L141 95C134 89 132 83 133 74Z"/>',
- torso:'<path d="M66 108C68 96 84 91 100 91L140 91C156 91 172 96 174 108C177 124 172 140 164 152C150 160 135 162 120 162C105 162 90 160 76 152C68 140 63 124 66 108Z"/>',
- abdomen:'<path d="M77 156C92 164 106 166 120 166C134 166 148 164 163 156C166 176 162 196 157 210C151 224 140 232 120 234C100 232 89 224 83 210C78 196 74 176 77 156Z"/>',
- arm:'<path d="M67 98C53 100 44 112 43 128C42 142 41 156 39 172L66 178C70 164 76 148 79 134C81 117 78 103 67 98Z"/>',
- fore:'<path d="M39 176L66 182C65 198 62 214 58 232L36 228C36 210 38 192 39 176Z"/>',
- hand:'<path d="M36 231L58 235C62 248 61 262 55 271C49 276 40 272 37 264C34 254 34 242 36 231Z"/>',
- leg:'<path d="M80 226C92 232 108 232 119 228L118 308C116 320 112 328 108 334L84 334C79 322 77 308 77 294C76 268 77 246 80 226Z"/>',
- shin:'<path d="M84 340L108 340C110 364 109 388 105 408L90 408C86 388 82 364 84 340Z"/>',
- foot:'<path d="M90 410L105 410C106 418 112 424 119 428C122 435 113 437 100 437L82 437C75 437 75 431 80 427C86 423 88 417 90 410Z"/>'
+/* sagoma a pixel (stile console retro): 16 zone a blocchi con scalini, contorno nero, bordo accento e ombra netta.
+   «R» = lato sinistro di chi guarda (destra del personaggio); le zone «L» sono lo specchio. */
+const _INK='#04010c';
+const _mir=p=>p.map((v,i)=>i%2?v:240-v);
+const _pd=p=>{let d='M'+p[0]+' '+p[1];for(let i=2;i<p.length;i+=2)d+='L'+p[i]+' '+p[i+1];return d+'Z'};
+const _PB={
+ head:[104,8,136,8,136,16,144,16,144,48,136,48,136,64,104,64,104,48,96,48,96,16,104,16],
+ neck:[108,64,132,64,132,80,108,80],
+ torso:[88,80,152,80,152,88,160,88,160,144,80,144,80,88,88,88],
+ abdomen:[88,144,152,144,152,200,144,208,96,208,88,200],
+ arm:[64,88,80,88,80,148,56,148,56,96,64,96],
+ fore:[56,148,80,148,80,204,64,204,64,196,56,196],
+ hand:[64,204,80,204,80,228,72,236,64,236,56,228,56,212,64,212],
+ leg:[88,208,120,208,120,288,96,288,96,280,88,280],
+ shin:[96,288,120,288,120,368,104,368,104,360,96,360],
+ foot:[96,368,120,368,120,392,88,392,88,384,96,384]
 };
-const PARTS=[['head',_PR.head],['neck',_PR.neck],['torso',_PR.torso],['abdomen',_PR.abdomen],['armR',_PR.arm],['armL',_M(_PR.arm),1],['foreR',_PR.fore],['foreL',_M(_PR.fore),1],['handR',_PR.hand],['handL',_M(_PR.hand),1],['legR',_PR.leg],['legL',_M(_PR.leg),1],['shinR',_PR.shin],['shinL',_M(_PR.shin),1],['footR',_PR.foot],['footL',_M(_PR.foot),1]];
-const PCEN={head:[120,46],neck:[120,84],torso:[120,124],abdomen:[120,196],armR:[60,138],armL:[180,138],foreR:[52,204],foreL:[188,204],handR:[47,252],handL:[193,252],legR:[98,282],legL:[142,282],shinR:[96,376],shinL:[144,376],footR:[96,425],footL:[144,425]};
+const PARTS=[['head','head'],['neck','neck'],['torso','torso'],['abdomen','abdomen'],['armR','arm'],['armL','arm',1],['foreR','fore'],['foreL','fore',1],['handR','hand'],['handL','hand',1],['legR','leg'],['legL','leg',1],['shinR','shin'],['shinL','shin',1],['footR','foot'],['footL','foot',1]].map(([k,b,m])=>[k,m?_mir(_PB[b]):_PB[b]]);
+const PCEN={head:[120,36],neck:[120,72],torso:[120,112],abdomen:[120,176],armR:[68,118],armL:[172,118],foreR:[68,174],foreL:[172,174],handR:[66,222],handL:[174,222],legR:[104,248],legL:[136,248],shinR:[110,328],shinL:[130,328],footR:[108,380],footL:[132,380]};
 const WGROUP=[['Testa e collo',['head','neck']],['Busto',['torso','abdomen']],['Braccio dx',['armR','foreR','handR']],['Braccio sx',['armL','foreL','handL']],['Gamba dx',['legR','shinR','footR']],['Gamba sx',['legL','shinL','footL']],['Tutto',Object.keys(PN)]];
-const _det='<g fill="none" stroke="rgba(20,18,36,.30)" stroke-width="1.3" stroke-linecap="round" pointer-events="none"><path d="M98 94C106 100 114 100 120 98C126 100 134 100 142 94"/><path d="M78 116C92 126 108 126 118 120M162 116C148 126 132 126 122 120"/><path d="M120 100V150"/><path d="M86 140C100 148 112 148 118 144M154 140C140 148 128 148 122 144"/><path d="M96 178C108 182 132 182 144 178M98 198C110 202 130 202 142 198"/><circle cx="120" cy="188" r="2"/><path d="M120 168V222"/><path d="M92 226C104 232 136 232 148 226"/><ellipse cx="96" cy="336" rx="8" ry="6"/><ellipse cx="144" cy="336" rx="8" ry="6"/><path d="M42 172C50 176 58 178 66 178"/><path d="M198 172C190 176 182 178 174 178"/><path d="M103 38q4 -2 8 0M129 38q4 -2 8 0" stroke-width="1.6"/><path d="M120 44v10q-3 2 0 3" /><path d="M112 66q8 4 16 0"/></g>';
-const _wmark=(lv,x,y)=>lv===1?`<g stroke="#7a1f1f" stroke-width="2" stroke-linecap="round" pointer-events="none"><path d="M${x-6} ${y-4} l12 8"/><path d="M${x-6} ${y+2} l8 5" opacity=".6"/></g>`:lv===2?`<g pointer-events="none"><path d="M${x-8} ${y-7} l16 14" stroke="#5a0f14" stroke-width="3.2" stroke-linecap="round"/><path d="M${x-8} ${y-7} l16 14" stroke="#e8423f" stroke-width="1.6" stroke-linecap="round"/></g>`:lv>=3?`<g pointer-events="none"><path d="M${x-9} ${y-8} l18 16 M${x+9} ${y-8} l-18 16" stroke="#3b0a0f" stroke-width="3.6" stroke-linecap="round"/><path d="M${x-9} ${y-8} l18 16 M${x+9} ${y-8} l-18 16" stroke="#ff4a52" stroke-width="1.8" stroke-linecap="round"/><path d="M${x} ${y+9} q-4 5 0 8 q4 -3 0 -8z" fill="#d6334f"/></g>`:'';
-const sil=(w,click,o)=>{o=o||{};const dm=o.dmg||{},hl=[].concat(o.hl||[]),sel=o.sel||[];
-  return `<svg viewBox="0 0 240 446" style="width:100%;max-width:${o.w||240}px;margin:0 auto;display:block"><defs><linearGradient id="skl" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".34"/><stop offset=".42" stop-color="#fff" stop-opacity=".02"/><stop offset="1" stop-color="#0a0820" stop-opacity=".36"/></linearGradient><linearGradient id="skr" x1="1" x2="0" y1="0" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".34"/><stop offset=".42" stop-color="#fff" stop-opacity=".02"/><stop offset="1" stop-color="#0a0820" stop-opacity=".36"/></linearGradient><radialGradient id="skg" cx="50%" cy="50%" r="60%"><stop offset="0" stop-color="#7fe3ff" stop-opacity=".16"/><stop offset="1" stop-color="#7fe3ff" stop-opacity="0"/></radialGradient></defs>`+
-  `<ellipse cx="120" cy="438" rx="62" ry="6" fill="rgba(0,0,0,.28)"/>`+
-  PARTS.map(([k,s,mi])=>{const lv=w[k]||0,isH=hl.includes(k),isS=sel.includes(k),st=isH||isS?'#ffffff':lv?WC[lv]:'#4d566c',sw=isH||isS?3:1.8;
-    return `<g data-part="${k}" data-st="${lv?WC[lv]:'#4d566c'}" fill="${WC[lv]}" stroke="${st}" stroke-width="${sw}" stroke-linejoin="round" style="${click?'cursor:pointer;':''}${lv>=3?'filter:drop-shadow(0 0 4px #d6334f);':''}${isS?'filter:drop-shadow(0 0 6px #7fe3ff);':''}">${s}</g><g fill="url(#${mi?'skr':'skl'})" stroke="none" pointer-events="none">${s}</g>`}).join('')+
-  _det+PARTS.map(([k])=>(w[k]||0)>0?_wmark(w[k],PCEN[k][0],PCEN[k][1]):'').join('')+
-  PARTS.map(([k])=>dm[k]>0?`<g pointer-events="none"><rect x="${PCEN[k][0]-15}" y="${PCEN[k][1]+(w[k]>0?9:-8)}" width="30" height="15" rx="7" fill="#14121a" stroke="${WC[w[k]||1]}" stroke-width="1.5"/><text x="${PCEN[k][0]}" y="${PCEN[k][1]+(w[k]>0?20:3)}" text-anchor="middle" font-size="11" font-weight="700" fill="#fff" font-family="sans-serif">−${dm[k]}</text></g>`:'').join('')+`</svg>`;
+/* segni di ferita a pixel: cerotto (lieve), taglio a scalini (media), X con goccia di sangue (grave) */
+const _wmark=(lv,x,y)=>{
+  const R=(a,b,w,h,f)=>`<rect x="${a}" y="${b}" width="${w}" height="${h}" fill="${f}"/>`,dg=[0,1,2,3];
+  if(lv===1)return `<g pointer-events="none">${R(x-10,y-6,20,12,_INK)}${R(x-8,y-4,16,8,'#f3dfb2')}${R(x-3,y-4,6,8,'#e3c27c')}${R(x-6,y-1,2,2,'#b8924a')}${R(x+4,y-1,2,2,'#b8924a')}</g>`;
+  const d1=dg.map(i=>[x-12+i*6,y-12+i*6]),d2=dg.map(i=>[x+6-i*6,y-12+i*6]),pts=lv>=3?d1.concat(d2):d1;
+  return `<g pointer-events="none">${pts.map(([a,b])=>R(a-2,b-2,10,10,_INK)).join('')}${pts.map(([a,b])=>R(a,b,6,6,'#ff4a52')).join('')}${pts.map(([a,b])=>R(a,b,6,2,'#ff9aa2')).join('')}${lv>=3?R(x-4,y+13,8,8,_INK)+R(x-1,y+14,2,3,'#d6334f')+R(x-3,y+16,6,4,'#d6334f'):''}</g>`;
+};
+let _sid=0;
+const sil=(w,click,o)=>{o=o||{};const dm=o.dmg||{},hl=[].concat(o.hl||[]),sel=o.sel||[],id='sp'+(++_sid)+'_';
+  const defs=PARTS.map(([k,p])=>`<path id="${id}${k}" d="${_pd(p)}"/>`).join('')+PARTS.map(([k])=>`<clipPath id="${id}c${k}"><use href="#${id}${k}" xlink:href="#${id}${k}"/></clipPath>`).join('');
+  const U=k=>`<use href="#${id}${k}" xlink:href="#${id}${k}"`;
+  const all=PARTS.map(([k])=>U(k)+'/>').join('');
+  const back=`<g transform="translate(7,7)" fill="rgba(0,0,0,.5)" stroke="rgba(0,0,0,.5)" stroke-width="10" stroke-linejoin="miter" pointer-events="none">${all}</g>`+
+    `<g style="fill:var(--acc);stroke:var(--acc);stroke-width:10px" stroke-linejoin="miter" pointer-events="none">${all}</g>`;
+  const parts=PARTS.map(([k])=>{
+    const lv=w[k]||0,on=hl.includes(k)||sel.includes(k),f=on?'drop-shadow(0 0 6px #7fe3ff)':lv>=3?'drop-shadow(0 0 4px #d6334f)':'';
+    return `<g data-part="${k}" data-st="${_INK}" data-sw="4" data-f="${lv>=3?'drop-shadow(0 0 4px #d6334f)':''}" fill="${WC[lv]}" stroke="${on?'#ffffff':_INK}" stroke-width="${on?5:4}" stroke-linejoin="miter" style="${click?'cursor:pointer;':''}${f?'filter:'+f+';':''}">`+
+      `${U(k)} stroke="none"/><g clip-path="url(#${id}c${k})" fill="none" pointer-events="none">${U(k)} transform="translate(3,3)" stroke="#fff" stroke-opacity=".5" stroke-width="6"/>${U(k)} transform="translate(-3,-3)" stroke="#000" stroke-opacity=".32" stroke-width="6"/></g>${U(k)} fill="none"/></g>`;
+  }).join('');
+  const det=`<g pointer-events="none"><g fill="${_INK}"><rect x="108" y="26" width="8" height="10"/><rect x="124" y="26" width="8" height="10"/><rect x="112" y="46" width="16" height="4"/><rect x="118" y="172" width="4" height="4"/></g><g fill="#fff"><rect x="109" y="27" width="3" height="3"/><rect x="125" y="27" width="3" height="3"/></g></g>`;
+  const br=`<g style="stroke:var(--acc);stroke-width:3px;fill:none;opacity:.75" pointer-events="none"><path d="M4 22V4H22"/><path d="M236 22V4H218"/><path d="M4 386V404H22"/><path d="M236 386V404H218"/></g>`;
+  const marks=PARTS.map(([k])=>(w[k]||0)>0?_wmark(w[k],PCEN[k][0],PCEN[k][1]):'').join('')+
+    PARTS.map(([k])=>{if(!(dm[k]>0))return '';const lv=w[k]||0,cx=PCEN[k][0],by=PCEN[k][1]+(lv>0?(lv>=3?16:10):-7);
+      return `<g pointer-events="none"><rect x="${cx-14}" y="${by}" width="28" height="14" fill="${_INK}" stroke="${WC[lv||1]}" stroke-width="2"/><text x="${cx}" y="${by+11}" text-anchor="middle" font-size="11" font-weight="700" fill="#fff" font-family="'Pixelify Sans',sans-serif">−${dm[k]}</text></g>`}).join('');
+  return `<svg viewBox="0 0 240 408" xmlns:xlink="http://www.w3.org/1999/xlink" shape-rendering="crispEdges" style="width:100%;max-width:${o.w||240}px;margin:0 auto;display:block"><defs>${defs}</defs>${br}${back}<g class="sparts">${parts}</g>${det}${marks}</svg>`;
 };
 let woundSel=[],woundSelP=null;
 const woundBar=()=>{const sel=woundSelP===selP?woundSel:[];return `<div class="row" style="flex-wrap:wrap;gap:6px;justify-content:center;margin:8px 0">${WGROUP.map(([l,ks],i)=>`<button class="chipb mini ${ks.every(k=>sel.includes(k))?'sel':''}" data-wgr="${i}">${l}</button>`).join('')}</div><div class="row" style="gap:8px"><button class="g" data-wclr ${sel.length?'':'disabled'}>✕ Azzera</button><button class="grow" data-wgo ${sel.length?'':'disabled'}>🩹 Segnala ferita${sel.length?' ('+sel.length+(sel.length===1?' zona':' zone')+')':''}</button></div>`};
@@ -825,7 +844,7 @@ async function woundDlg(id,parts){
 function woundBind(){
   if(!selP)return;if(woundSelP!==selP){woundSelP=selP;woundSel=[]}
   const refresh=()=>{
-    app.querySelectorAll('[data-part]').forEach(g=>{const on=woundSel.includes(g.dataset.part);g.setAttribute('stroke',on?'#ffffff':g.dataset.st);g.setAttribute('stroke-width',on?3:1.8);g.style.filter=on?'drop-shadow(0 0 6px #7fe3ff)':''});
+    app.querySelectorAll('[data-part]').forEach(g=>{const on=woundSel.includes(g.dataset.part);g.setAttribute('stroke',on?'#ffffff':g.dataset.st);g.setAttribute('stroke-width',on?5:(g.dataset.sw||4));g.style.filter=on?'drop-shadow(0 0 6px #7fe3ff)':(g.dataset.f||'');if(on)g.parentNode.appendChild(g)});
     app.querySelectorAll('[data-wgr]').forEach(b=>b.classList.toggle('sel',WGROUP[+b.dataset.wgr][1].every(k=>woundSel.includes(k))));
     const go=app.querySelector('[data-wgo]'),cl=app.querySelector('[data-wclr]'),n=woundSel.length;
     if(go){go.disabled=!n;go.textContent='🩹 Segnala ferita'+(n?' ('+n+(n===1?' zona':' zone')+')':'')}if(cl)cl.disabled=!n;
