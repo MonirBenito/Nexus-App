@@ -664,35 +664,38 @@ const masterPlayers=()=>{
 let invTab='arma',editing=false,draft={};
 const PN={head:'Testa',neck:'Collo',torso:'Petto',abdomen:'Addome',armR:'Braccio destro',armL:'Braccio sinistro',foreR:'Avambraccio destro',foreL:'Avambraccio sinistro',handR:'Mano destra',handL:'Mano sinistra',legR:'Coscia destra',legL:'Coscia sinistra',shinR:'Gamba destra',shinL:'Gamba sinistra',footR:'Piede destro',footL:'Piede sinistro'};
 const LV=['Sano','Lieve','Media','Grave'],WC=['#d3d9e6','#e0b100','#e07b1a','#d6334f'];
-/* sagoma anatomica: 16 zone. Il lato "R" è a sinistra di chi guarda (destra del personaggio) */
-const _pl=pts=>`<polygon points="${pts.map(q=>q.join(',')).join(' ')}" stroke-linejoin="round"/>`,_mir=pts=>pts.map(([x,y])=>[220-x,y]);
-const _lim=(k,pts,ex)=>[k,_pl(pts)+(ex||'')];
-const PARTS=[
- ['head','<ellipse cx="110" cy="38" rx="22" ry="27"/><ellipse cx="87" cy="42" rx="4" ry="8"/><ellipse cx="133" cy="42" rx="4" ry="8"/>'],
- ['neck','<path d="M99 62 h22 l4 20 h-30 z" stroke-linejoin="round"/>'],
- ['torso','<path d="M60 92 Q66 80 98 80 H122 Q154 80 160 92 L155 134 Q110 144 65 134 Z" stroke-linejoin="round"/>'],
- ['abdomen','<path d="M67 137 Q110 147 153 137 L151 186 Q148 200 110 202 Q72 200 69 186 Z" stroke-linejoin="round"/>'],
- _lim('armR',[[50,90],[66,94],[61,150],[41,148]]),_lim('armL',_mir([[50,90],[66,94],[61,150],[41,148]])),
- _lim('foreR',[[41,153],[61,155],[55,208],[37,204]]),_lim('foreL',_mir([[41,153],[61,155],[55,208],[37,204]])),
- ['handR','<ellipse cx="46" cy="222" rx="10" ry="14" transform="rotate(8 46 222)"/>'],['handL','<ellipse cx="174" cy="222" rx="10" ry="14" transform="rotate(-8 174 222)"/>'],
- _lim('legR',[[70,198],[109,198],[104,280],[77,280]]),_lim('legL',_mir([[70,198],[109,198],[104,280],[77,280]])),
- _lim('shinR',[[77,285],[103,285],[98,364],[82,364]]),_lim('shinL',_mir([[77,285],[103,285],[98,364],[82,364]])),
- ['footR','<path d="M82 368 H98 L104 384 Q106 394 96 394 H72 Q65 394 68 384 Z" stroke-linejoin="round"/>'],['footL','<path d="M138 368 H122 L116 384 Q114 394 124 394 H148 Q155 394 152 384 Z" stroke-linejoin="round"/>']
-];
-/* centro di ogni zona: serve per i segni di ferita e per il numero dei danni */
-const PCEN={head:[110,38],neck:[110,72],torso:[110,108],abdomen:[110,168],armR:[52,120],armL:[168,120],foreR:[47,180],foreL:[173,180],handR:[46,222],handL:[174,222],legR:[90,240],legL:[130,240],shinR:[90,325],shinL:[130,325],footR:[84,381],footL:[136,381]};
-const _det='<g fill="none" stroke="rgba(20,18,26,.28)" stroke-width="1.2" pointer-events="none"><path d="M96 82 Q110 90 124 82"/><path d="M80 100 Q96 108 106 104 M140 100 Q124 108 114 104"/><path d="M76 116 Q96 124 106 120 M144 116 Q124 124 114 120"/><path d="M110 92 V132"/><circle cx="110" cy="170" r="1.8"/><path d="M92 200 Q110 206 128 200"/><circle cx="90" cy="282" r="5"/><circle cx="130" cy="282" r="5"/><circle cx="51" cy="151" r="3.5"/><circle cx="169" cy="151" r="3.5"/><path d="M104 32 q3 2 6 0 M110 28 v10 M104 46 q6 4 12 0" /></g>';
-/* marchio di ferita: graffio (lieve), taglio (media), squarcio con goccia (grave) */
+/* sagoma anatomica a curve: 16 zone. «R» = lato sinistro di chi guarda (destra del personaggio); le zone «L» sono lo specchio. */
+const _M=m=>`<g transform="matrix(-1 0 0 1 240 0)">${m}</g>`;
+const _PR={
+ head:'<path d="M120 12C139 12 149 28 148 47C147 64 137 78 120 80C103 78 93 64 92 47C91 28 101 12 120 12Z"/><ellipse cx="91" cy="50" rx="4.5" ry="9"/><ellipse cx="149" cy="50" rx="4.5" ry="9"/>',
+ neck:'<path d="M107 74C108 83 106 89 99 95L141 95C134 89 132 83 133 74Z"/>',
+ torso:'<path d="M66 108C68 96 84 91 100 91L140 91C156 91 172 96 174 108C177 124 172 140 164 152C150 160 135 162 120 162C105 162 90 160 76 152C68 140 63 124 66 108Z"/>',
+ abdomen:'<path d="M77 156C92 164 106 166 120 166C134 166 148 164 163 156C166 176 162 196 157 210C151 224 140 232 120 234C100 232 89 224 83 210C78 196 74 176 77 156Z"/>',
+ arm:'<path d="M67 98C53 100 44 112 43 128C42 142 41 156 39 172L66 178C70 164 76 148 79 134C81 117 78 103 67 98Z"/>',
+ fore:'<path d="M39 176L66 182C65 198 62 214 58 232L36 228C36 210 38 192 39 176Z"/>',
+ hand:'<path d="M36 231L58 235C62 248 61 262 55 271C49 276 40 272 37 264C34 254 34 242 36 231Z"/>',
+ leg:'<path d="M80 226C92 232 108 232 119 228L118 308C116 320 112 328 108 334L84 334C79 322 77 308 77 294C76 268 77 246 80 226Z"/>',
+ shin:'<path d="M84 340L108 340C110 364 109 388 105 408L90 408C86 388 82 364 84 340Z"/>',
+ foot:'<path d="M90 410L105 410C106 418 112 424 119 428C122 435 113 437 100 437L82 437C75 437 75 431 80 427C86 423 88 417 90 410Z"/>'
+};
+const PARTS=[['head',_PR.head],['neck',_PR.neck],['torso',_PR.torso],['abdomen',_PR.abdomen],['armR',_PR.arm],['armL',_M(_PR.arm),1],['foreR',_PR.fore],['foreL',_M(_PR.fore),1],['handR',_PR.hand],['handL',_M(_PR.hand),1],['legR',_PR.leg],['legL',_M(_PR.leg),1],['shinR',_PR.shin],['shinL',_M(_PR.shin),1],['footR',_PR.foot],['footL',_M(_PR.foot),1]];
+const PCEN={head:[120,46],neck:[120,84],torso:[120,124],abdomen:[120,196],armR:[60,138],armL:[180,138],foreR:[52,204],foreL:[188,204],handR:[47,252],handL:[193,252],legR:[98,282],legL:[142,282],shinR:[96,376],shinL:[144,376],footR:[96,425],footL:[144,425]};
+const WGROUP=[['Testa e collo',['head','neck']],['Busto',['torso','abdomen']],['Braccio dx',['armR','foreR','handR']],['Braccio sx',['armL','foreL','handL']],['Gamba dx',['legR','shinR','footR']],['Gamba sx',['legL','shinL','footL']],['Tutto',Object.keys(PN)]];
+const _det='<g fill="none" stroke="rgba(20,18,36,.30)" stroke-width="1.3" stroke-linecap="round" pointer-events="none"><path d="M98 94C106 100 114 100 120 98C126 100 134 100 142 94"/><path d="M78 116C92 126 108 126 118 120M162 116C148 126 132 126 122 120"/><path d="M120 100V150"/><path d="M86 140C100 148 112 148 118 144M154 140C140 148 128 148 122 144"/><path d="M96 178C108 182 132 182 144 178M98 198C110 202 130 202 142 198"/><circle cx="120" cy="188" r="2"/><path d="M120 168V222"/><path d="M92 226C104 232 136 232 148 226"/><ellipse cx="96" cy="336" rx="8" ry="6"/><ellipse cx="144" cy="336" rx="8" ry="6"/><path d="M42 172C50 176 58 178 66 178"/><path d="M198 172C190 176 182 178 174 178"/><path d="M103 38q4 -2 8 0M129 38q4 -2 8 0" stroke-width="1.6"/><path d="M120 44v10q-3 2 0 3" /><path d="M112 66q8 4 16 0"/></g>';
 const _wmark=(lv,x,y)=>lv===1?`<g stroke="#7a1f1f" stroke-width="2" stroke-linecap="round" pointer-events="none"><path d="M${x-6} ${y-4} l12 8"/><path d="M${x-6} ${y+2} l8 5" opacity=".6"/></g>`:lv===2?`<g pointer-events="none"><path d="M${x-8} ${y-7} l16 14" stroke="#5a0f14" stroke-width="3.2" stroke-linecap="round"/><path d="M${x-8} ${y-7} l16 14" stroke="#e8423f" stroke-width="1.6" stroke-linecap="round"/></g>`:lv>=3?`<g pointer-events="none"><path d="M${x-9} ${y-8} l18 16 M${x+9} ${y-8} l-18 16" stroke="#3b0a0f" stroke-width="3.6" stroke-linecap="round"/><path d="M${x-9} ${y-8} l18 16 M${x+9} ${y-8} l-18 16" stroke="#ff4a52" stroke-width="1.8" stroke-linecap="round"/><path d="M${x} ${y+9} q-4 5 0 8 q4 -3 0 -8z" fill="#d6334f"/></g>`:'';
-const sil=(w,click,o)=>{o=o||{};const dm=o.dmg||{};
-  return `<svg viewBox="0 0 220 400" style="width:100%;max-width:${o.w||230}px;margin:0 auto;display:block"><defs><radialGradient id="skg" cx="50%" cy="30%" r="80%"><stop offset="0" stop-color="#fff" stop-opacity=".35"/><stop offset="1" stop-color="#000" stop-opacity=".18"/></radialGradient></defs>`+
-  PARTS.map(([k,s])=>{const lv=w[k]||0,hl=o.hl===k;return `<g data-part="${k}" fill="${WC[lv]}" stroke="${hl?'#fff':lv?WC[lv]:'#5b6478'}" stroke-width="${hl?3:2}" style="${click?'cursor:pointer':''}${lv>=3?';filter:drop-shadow(0 0 4px #d6334f)':''}">${s}</g><g fill="url(#skg)" stroke="none" pointer-events="none">${s}</g>`}).join('')+
+const sil=(w,click,o)=>{o=o||{};const dm=o.dmg||{},hl=[].concat(o.hl||[]),sel=o.sel||[];
+  return `<svg viewBox="0 0 240 446" style="width:100%;max-width:${o.w||240}px;margin:0 auto;display:block"><defs><linearGradient id="skl" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".34"/><stop offset=".42" stop-color="#fff" stop-opacity=".02"/><stop offset="1" stop-color="#0a0820" stop-opacity=".36"/></linearGradient><linearGradient id="skr" x1="1" x2="0" y1="0" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".34"/><stop offset=".42" stop-color="#fff" stop-opacity=".02"/><stop offset="1" stop-color="#0a0820" stop-opacity=".36"/></linearGradient><radialGradient id="skg" cx="50%" cy="50%" r="60%"><stop offset="0" stop-color="#7fe3ff" stop-opacity=".16"/><stop offset="1" stop-color="#7fe3ff" stop-opacity="0"/></radialGradient></defs>`+
+  `<ellipse cx="120" cy="438" rx="62" ry="6" fill="rgba(0,0,0,.28)"/>`+
+  PARTS.map(([k,s,mi])=>{const lv=w[k]||0,isH=hl.includes(k),isS=sel.includes(k),st=isH||isS?'#ffffff':lv?WC[lv]:'#4d566c',sw=isH||isS?3:1.8;
+    return `<g data-part="${k}" data-st="${lv?WC[lv]:'#4d566c'}" fill="${WC[lv]}" stroke="${st}" stroke-width="${sw}" stroke-linejoin="round" style="${click?'cursor:pointer;':''}${lv>=3?'filter:drop-shadow(0 0 4px #d6334f);':''}${isS?'filter:drop-shadow(0 0 6px #7fe3ff);':''}">${s}</g><g fill="url(#${mi?'skr':'skl'})" stroke="none" pointer-events="none">${s}</g>`}).join('')+
   _det+PARTS.map(([k])=>(w[k]||0)>0?_wmark(w[k],PCEN[k][0],PCEN[k][1]):'').join('')+
   PARTS.map(([k])=>dm[k]>0?`<g pointer-events="none"><rect x="${PCEN[k][0]-15}" y="${PCEN[k][1]+(w[k]>0?9:-8)}" width="30" height="15" rx="7" fill="#14121a" stroke="${WC[w[k]||1]}" stroke-width="1.5"/><text x="${PCEN[k][0]}" y="${PCEN[k][1]+(w[k]>0?20:3)}" text-anchor="middle" font-size="11" font-weight="700" fill="#fff" font-family="sans-serif">−${dm[k]}</text></g>`:'').join('')+`</svg>`;
 };
-const woundCard=(p,M)=>{const w=p.wounds||{},dm=p.woundDmg||{},ks=Object.keys(w).filter(k=>w[k]>0&&PN[k]),tot=ks.reduce((s,k)=>s+(dm[k]||0),0);if(!M&&!ks.length)return '';return `<div class="card"><h3>🩹 ${M?'SAGOMA':'FERITE'}</h3>${M?'<div class="mut" style="text-align:center">Tocca una zona del corpo: scegli gravità e danni subiti (si sottraggono agli HP)</div>':''}${sil(w,M,{dmg:dm})}<div class="row" style="flex-wrap:wrap;gap:6px;margin-top:8px;justify-content:center">${ks.map(k=>`<span class="pill" style="border-color:${WC[w[k]]};color:${WC[w[k]]}">${PN[k]} · ${LV[w[k]]}${dm[k]?` · −${dm[k]} HP`:''}</span>`).join('')||'<span class="pill eu">Nessuna ferita</span>'}</div>${tot?`<div class="mut" style="text-align:center;margin-top:6px">Danni totali da ferite: <b style="color:var(--red2)">−${tot} HP</b></div>`:''}</div>`};
+let woundSel=[],woundSelP=null;
+const woundBar=()=>{const sel=woundSelP===selP?woundSel:[];return `<div class="row" style="flex-wrap:wrap;gap:6px;justify-content:center;margin:8px 0">${WGROUP.map(([l,ks],i)=>`<button class="chipb mini ${ks.every(k=>sel.includes(k))?'sel':''}" data-wgr="${i}">${l}</button>`).join('')}</div><div class="row" style="gap:8px"><button class="g" data-wclr ${sel.length?'':'disabled'}>✕ Azzera</button><button class="grow" data-wgo ${sel.length?'':'disabled'}>🩹 Segnala ferita${sel.length?' ('+sel.length+(sel.length===1?' zona':' zone')+')':''}</button></div>`};
+const woundCard=(p,M)=>{const w=p.wounds||{},dm=p.woundDmg||{},ks=Object.keys(w).filter(k=>w[k]>0&&PN[k]),tot=ks.reduce((s,k)=>s+(dm[k]||0),0);if(!M&&!ks.length)return '';return `<div class="card"><h3>🩹 ${M?'SAGOMA':'FERITE'}</h3>${M?'<div class="mut" style="text-align:center">Tocca una o più zone (o usa i gruppi), poi «Segnala ferita»: scegli gravità e danni, che si sottraggono agli HP</div>':''}${sil(w,M,{dmg:dm,sel:M&&woundSelP===selP?woundSel:[]})}${M?woundBar():''}<div class="row" style="flex-wrap:wrap;gap:6px;margin-top:8px;justify-content:center">${ks.map(k=>`<span class="pill" style="border-color:${WC[w[k]]};color:${WC[w[k]]}">${PN[k]} · ${LV[w[k]]}${dm[k]?` · −${dm[k]} HP`:''}</span>`).join('')||'<span class="pill eu">Nessuna ferita</span>'}</div>${tot?`<div class="mut" style="text-align:center;margin-top:6px">Danni totali da ferite: <b style="color:var(--red2)">−${tot} HP</b></div>`:''}</div>`};
 const msgFrom=m=>m.from&&m.from.t==='npc'?'🧙 '+esc(m.from.name):m.from&&m.from.t==='pl'?(m.kind==='chat'?'👤 ':'💸 ')+esc(m.from.name):'⚙️ SISTEMA';
-const msgText=m=>m.kind==='ego'?'⚡ '+esc(m.text):m.kind==='obiettivo'?'🏆 Obiettivo completato: «'+esc(m.text)+'»':m.kind==='invite'?'🏕️ Invito al party «'+esc(m.text)+'»':m.kind==='ferita'?(m.lv?`🩹 ${PN[m.part]||''}: ferita ${LV[m.lv].toLowerCase()}${m.dmg?` · −${m.dmg} HP`:''}`:`💚 ${PN[m.part]||''}: guarito${m.heal?` · +${m.heal} HP`:''}`)+(m.hm?` · ❤️ ${m.hp}/${m.hm}`:'')+(m.text?' — '+esc(m.text):''):m.kind==='money'?`🪙 +${m.v}`+(m.text?' — '+esc(m.text):''):esc(m.text);
+const msgText=m=>m.kind==='ego'?'⚡ '+esc(m.text):m.kind==='obiettivo'?'🏆 Obiettivo completato: «'+esc(m.text)+'»':m.kind==='invite'?'🏕️ Invito al party «'+esc(m.text)+'»':m.kind==='ferita'?(m.lv?`🩹 ${(m.parts||[m.part]).map(k=>PN[k]||'').join(', ')}: ferita ${LV[m.lv].toLowerCase()}${m.dmg?` · −${m.dmg} HP`:''}`:`💚 ${(m.parts||[m.part]).map(k=>PN[k]||'').join(', ')}: guarito${m.heal?` · +${m.heal} HP`:''}`)+(m.hm?` · ❤️ ${m.hp}/${m.hm}`:'')+(m.text?' — '+esc(m.text):''):m.kind==='money'?`🪙 +${m.v}`+(m.text?' — '+esc(m.text):''):esc(m.text);
 const msgAv=m=>m.from&&m.from.photo?`<img class="avatar" src="${esc(m.from.photo)}">`:`<div class="avatar">${m.kind==='ferita'?'🩹':m.kind==='money'?'🪙':m.kind==='obiettivo'?'🏆':m.kind==='ego'?'⚡':m.from&&m.from.t==='npc'?'🧙':m.kind==='chat'?'👤':'⚙️'}</div>`;
 const openMsgs=new Set();
 const msgReward=(m,force)=>{
@@ -780,39 +783,57 @@ async function composeMsg(pre,from){
   guard(db.collection('msgs').doc(id).set({id,to:r.to,from:n?{t:'npc',name:n.name,photo:n.photo||''}:{t:'sys',name:'SISTEMA'},kind:'msg',text:r.text,ts:Date.now()}));
   toast('Messaggio inviato');
 }
-async function woundDlg(id,part){
-  const p=S.players[id];if(!p||!PN[part])return;
-  const cur=(p.wounds||{})[part]||0,curD=(p.woundDmg||{})[part]||0,v=vit(p),arm=armorOf(p);
+async function woundDlg(id,parts){
+  parts=[].concat(parts).filter(k=>PN[k]);const p=S.players[id];if(!p||!parts.length)return;
+  const N=parts.length,v=vit(p),arm=armorOf(p),w0=p.wounds||{},cur=Math.max(...parts.map(k=>w0[k]||0)),allH=parts.every(k=>!(w0[k]>0));
   const res=await new Promise(res=>{
     const m=document.createElement('div');m.className='modal';
-    m.innerHTML=`<div><h3>🩹 ${esc(PN[part])} di ${esc(p.username)}</h3>${sil({[part]:cur||1},false,{hl:part,w:130,dmg:{[part]:curD}})}
-    <div class="mut" style="text-align:center;margin:4px 0">❤️ HP attuali: <b>${v.h}/${v.hm}</b>${cur?` · ferita attuale: ${LV[cur].toLowerCase()}${curD?' (−'+curD+' HP)':''}`:''}</div>
-    <label class="mut">Gravità</label><select name="lv"><option>lieve</option><option>media</option><option>grave</option><option>guarito</option></select>
+    m.innerHTML=`<div style="max-height:92vh;overflow:auto"><h3>🩹 ${N===1?esc(PN[parts[0]]):N+' zone'} di ${esc(p.username)}</h3>${sil(Object.fromEntries(parts.map(k=>[k,cur||1])),false,{hl:parts,w:120})}
+    <div class="mut" style="text-align:center;margin:4px 0">${parts.map(k=>esc(PN[k])).join(' · ')}<br>❤️ HP attuali: <b>${v.h}/${v.hm}</b></div>
+    <label class="mut">Gravità${N>1?' (uguale per tutte le zone)':''}</label><select name="lv"><option>lieve</option><option>media</option><option>grave</option><option>guarito</option></select>
     <div data-w="hit"><label class="mut">Danni subiti (HP persi: si sottraggono subito agli HP)</label><input name="dmg" type="number" min="0" value="0" inputmode="numeric">
-    ${arm>0?`<label class="row" style="margin:6px 0"><input type="checkbox" name="arm" checked style="width:auto;margin:0">Applica armatura (🛡️ −${arm} danni)</label>`:''}</div>
+    ${N>1?`<label class="mut">Come applicare i danni</label><select name="mode"><option>a ogni zona</option><option>totali, divisi tra le zone</option></select>`:''}
+    ${arm>0?`<label class="row" style="margin:6px 0"><input type="checkbox" name="arm" checked style="width:auto;margin:0">Applica armatura (🛡️ −${arm} danni${N>1?' per colpo/zona':''})</label>`:''}</div>
     <div data-w="heal" style="display:none"><label class="mut">HP recuperati con la guarigione (0 = nessuno)</label><input name="heal" type="number" min="0" value="0" inputmode="numeric"></div>
     <div name="pv" class="pill" style="display:block;text-align:center;margin:8px 0;white-space:normal"></div>
     <label class="mut">Nota per il player (opzionale)</label><textarea name="note" rows="2"></textarea>
     <div class="row"><button class="g grow" data-x>Annulla</button><button class="grow" data-ok>Segnala</button></div></div>`;
     document.body.append(m);
-    const q=n=>m.querySelector(`[name=${n}]`),lvS=q('lv'),dI=q('dmg'),hI=q('heal'),aC=q('arm'),pv=q('pv');let touched=false;
-    lvS.value=cur?['','lieve','media','grave'][cur]:'lieve';
-    const calc=()=>{const heal=lvS.value==='guarito',raw=Math.max(0,parseInt(dI.value)||0),a=(aC&&aC.checked&&!heal)?arm:0,eff=heal?0:Math.max(0,raw-a),hg=heal?Math.max(0,parseInt(hI.value)||0):0,nh=Math.max(0,Math.min(v.hm,v.h-eff+hg));return {heal,raw,a,eff,hg,nh}};
+    const q=n=>m.querySelector(`[name=${n}]`),lvS=q('lv'),dI=q('dmg'),hI=q('heal'),aC=q('arm'),mS=q('mode'),pv=q('pv');let touched=false;
+    lvS.value=allH?'lieve':['','lieve','media','grave'][cur];
+    const calc=()=>{const heal=lvS.value==='guarito',raw=Math.max(0,parseInt(dI.value)||0),a=(aC&&aC.checked&&!heal)?arm:0,split=N>1&&mS&&mS.value.startsWith('totali');
+      let effs;if(heal)effs=parts.map(()=>0);else if(split){const t=Math.max(0,raw-a),b=Math.floor(t/N),r=t-b*N;effs=parts.map((_,i)=>b+(i<r?1:0))}else effs=parts.map(()=>Math.max(0,raw-a));
+      const eff=effs.reduce((x,y)=>x+y,0),hg=heal?Math.max(0,parseInt(hI.value)||0):0;return {heal,raw,a,effs,eff,hg,nh:Math.max(0,Math.min(v.hm,v.h-eff+hg)),split}};
     const upd=()=>{const c=calc();m.querySelector('[data-w=hit]').style.display=c.heal?'none':'';m.querySelector('[data-w=heal]').style.display=c.heal?'':'none';
-      pv.textContent=c.heal?`💚 Zona guarita${c.hg?` · +${c.hg} HP → ${c.nh}/${v.hm}`:''}`:`💥 ${c.raw}${c.a?` − 🛡️${Math.min(c.a,c.raw)}`:''} = −${c.eff} HP → ${c.nh}/${v.hm}${c.nh<=0?' · ☠️ HP a zero!':''}`;
+      pv.textContent=c.heal?`💚 ${N>1?'Zone guarite':'Zona guarita'}${c.hg?` · +${c.hg} HP → ${c.nh}/${v.hm}`:''}`:`💥 ${c.split?c.raw+' totali':c.raw+(N>1?' × '+N+' zone':'')}${c.a?` − 🛡️${c.a}`:''} = −${c.eff} HP → ${c.nh}/${v.hm}${c.nh<=0?' · ☠️ HP a zero!':''}`;
       pv.style.color=c.heal?'var(--ok)':c.nh<=0?'var(--danger)':''};
     dI.oninput=()=>{if(!touched&&lvS.value!=='guarito'){const r=Math.max(0,parseInt(dI.value)||0)/Math.max(1,v.hm);lvS.value=r>.35?'grave':r>.15?'media':'lieve'}upd()};
-    lvS.onchange=()=>{touched=true;upd()};if(aC)aC.onchange=upd;hI.oninput=upd;upd();
+    lvS.onchange=()=>{touched=true;upd()};if(aC)aC.onchange=upd;if(mS)mS.onchange=upd;hI.oninput=upd;upd();
     m.onclick=e=>{if(e.target.dataset.x!==undefined||e.target===m){m.remove();res(null)}
       if(e.target.dataset.ok!==undefined){const c=calc(),o={lv:['guarito','lieve','media','grave'].indexOf(lvS.value),note:q('note').value.trim(),...c};m.remove();res(o)}};
   });
   if(!res)return;
-  const fresh=S.players[id]||p,wd={...(fresh.woundDmg||{})},w={...(fresh.wounds||{}),[part]:res.lv},vf=vit(fresh);
-  if(res.lv===0)delete wd[part];else wd[part]=(wd[part]||0)+res.eff;
+  const fresh=S.players[id]||p,wd={...(fresh.woundDmg||{})},w={...(fresh.wounds||{})},vf=vit(fresh),pd={};
+  parts.forEach((k,i)=>{w[k]=res.lv;if(res.lv===0)delete wd[k];else{wd[k]=(wd[k]||0)+res.effs[i];pd[k]=res.effs[i]}});
   const hp=Math.max(0,Math.min(vf.hm,vf.h-res.eff+res.hg)),mid=uid8();
   await guard(db.collection('players').doc(id).update({wounds:w,woundDmg:wd,hp}));
-  guard(db.collection('msgs').doc(mid).set({id:mid,to:[id],from:{t:'sys',name:'SISTEMA'},kind:'ferita',part,lv:res.lv,text:res.note||'',dmg:res.eff,raw:res.raw,arm:res.a,heal:res.hg,hp,hm:vf.hm,ts:Date.now()}));
-  toast(res.lv===0?'💚 Guarigione segnalata'+(res.hg?' · +'+res.hg+' HP':''):'🩹 Segnalato: −'+res.eff+' HP ('+hp+'/'+vf.hm+')');
+  guard(db.collection('msgs').doc(mid).set({id:mid,to:[id],from:{t:'sys',name:'SISTEMA'},kind:'ferita',part:parts[0],parts,pd,lv:res.lv,text:res.note||'',dmg:res.eff,raw:res.raw,arm:res.a,heal:res.hg,hp,hm:vf.hm,ts:Date.now()}));
+  woundSel=[];
+  toast(res.lv===0?'💚 Guarigione segnalata'+(res.hg?' · +'+res.hg+' HP':''):'🩹 Segnalato ('+N+(N===1?' zona':' zone')+'): −'+res.eff+' HP ('+hp+'/'+vf.hm+')');
+}
+/* selezione multipla delle zone sulla sagoma (Master) */
+function woundBind(){
+  if(!selP)return;if(woundSelP!==selP){woundSelP=selP;woundSel=[]}
+  const refresh=()=>{
+    app.querySelectorAll('[data-part]').forEach(g=>{const on=woundSel.includes(g.dataset.part);g.setAttribute('stroke',on?'#ffffff':g.dataset.st);g.setAttribute('stroke-width',on?3:1.8);g.style.filter=on?'drop-shadow(0 0 6px #7fe3ff)':''});
+    app.querySelectorAll('[data-wgr]').forEach(b=>b.classList.toggle('sel',WGROUP[+b.dataset.wgr][1].every(k=>woundSel.includes(k))));
+    const go=app.querySelector('[data-wgo]'),cl=app.querySelector('[data-wclr]'),n=woundSel.length;
+    if(go){go.disabled=!n;go.textContent='🩹 Segnala ferita'+(n?' ('+n+(n===1?' zona':' zone')+')':'')}if(cl)cl.disabled=!n;
+  };
+  app.querySelectorAll('[data-part]').forEach(g=>g.onclick=()=>{const k=g.dataset.part,i=woundSel.indexOf(k);if(i>=0)woundSel.splice(i,1);else woundSel.push(k);refresh()});
+  app.querySelectorAll('[data-wgr]').forEach(b=>b.onclick=()=>{const ks=WGROUP[+b.dataset.wgr][1],all=ks.every(k=>woundSel.includes(k));woundSel=all?woundSel.filter(k=>!ks.includes(k)):[...new Set([...woundSel,...ks])];refresh()});
+  const cl=app.querySelector('[data-wclr]');if(cl)cl.onclick=()=>{woundSel=[];refresh()};
+  const go=app.querySelector('[data-wgo]');if(go)go.onclick=()=>{if(woundSel.length)woundDlg(selP,[...woundSel])};
 }
 function rebindMP(){
   if(!tab){selP=null;editing=false}
@@ -821,7 +842,7 @@ function rebindMP(){
   app.querySelectorAll('[data-pe]').forEach(b=>b.onclick=()=>editPlayer(b.dataset.pe));
   app.querySelectorAll('[data-msg]').forEach(b=>b.onclick=()=>composeMsg(b.dataset.msg));
   app.querySelectorAll('[data-short]').forEach(b=>b.onclick=async()=>{const id=b.dataset.short,pl=S.players[id];if(!pl)return;const r=await ask('⚡ Cortocircuito: '+pl.username,[{l:'Scritta che vedrà '+pl.username+' (scritta e opzioni vengono ricordate per la prossima volta)',n:'t',t:'area'},{l:'Opzione 1 (primo pulsante)',n:'o1'},{l:'Opzione 2 (secondo pulsante)',n:'o2'},{l:'🧬 Nuova parte EGO da svelare DOPO il cortocircuito: nome categoria (vuoto = nessuna)',n:'xt'},{l:'Testo della nuova parte EGO',n:'xe',t:'area'},{l:'Si svela SOLO se il player sceglie…',n:'xo',t:'select',o:['Opzione 1','Opzione 2','Qualsiasi risposta']},{l:'Testo della notifica al player (vuoto = automatico)',n:'xn',t:'area'}],{t:pl.shortMsg||SHORT_DEF,o1:(pl.shortO||[])[0]||SHORT_O[0],o2:(pl.shortO||[])[1]||SHORT_O[1],xt:(pl.shortEgo&&pl.shortEgo.t)||'',xe:(pl.shortEgo&&pl.shortEgo.e)||'',xo:['Opzione 1','Opzione 2','Qualsiasi risposta'][pl.shortEgo&&pl.shortEgo.o!=null?pl.shortEgo.o:0]||'Opzione 1',xn:(pl.shortEgo&&pl.shortEgo.n)||''},'⚡ Lancia');if(!r)return;const msg=(r.t||'').slice(0,200)||SHORT_DEF,xoI=Math.max(0,['Opzione 1','Opzione 2','Qualsiasi risposta'].indexOf(r.xo));guard(db.collection('players').doc(id).update({short:Date.now(),shortMsg:msg,shortO:[(r.o1||'').slice(0,40)||SHORT_O[0],(r.o2||'').slice(0,40)||SHORT_O[1]],shortEgo:{t:(r.xt||'').slice(0,80),e:(r.xe||'').slice(0,1500),n:(r.xn||'').slice(0,600),o:xoI}}));toast('⚡ Cortocircuito inviato a '+pl.username+(r.xt?' · EGO «'+r.xt.slice(0,40)+'» '+(xoI<2?'solo se sceglie «'+((xoI?r.o2:r.o1)||SHORT_O[xoI]).slice(0,40)+'»':'dopo qualsiasi risposta'):''))});
-  app.querySelectorAll('[data-part]').forEach(g=>g.onclick=()=>{if(selP)woundDlg(selP,g.dataset.part)});
+  woundBind();
   if($('#newMsg'))$('#newMsg').onclick=()=>composeMsg();
   app.querySelectorAll('[data-rep]').forEach(b=>b.onclick=()=>{const m=S.msgs[b.dataset.rep];if(!m||!m.from)return;const n=(m.toNpc||[]).map(i=>S.npcs[i]).find(Boolean);composeMsg(m.from.id,n?n.name:undefined)});
   app.querySelectorAll('[data-md]').forEach(b=>b.onclick=async()=>{if(await askYes('Eliminare il messaggio?'))guard(db.collection('msgs').doc(b.dataset.md).delete())});
@@ -860,7 +881,7 @@ function checkM(){
   const title=w?(m.lv?'SEI STATO FERITO':'FERITA GUARITA'):m.kind==='money'?'HAI RICEVUTO NUMMUS':m.kind==='invite'?'INVITO AL PARTY':m.kind==='obiettivo'?'OBIETTIVO COMPLETATO':m.kind==='ego'?'EGO SVELATO':'NUOVO MESSAGGIO';
   const av=m.from&&m.from.photo?`<img src="${esc(m.from.photo)}">`:(w?'🩹':m.kind==='money'?'🪙':m.kind==='invite'?'🏕️':m.kind==='obiettivo'?'🏆':m.kind==='ego'?'⚡':m.from&&m.from.t==='npc'?'🧙':'⚙️');
   const el=document.createElement('div');el.className='modal notif-m'+(h?' hurt':'');
-  el.innerHTML=`<div class="notif ${h&&m.lv>=3?'shake':''}" style="--nc:${c};text-align:center;border:2px solid ${c}"><h2 class="newenc" style="color:${c};font-size:1.6em">${title}</h2><div class="encav" style="border-color:${c}">${av}</div><h3>${msgFrom(m)}</h3>${w&&PN[m.part]?`<div style="max-width:150px;margin:6px auto">${sil({[m.part]:m.lv},false,{hl:m.part,w:150})}</div>`:''}${w&&m.dmg?`<div style="font-size:2.4em;font-weight:700;color:${c};line-height:1.1">−${m.dmg} HP</div>${m.arm?`<div class="mut">🛡️ Armatura: −${Math.min(m.arm,m.raw||m.arm)} danni</div>`:''}`:''}${w&&!m.lv&&m.heal?`<div style="font-size:2.2em;font-weight:700;color:var(--ok)">+${m.heal} HP</div>`:''}${w&&m.hm?`<div class="mut" style="margin:4px 0">❤️ HP rimasti: <b>${m.hp}/${m.hm}</b>${m.hp<=0?' · ☠️':''}</div>`:''}<p style="white-space:pre-wrap">${m.kind==='obiettivo'?'«'+esc(m.text)+'»<br><span class="mut">Apri il messaggio per leggere le ricompense.</span>':msgText(m)}</p><div class="row" style="margin-top:14px">${m.kind==='invite'?'<button class="g grow" data-c>Dopo</button><button class="d grow" data-no>Rifiuta</button><button class="grow" data-yes>Accetta</button>':'<button class="g grow" data-c>Chiudi</button><button class="grow" data-i>'+(m.kind==='obiettivo'?'Apri messaggio':m.kind==='ego'?'Vedi EGO':'Apri messaggi')+'</button>'}</div></div>`;
+  el.innerHTML=`<div class="notif ${h&&m.lv>=3?'shake':''}" style="--nc:${c};text-align:center;border:2px solid ${c}"><h2 class="newenc" style="color:${c};font-size:1.6em">${title}</h2><div class="encav" style="border-color:${c}">${av}</div><h3>${msgFrom(m)}</h3>${w&&PN[m.part]?`<div style="max-width:150px;margin:6px auto">${sil(Object.fromEntries((m.parts||[m.part]).map(k=>[k,m.lv])),false,{hl:m.parts||[m.part],w:150,dmg:m.pd||{}})}</div>`:''}${w&&m.dmg?`<div style="font-size:2.4em;font-weight:700;color:${c};line-height:1.1">−${m.dmg} HP</div>${m.arm?`<div class="mut">🛡️ Armatura: −${Math.min(m.arm,m.raw||m.arm)} danni</div>`:''}`:''}${w&&!m.lv&&m.heal?`<div style="font-size:2.2em;font-weight:700;color:var(--ok)">+${m.heal} HP</div>`:''}${w&&m.hm?`<div class="mut" style="margin:4px 0">❤️ HP rimasti: <b>${m.hp}/${m.hm}</b>${m.hp<=0?' · ☠️':''}</div>`:''}<p style="white-space:pre-wrap">${m.kind==='obiettivo'?'«'+esc(m.text)+'»<br><span class="mut">Apri il messaggio per leggere le ricompense.</span>':msgText(m)}</p><div class="row" style="margin-top:14px">${m.kind==='invite'?'<button class="g grow" data-c>Dopo</button><button class="d grow" data-no>Rifiuta</button><button class="grow" data-yes>Accetta</button>':'<button class="g grow" data-c>Chiudi</button><button class="grow" data-i>'+(m.kind==='obiettivo'?'Apri messaggio':m.kind==='ego'?'Vedi EGO':'Apri messaggi')+'</button>'}</div></div>`;
   document.body.append(el);
   notifBurst(el.firstElementChild,w?(m.lv?'ferita':'cura'):m.kind);
   if(navigator.vibrate)try{navigator.vibrate(h?(m.lv>=3?[300,100,300]:[150]):[40])}catch(e){}
