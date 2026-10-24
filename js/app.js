@@ -501,8 +501,8 @@ const bonusLabel=b=>b?((b.t==='tr'?TR:AB).find(x=>x[0]===b.k)||[0,'?'])[1]:'ness
 const modOf=p=>{const m={tr:{},ab:{}};(p.inv||[]).forEach(e=>{if(e.uses==null||e.uses>0)bonusesOf(e).forEach(b=>{m[b.t][b.k]=(m[b.t][b.k]||0)+b.v})});return m};
 const uploadPhoto=async f=>{if(!assets){toast('Upload non disponibile');return ''}if(f.size>2e6){toast('Foto oltre 2 MB');return ''}const a=await guard(assets.upload(f));return a?a.url:''};
 const egoBoard=p=>{const g=egoOf(p),X=(p.egoX||[]).filter(x=>!x.h);return hdr('⚡ EGO',1)+`<div class="ego big"><div class="row sp"><span class="lab">IL POTERE DEL PERSONAGGIO</span><button class="g" id="egoE">✎</button></div>${g.t||g.e?`<div class="et" style="font-size:2em;text-align:center;margin:18px 0">${esc(g.t)}</div><div class="mut" style="letter-spacing:3px">EFFETTO</div><p style="white-space:pre-wrap;font-size:1.05em;margin:6px 0">${esc(g.e)}</p>`:'<p class="mut" style="margin:40px 0;text-align:center">Nessun EGO scritto.<br>Tocca ✎ per definire il tuo potere.</p>'}</div>`+X.map(x=>`<div class="ego"><span class="lab">${esc(String(x.t).toUpperCase())}</span><p style="white-space:pre-wrap;margin:8px 0 0">${esc(x.e)}</p></div>`).join('')};
-const ITF=()=>[{l:'Nome',n:'name'},{l:'Prezzo (Nummus)',n:'price',t:'number'},{l:'Tipo',n:'cat',t:'select',o:['oggetto','arma','armatura']},{l:'Foto (max 2 MB)',n:'photo',t:'file'},{l:'Cosa dice il mercante (descrizione)',n:'desc',t:'area'},{l:'Utilizzo',n:'use',t:'select',o:['infinito','utilizzabile']},{l:'Numero di usi (solo se utilizzabile)',n:'uses',t:'number'},{l:'Bonus a tratti e abilità (uno per riga, es. "Mira +2" oppure "Vigore +1")',n:'bks',t:'area'},{l:'Riduzione danni (solo armature: punti di danno in meno a ogni colpo, 0 = nessuna)',n:'arm',t:'number'},{l:'Zone del corpo protette (solo armature: nessuna selezionata = tutto il corpo; es. un elmo protegge la testa)',n:'zn',t:'multi',o:Object.entries(PN)},...DMGF.map(f=>({...f,l:f.l+' (solo armi)'})),...COSTF,{l:'Scorte (0 = illimitate)',n:'stock',t:'number'}];
-async function itData(r,old){const o={name:r.name,price:r.price,cat:r.cat,desc:r.desc,use:r.use,uses:r.use==='utilizzabile'?Math.max(1,r.uses):0,bonus:null,bonuses:bonusParse(r.bks),arm:r.cat==='armatura'?Math.min(999,Math.max(0,r.arm||0)):0,zn:r.cat==='armatura'?(Array.isArray(r.zn)?r.zn.filter(k=>PN[k]):[]):[],...dmgClean(r,r.cat==='arma'),...costClean(r),stock:r.stock>0?r.stock:null};if(r.photo){const u=await uploadPhoto(r.photo);if(u)o.photo=u}else if(!old)o.photo='';return o}
+const ITF=()=>[{l:'Nome',n:'name'},{l:'Prezzo (Nummus)',n:'price',t:'number'},{l:'Tipo',n:'cat',t:'select',o:['oggetto','arma','armatura']},{l:'Foto (max 2 MB)',n:'photo',t:'file'},{l:'Cosa dice il mercante (descrizione)',n:'desc',t:'area'},{l:'Utilizzo',n:'use',t:'select',o:['infinito','utilizzabile']},{l:'Numero di usi (solo se utilizzabile)',n:'uses',t:'number'},{l:'Bonus a tratti e abilità (uno per riga, es. "Mira +2" oppure "Vigore +1")',n:'bks',t:'area'},{l:'Riduzione danni (solo armature: punti di danno in meno a ogni colpo, 0 = nessuna)',n:'arm',t:'number'},{l:'Zone del corpo protette (solo armature: nessuna selezionata = tutto il corpo; es. un elmo protegge la testa)',n:'zn',t:'multi',o:Object.entries(PN)},{l:'Stile grafico sulla sagoma (solo armature: automatico = dedotto da nome e descrizione)',n:'sty',t:'select',o:STY_LBL},...DMGF.map(f=>({...f,l:f.l+' (solo armi)'})),...COSTF,{l:'Scorte (0 = illimitate)',n:'stock',t:'number'}];
+async function itData(r,old){const o={name:r.name,price:r.price,cat:r.cat,desc:r.desc,use:r.use,uses:r.use==='utilizzabile'?Math.max(1,r.uses):0,bonus:null,bonuses:bonusParse(r.bks),arm:r.cat==='armatura'?Math.min(999,Math.max(0,r.arm||0)):0,zn:r.cat==='armatura'?(Array.isArray(r.zn)?r.zn.filter(k=>PN[k]):[]):[],...dmgClean(r,r.cat==='arma'),...costClean(r),sty:r.cat==='armatura'?(STY_K[r.sty]||''):'',stock:r.stock>0?r.stock:null};if(r.photo){const u=await uploadPhoto(r.photo);if(u)o.photo=u}else if(!old)o.photo='';return o}
 /* ===== oggetto casuale per i mercanti (arma, armatura o oggetto): temi, effetti, descrizioni, difetti ===== */
 const RND_RAR=[['comune',50],['non comune',30],['raro',15],['leggendario',5]];
 const rndI=(a,b)=>a+Math.floor(Math.random()*(b-a+1)),rndP=a=>a[Math.floor(Math.random()*a.length)];
@@ -676,7 +676,7 @@ function rebindItems(){
     toast('🎲 '+CATI[g.cat]+' '+g.name+' ('+g.rar+', '+g.tema+') · 🪙 '+g.price);
   });
   app.querySelectorAll('[data-ia]').forEach(b=>b.onclick=async()=>{const r=await ask('Nuovo oggetto',ITF(),{cat:'oggetto',use:'infinito',bk:'nessuno',dt:'d6'});if(r&&r.name){const id=uid8();guard(IT.doc(id).set({id,npc:b.dataset.ia,active:true,rtype:'item',amount:0,...await itData(r)}))}});
-  app.querySelectorAll('[data-ie]').forEach(b=>b.onclick=async()=>{const id=b.dataset.ie,i=S.items[id],r=await ask('Modifica oggetto',ITF(),{...i,use:i.use||'infinito',uses:i.uses||0,bks:bonusInit(i),stock:i.stock??0,...dmgInit(i)});if(r&&r.name)guard(IT.doc(id).update(await itData(r,i)))});
+  app.querySelectorAll('[data-ie]').forEach(b=>b.onclick=async()=>{const id=b.dataset.ie,i=S.items[id],r=await ask('Modifica oggetto',ITF(),{...i,use:i.use||'infinito',uses:i.uses||0,bks:bonusInit(i),stock:i.stock??0,sty:STY_L[i.sty]||STY_LBL[0],...dmgInit(i)});if(r&&r.name)guard(IT.doc(id).update(await itData(r,i)))});
 }
 function checkEnc(){
   const p=me();if(!p||!authed||encOpen||!LD.npcs||!LD.players)return;
@@ -890,8 +890,9 @@ const ARM_CL=[
  [/bianc|sacr|santo|divin|luce|angel|avorio/,['#ece6d4','#b3a98a','#ffffff']],
  [/viola|arcan|magic|incantat|mistic/,['#9a6fd0','#62408f','#e2ccff']]
 ];
+const STY_LBL=['automatico','piastre','maglia di ferro','cuoio','stoffa','tattico','tecnologico','scaglie'],STY_K={'piastre':'piastre','maglia di ferro':'maglia','cuoio':'cuoio','stoffa':'stoffa','tattico':'tattico','tecnologico':'tech','scaglie':'scaglie'},STY_L=Object.fromEntries(Object.entries(STY_K).map(([a,b])=>[b,a]));
 const armStyle=e=>{const t=((e.name||'')+' '+(e.desc||'')).toLowerCase(),n=(e.name||'').toLowerCase();
-  const pick=tx=>ARM_ST.find(x=>x[1].test(tx));let st=pick(n)||pick(t)||ARM_ST[6],col=st[2];
+  const pick=tx=>ARM_ST.find(x=>x[1].test(tx));let st=ARM_ST.find(x=>x[0]===e.sty)||pick(n)||pick(t)||ARM_ST[6],col=st[2];
   if(st[0]!=='tech'){const c=ARM_CL.find(x=>x[0].test(n))||ARM_CL.find(x=>x[0].test(t));if(c)col=c[1]}
   return {s:st[0],c:col[0],d:col[1],h:col[2]}};
 let _sid=0;
@@ -3064,7 +3065,7 @@ const DICE=['d4','d6','d8','d10','d12','d20','d100'];
 const ATK_KEYS=['taglio','contundente','perforante','distanza','sparo','magia'];
 const DMGF=[{l:'Tipo di attacco: taglio (spade, asce) · contundente (mazze, pugni) · perforante (lance, pugnali) · distanza (archi, lanci) · sparo (armi da fuoco) · magia — cambia l\'animazione',n:'atk',t:'select',o:ATK_KEYS},{l:'Danno fisso (si somma al tiro)',n:'dfix',t:'number'},{l:'Numero di dadi di danno (0 = nessun dado)',n:'dn',t:'number'},{l:'Tipo di dado',n:'dt',t:'select',o:DICE},{l:'Minimo del dado (ogni dado vale almeno questo numero, es. 2: un 1 conta 2; 0 = nessun minimo)',n:'dmin',t:'number'}];
 const dmgClean=(r,on)=>on?{dfix:Math.min(9999,r.dfix||0),dn:Math.min(20,r.dn||0),dt:DICE.includes(r.dt)?r.dt:'d6',dmin:Math.min(9999,r.dmin||0),atk:ATK_KEYS.includes(r.atk)?r.atk:''}:{dfix:0,dn:0,dt:'d6',dmin:0,atk:''};
-const dmgCopy=o=>({zn:Array.isArray(o.zn)?o.zn:[],dfix:o.dfix||0,dn:o.dn||0,dt:o.dt||'d6',dmin:o.dmin||0,atk:o.atk||'',cnx:o.cnx||0,chp:o.chp||0});
+const dmgCopy=o=>({sty:o.sty||'',zn:Array.isArray(o.zn)?o.zn:[],dfix:o.dfix||0,dn:o.dn||0,dt:o.dt||'d6',dmin:o.dmin||0,atk:o.atk||'',cnx:o.cnx||0,chp:o.chp||0});
 const dmgInit=o=>({dfix:o.dfix||0,dn:o.dn||0,dt:o.dt||'d6',dmin:o.dmin||0,atk:atkOf(o)});
 const dieOf=o=>parseInt(String(o.dt||'d6').slice(1))||6;
 const hasDmg=o=>(o.dn|0)>0||(o.dfix|0)>0;
