@@ -2589,8 +2589,10 @@ function mapInit(){
   const w=q('mapwrap'),mp=M?MP:PMP;
   if(!mp)return;
   /* zoom + scroll */
-  /* zoom fluido: rotellina/trackpad + pizzico a due dita, senza ridisegnare (il canvas cambia solo larghezza) */
+  /* zoom fluido: rotellina/trackpad + pizzico a due dita. Il canvas cambia solo larghezza, un solo aggiornamento per frame,
+     con interpolazione morbida (rotellina e bottoni) e inerzia quando rilasci il dito dopo aver trascinato. */
   const zMin=1,zMax=8;let zHook=null,noClick=0;
+  let zT=mpZoom,zFx=0,zFy=0,zRaf=0,pdx=0,pdy=0,zInst=false,inert=0;
   const zApply=(z,cx,cy)=>{
     z=Math.max(zMin,Math.min(zMax,z));if(Math.abs(z-mpZoom)<1e-4)return;
     const r=cv.getBoundingClientRect(),fx=(cx-r.left)/r.width,fy=(cy-r.top)/r.height;
@@ -2601,11 +2603,25 @@ function mapInit(){
     const pl=document.querySelector('.zbar .pill');if(pl)pl.textContent='🔍 '+Math.round(mpZoom*100)+'%';
     if(zHook)zHook();
   };
-  const zoomBy=d=>{const r=w.getBoundingClientRect();zApply(mpZoom*(d>0?1.5:1/1.5),r.left+r.width/2,r.top+r.height/2)};
+  const stopInert=()=>{if(inert){cancelAnimationFrame(inert);inert=0}};
+  const zFrame=()=>{
+    zRaf=0;
+    if(pdx||pdy){w.scrollLeft+=pdx;w.scrollTop+=pdy;pdx=pdy=0}
+    if(zT!==mpZoom){
+      let z=zInst?zT:mpZoom+(zT-mpZoom)*.28;
+      if(Math.abs(zT-z)<.003*zT)z=zT;
+      zApply(z,zFx,zFy);
+      if(z!==zT)zRaf=requestAnimationFrame(zFrame);
+    }
+  };
+  const kick=()=>{if(!zRaf)zRaf=requestAnimationFrame(zFrame)};
+  const zBase=()=>zRaf?zT:mpZoom;
+  const zReq=(z,cx,cy,inst)=>{zT=Math.max(zMin,Math.min(zMax,z));zFx=cx;zFy=cy;zInst=!!inst;kick()};
+  const zoomBy=d=>{const r=w.getBoundingClientRect();stopInert();zReq(zBase()*(d>0?1.5:1/1.5),r.left+r.width/2,r.top+r.height/2,false)};
   w.addEventListener('wheel',e=>{
-    e.preventDefault();
+    e.preventDefault();stopInert();
     const k=e.deltaMode===1?33:e.deltaMode===2?400:1,dy=Math.max(-120,Math.min(120,e.deltaY*k));
-    zApply(mpZoom*Math.exp(-dy*(e.ctrlKey?.01:.0018)),e.clientX,e.clientY);
+    zReq(zBase()*Math.exp(-dy*(e.ctrlKey?.01:.0018)),e.clientX,e.clientY,false);
   },{passive:false});
   /* dita: 1 dito = sposta la mappa, 2 dita = pizzica per ingrandire/rimpicciolire (player sempre; master con lo strumento «Muovi»).
      Con il mouse (solo player) si trascina per spostarsi. */
@@ -2615,24 +2631,40 @@ function mapInit(){
     const cen=()=>{const [a,b]=[...tp.values()];return {x:(a.x+b.x)/2,y:(a.y+b.y)/2,d:Math.hypot(a.x-b.x,a.y-b.y)||1}};
     w.addEventListener('pointerdown',e=>{
       const ok=e.pointerType==='touch'||(!M&&e.pointerType==='mouse'&&e.button===0);if(!ok)return;
-      tp.set(e.pointerId,{x:e.clientX,y:e.clientY,x0:e.clientX,y0:e.clientY});
-      if(tp.size===1)pn={l:w.scrollLeft,t:w.scrollTop,x:e.clientX,y:e.clientY};
-      else if(tp.size===2){const c=cen();pz={z:mpZoom,d:c.d,x:c.x,y:c.y};pn=null;noClick=Date.now()+500}
+      stopInert();
+      tp.set(e.pointerId,{x:e.clientX,y:e.clientY,x0:e.clientX,y0:e.clientY,mv:false});
+      if(tp.size===1)pn={x:e.clientX,y:e.clientY,t:performance.now(),vx:0,vy:0};
+      else if(tp.size===2){const c=cen();pz={z:zBase(),d:c.d,x:c.x,y:c.y};pn=null;noClick=Date.now()+500}
     });
     w.addEventListener('pointermove',e=>{
       const t=tp.get(e.pointerId);if(!t)return;t.x=e.clientX;t.y=e.clientY;
       if(tp.size>=2&&pz){
-        const c=cen();w.scrollLeft+=pz.x-c.x;w.scrollTop+=pz.y-c.y;pz.x=c.x;pz.y=c.y;
-        zApply(pz.z*c.d/pz.d,c.x,c.y);noClick=Date.now()+500;
+        const c=cen();pdx+=pz.x-c.x;pdy+=pz.y-c.y;pz.x=c.x;pz.y=c.y;
+        zReq(pz.z*c.d/pz.d,c.x,c.y,true);noClick=Date.now()+500;
       }else if(pn&&tp.size===1){
-        if(Math.hypot(e.clientX-t.x0,e.clientY-t.y0)>6)noClick=Date.now()+300;
-        w.scrollLeft=pn.l-(e.clientX-pn.x);w.scrollTop=pn.t-(e.clientY-pn.y);
+        if(!t.mv){
+          if(Math.hypot(e.clientX-t.x0,e.clientY-t.y0)<=5)return; /* soglia: un tap non muove la mappa */
+          t.mv=true;pn.x=e.clientX;pn.y=e.clientY;pn.t=performance.now();
+        }
+        noClick=Date.now()+300;
+        const now=performance.now(),dt=Math.max(1,now-pn.t),dx=pn.x-e.clientX,dy=pn.y-e.clientY;
+        pn.vx=.7*pn.vx+.3*dx/dt;pn.vy=.7*pn.vy+.3*dy/dt;pn.t=now;pn.x=e.clientX;pn.y=e.clientY;pn.pt=now;
+        pdx+=dx;pdy+=dy;kick();
       }
     });
     const end=e=>{
-      if(!tp.delete(e.pointerId))return;
+      const t=tp.get(e.pointerId);if(!t)return;tp.delete(e.pointerId);
+      const wasPan=pn&&t.mv&&e.pointerType==='touch'&&tp.size===0&&performance.now()-(pn.pt||0)<90;
       pz=null;if(Date.now()<noClick)noClick=Date.now()+300;
-      if(tp.size===1){const [t]=[...tp.values()];pn={l:w.scrollLeft,t:w.scrollTop,x:t.x,y:t.y}}else pn=null;
+      if(tp.size===1){const [r]=[...tp.values()];pn={x:r.x,y:r.y,t:performance.now(),vx:0,vy:0}}
+      else{
+        const v=pn;pn=null;
+        if(wasPan&&(Math.abs(v.vx)>.04||Math.abs(v.vy)>.04)){
+          let vx=v.vx*16,vy=v.vy*16;
+          const step=()=>{vx*=.94;vy*=.94;if(Math.abs(vx)<.25&&Math.abs(vy)<.25){inert=0;return}w.scrollLeft+=vx;w.scrollTop+=vy;inert=requestAnimationFrame(step)};
+          inert=requestAnimationFrame(step);
+        }
+      }
     };
     ['pointerup','pointercancel','pointerleave'].forEach(n=>w.addEventListener(n,end));
   }
