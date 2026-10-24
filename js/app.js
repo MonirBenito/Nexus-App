@@ -391,7 +391,7 @@ function renderMaster(){
   const C=n=>db.collection(n);let b='';
   if(!tab)b=hdr('Pannello Master')+tiles();
   if(tab==='profile')b=(editing&&selP&&S.players[selP])?editScreen():masterPlayers();else if(0)b=hdr('👥 Player',1)+(Object.entries(S.players).map(([id,p])=>`<div class="card"><div class="row sp"><b>${esc(p.username)}</b><span class="tag">🪙 ${p.currency} · ${esc(p.blood||'—')} · ${p.points||0} PT · ${p.pointsAb||0} PA · ❤️${vit(p).h}/${vit(p).hm} 🔷${vit(p).n}/${vit(p).nm}</span></div><div class="row" style="margin-top:8px"><button class="g grow" data-pe="${id}">Modifica</button><button class="g" data-pa="${id}">Abilità</button><button class="d" data-pd="${id}">Elimina</button></div></div>`).join('')||'<p class="mut">Nessun player registrato.</p>');
-  if(tab==='npcs')b=hdr('🧙 Incontri',1)+`<button id="addN" style="width:100%">+ Nuovo incontro</button>`+Object.values(S.npcs).map(n=>`<div class="card"><div class="row">${av(n)}<div class="grow"><b>${esc(n.name)}</b> <span class="tag">${KIND[kindOf(n)]}</span> <span class="tag" style="color:${attOf(n).c}">${attOf(n).i} ${attOf(n).l}</span> ${n.active===false?'<span class="tag">nascosto</span>':''} ${koTag(n)}<div class="mut">${esc(n.desc)}</div><div class="mut">👁 ${n.to&&n.to.length?n.to.map(i=>esc(S.players[i]?.username||'?')).join(', '):'Tutti i player'}</div></div></div><div class="row" style="margin-top:8px"><button class="${n.active===false?'':'g'}" data-nv="${n.id}">${n.active===false?'👁 Rendi visibile':'🙈 Nascondi'}</button><button class="g grow" data-ne="${n.id}">Modifica</button><button class="g" data-np="${n.id}">📷</button><button class="d" data-nd="${n.id}">✕</button></div>${kindOf(n)==='mercante'?`<div class="row sp" style="margin-top:12px"><b>Shop</b><button data-ia="${n.id}">+ Oggetto</button></div>`+Object.values(S.items).filter(i=>i.npc===n.id).map(i=>`<div class="row sp" style="margin-top:8px"><div>${esc(i.name)} <span class="tag">🪙${i.price} · ${esc(i.rtype)}${i.rtype!=='item'?' +'+i.amount:''} · ${i.stock!=null?i.stock:'∞'}</span></div><div class="row"><button class="g" data-ie="${i.id}">✎</button><button class="d" data-id="${i.id}">✕</button></div></div>`).join(''):npcInvHtml(n)}${dlgMasterHtml(n)}</div>`).join('');
+  if(tab==='npcs')b=hdr('🧙 Incontri',1)+`<button id="addN" style="width:100%">+ Nuovo incontro</button>`+Object.values(S.npcs).map(n=>`<div class="card"><div class="row">${av(n)}<div class="grow"><b>${esc(n.name)}</b> <span class="tag">${KIND[kindOf(n)]}</span> <span class="tag" style="color:${attOf(n).c}">${attOf(n).i} ${attOf(n).l}</span> ${n.active===false?'<span class="tag">nascosto</span>':''} ${koTag(n)}<div class="mut">${esc(n.desc)}</div><div class="mut">👁 ${n.to&&n.to.length?n.to.map(i=>esc(S.players[i]?.username||'?')).join(', '):'Tutti i player'}</div></div></div><div class="row" style="margin-top:8px"><button class="${n.active===false?'':'g'}" data-nv="${n.id}">${n.active===false?'👁 Rendi visibile':'🙈 Nascondi'}</button><button class="g grow" data-ne="${n.id}">Modifica</button><button class="g" data-np="${n.id}">📷</button><button class="d" data-nd="${n.id}">✕</button></div>${kindOf(n)==='mercante'?`<div class="row sp" style="margin-top:12px"><b>Shop</b><div class="row" style="gap:6px"><button class="g" data-ir="${n.id}">🎲 Casuale</button><button data-ia="${n.id}">+ Oggetto</button></div></div>`+Object.values(S.items).filter(i=>i.npc===n.id).map(i=>`<div class="row sp" style="margin-top:8px"><div>${esc(i.name)} <span class="tag">🪙${i.price} · ${esc(i.rtype)}${i.rtype!=='item'?' +'+i.amount:''} · ${i.stock!=null?i.stock:'∞'}</span></div><div class="row"><button class="g" data-ie="${i.id}">✎</button><button class="d" data-id="${i.id}">✕</button></div></div>`).join(''):npcInvHtml(n)}${dlgMasterHtml(n)}</div>`).join('');
   if(tab==='quests')b=hdr('📜 Obiettivi',1)+`<button id="addQ" style="width:100%">+ Nuovo obiettivo</button>`+Object.values(S.quests).map(q=>`<div class="card">${questCard(q)}<div class="mut">Per: ${q.to&&q.to.length?q.to.map(i=>esc(S.players[i]?.username||'?')).join(', '):'tutti i player'}</div><div class="row" style="margin-top:8px;flex-wrap:wrap">${qAllDone(q)?'':`<button class="grow" data-qc="${q.id}">✅ Completato</button>`}${(q.doneBy||[]).length?`<button class="g grow" data-qo="${q.id}">↩ Riapri</button>`:''}<button class="g" data-qe="${q.id}">Modifica</button><button class="d" data-qd="${q.id}">✕</button></div></div>`).join('');
   if(tab==='party')b=masterParty();else if(0){const ids=(S.party.main&&S.party.main.members)||[];b=hdr('🏕️ Party',1)+`<button id="pmem" style="width:100%">Gestisci membri</button>`+(ids.filter(i=>S.players[i]).map(i=>memCard(S.players[i],false)).join('')||'<p class="mut">Nessun membro nel party.</p>')}
   if(tab==='msgs')b=masterMsgs();
@@ -494,8 +494,67 @@ const uploadPhoto=async f=>{if(!assets){toast('Upload non disponibile');return '
 const egoBoard=p=>{const g=egoOf(p),X=(p.egoX||[]).filter(x=>!x.h);return hdr('⚡ EGO',1)+`<div class="ego big"><div class="row sp"><span class="lab">IL POTERE DEL PERSONAGGIO</span><button class="g" id="egoE">✎</button></div>${g.t||g.e?`<div class="et" style="font-size:2em;text-align:center;margin:18px 0">${esc(g.t)}</div><div class="mut" style="letter-spacing:3px">EFFETTO</div><p style="white-space:pre-wrap;font-size:1.05em;margin:6px 0">${esc(g.e)}</p>`:'<p class="mut" style="margin:40px 0;text-align:center">Nessun EGO scritto.<br>Tocca ✎ per definire il tuo potere.</p>'}</div>`+X.map(x=>`<div class="ego"><span class="lab">${esc(String(x.t).toUpperCase())}</span><p style="white-space:pre-wrap;margin:8px 0 0">${esc(x.e)}</p></div>`).join('')};
 const ITF=()=>[{l:'Nome',n:'name'},{l:'Prezzo (Nummus)',n:'price',t:'number'},{l:'Tipo',n:'cat',t:'select',o:['oggetto','arma','armatura']},{l:'Foto (max 2 MB)',n:'photo',t:'file'},{l:'Cosa dice il mercante (descrizione)',n:'desc',t:'area'},{l:'Utilizzo',n:'use',t:'select',o:['infinito','utilizzabile']},{l:'Numero di usi (solo se utilizzabile)',n:'uses',t:'number'},{l:'Bonus a tratti e abilità (uno per riga, es. "Mira +2" oppure "Vigore +1")',n:'bks',t:'area'},{l:'Riduzione danni (solo armature: punti di danno in meno a ogni colpo, 0 = nessuna)',n:'arm',t:'number'},...DMGF.map(f=>({...f,l:f.l+' (solo armi)'})),...COSTF,{l:'Scorte (0 = illimitate)',n:'stock',t:'number'}];
 async function itData(r,old){const o={name:r.name,price:r.price,cat:r.cat,desc:r.desc,use:r.use,uses:r.use==='utilizzabile'?Math.max(1,r.uses):0,bonus:null,bonuses:bonusParse(r.bks),arm:r.cat==='armatura'?Math.min(999,Math.max(0,r.arm||0)):0,...dmgClean(r,r.cat==='arma'),...costClean(r),stock:r.stock>0?r.stock:null};if(r.photo){const u=await uploadPhoto(r.photo);if(u)o.photo=u}else if(!old)o.photo='';return o}
+/* ===== oggetto casuale per i mercanti (arma, armatura o oggetto) ===== */
+const RND_RAR=[['comune',50],['non comune',30],['raro',15],['leggendario',5]];
+const rndI=(a,b)=>a+Math.floor(Math.random()*(b-a+1)),rndP=a=>a[Math.floor(Math.random()*a.length)];
+const rndW=l=>{let t=l.reduce((s,x)=>s+x[1],0)*Math.random();for(const x of l){if((t-=x[1])<0)return x[0]}return l[0][0]};
+const RND_W={
+  taglio:['Spada','Ascia','Sciabola','Machete','Falcetto da guerra','Daga lunga'],
+  contundente:['Mazza','Martello da guerra','Randello','Tirapugni','Maglio','Mazza chiodata'],
+  perforante:['Lancia','Pugnale','Stiletto','Stocco','Picca','Giavellotto'],
+  distanza:['Arco','Balestra','Fionda','Coltelli da lancio','Arco corto','Balestra a mano'],
+  sparo:['Pistola','Revolver','Fucile','Carabina','Doppietta','Pistola a tamburo'],
+  magia:['Bastone','Verga','Bacchetta','Tomo arcano','Amuleto arcano','Scettro']
+};
+const RND_A=['Giubbotto','Elmo','Corazza','Scudo','Mantello rinforzato','Guanti corazzati','Schinieri','Gambeson','Maglia di anelli','Bracciali'];
+const RND_O=[
+  ['Pozione di cura','Un liquido rossastro che richiude le ferite più leggere.',1],['Tonico NEXUS','Una fiala azzurra che fa tornare lucida la mente.',1],
+  ['Razione da viaggio','Cibo secco e ben conservato: basta per una giornata.',1],['Benda medica','Garza pulita e unguento per fasciare una ferita.',1],
+  ['Antidoto','Un intruglio amaro contro veleni e tossine.',1],['Bomba fumogena','Una sfera che sprigiona una nube fitta e acre.',1],
+  ['Torcia','Brucia a lungo e resiste al vento.',0],['Corda robusta','Dieci metri di fibra intrecciata, pronta a reggere.',0],
+  ['Kit di riparazione','Attrezzi e pezze per rimettere in sesto armi e armature.',1],['Lanterna','Una piccola lanterna a olio con vetro rinforzato.',0],
+  ['Amuleto','Un ciondolo consumato, caldo al tocco.',0],['Mappa consunta','Un foglio ingiallito con appunti a margine.',0],
+  ['Fiala del Nexus','Condensa una scintilla di energia pura.',1],['Occhiali da viaggio','Lenti scure che proteggono gli occhi da polvere e luce.',0]
+];
+const RND_PRE={comune:['Semplice','Rozzo','Consumato','Usato'],'non comune':['Robusto','Ben fatto','Affilato','Solido'],raro:['Runico','Antico','Del Maestro','Temprato'],leggendario:['Leggendario','Sacro','Primordiale','Mitico']};
+const RND_SUF=['dell\'Ombra','del Cacciatore','dell\'Alba','del Custode','del Nexus','della Tempesta','del Viandante','della Volpe','del Lupo','dell\'Eclissi'];
+const RND_DESC={arma:['Ben bilanciata, ha già visto più di una battaglia.','Il manico è consumato da mani che non ci sono più.','Qualcuno ha inciso un simbolo sulla lama prima di venderla.','Pesa il giusto: risponde bene al polso.'],armatura:['Ammaccata in più punti, ma regge ancora.','Cucita con cura da qualcuno che sapeva il fatto suo.','Odora di cuoio e di olio per metalli.','Calza meglio di quanto sembri.'],oggetto:['']};
+function rndItem(cat,rar){
+  if(!['oggetto','arma','armatura'].includes(cat))cat=rndW([['oggetto',40],['arma',35],['armatura',25]]);
+  if(!RND_PRE[rar])rar=rndW(RND_RAR);
+  const ri=RND_RAR.findIndex(x=>x[0]===rar),o={cat,rar,bonuses:[],use:'infinito',uses:0,arm:0,dfix:0,dn:0,dt:'d6',dmin:0,atk:'',cnx:0,chp:0};
+  const nb=[0,rndI(0,1),1,rndI(1,2)][ri],pickB=()=>{const t=Math.random()<.5?'tr':'ab',l=t==='tr'?TR:AB,k=rndP(l)[0];return {t,k,v:ri>=3?rndI(1,3):1}};
+  for(let i=0;i<nb;i++){const b=pickB();if(!o.bonuses.some(x=>x.t===b.t&&x.k===b.k))o.bonuses.push(b)}
+  let base;
+  if(cat==='arma'){
+    o.atk=rndP(ATK_KEYS);const nm=rndP(RND_W[o.atk]);
+    const dd=[['d4','d6'],['d6','d8'],['d8','d10'],['d10','d12']][ri];o.dt=rndP(dd);o.dn=[1,1,rndI(1,2),rndI(2,3)][ri];o.dfix=[0,rndI(0,1),rndI(1,3),rndI(3,6)][ri];
+    o.dmin=ri>=2&&Math.random()<.5?2:0;if(o.atk==='magia'||o.atk==='sparo'){o.cnx=o.atk==='magia'?rndI(5,15)*(ri+1):0}
+    base=nm;o.price=Math.round((15+o.dn*({d4:2,d6:3,d8:4,d10:5,d12:6}[o.dt])*4+o.dfix*8)*(1+ri*.9));
+    o.desc=rndP(RND_DESC.arma);
+  }else if(cat==='armatura'){
+    base=rndP(RND_A);o.arm=[1,2,rndI(3,4),rndI(5,6)][ri];
+    o.price=Math.round((20+o.arm*14)*(1+ri*.8));o.desc=rndP(RND_DESC.armatura);
+  }else{
+    const [nm,ds,cons]=rndP(RND_O);base=nm;o.desc=ds;
+    if(cons){o.use='utilizzabile';o.uses=rndI(1,ri>=2?4:3)}
+    o.price=Math.round((8+(cons?o.uses*6:10))*(1+ri*1.1));
+  }
+  o.price+=o.bonuses.reduce((t,b)=>t+b.v*(12+ri*8),0);o.price=Math.max(1,o.price);
+  const pre=ri>0||Math.random()<.5?rndP(RND_PRE[rar]):'',suf=ri>=2&&Math.random()<.7?' '+rndP(RND_SUF):'';
+  o.name=((cat==='oggetto'&&ri===0?'':pre+' ')+base).trim()+(cat==='oggetto'&&ri===0?'':suf);
+  if(o.name.length>60)o.name=o.name.slice(0,60);
+  return o;
+}
 function rebindItems(){
   const IT=db.collection('items');
+  app.querySelectorAll('[data-ir]').forEach(b=>b.onclick=async()=>{
+    const r=await ask('🎲 Oggetto casuale',[{l:'Tipo',n:'cat',t:'select',o:['casuale','oggetto','arma','armatura']},{l:'Rarità',n:'rar',t:'select',o:['casuale',...RND_RAR.map(x=>x[0])]},{l:'Scorte (0 = illimitate)',n:'stock',t:'number'}],{cat:'casuale',rar:'casuale',stock:1},'🎲 Genera');
+    if(!r)return;
+    const g=rndItem(r.cat,r.rar),id=uid8();
+    await guard(IT.doc(id).set({id,npc:b.dataset.ir,active:true,rtype:'item',amount:0,name:g.name,price:g.price,cat:g.cat,desc:g.desc,use:g.use,uses:g.uses,bonus:null,bonuses:g.bonuses,arm:g.arm,...dmgClean(g,g.cat==='arma'),...costClean(g),stock:r.stock>0?r.stock:null,photo:''}));
+    toast('🎲 '+CATI[g.cat]+' '+g.name+' ('+g.rar+') · 🪙 '+g.price);
+  });
   app.querySelectorAll('[data-ia]').forEach(b=>b.onclick=async()=>{const r=await ask('Nuovo oggetto',ITF(),{cat:'oggetto',use:'infinito',bk:'nessuno',dt:'d6'});if(r&&r.name){const id=uid8();guard(IT.doc(id).set({id,npc:b.dataset.ia,active:true,rtype:'item',amount:0,...await itData(r)}))}});
   app.querySelectorAll('[data-ie]').forEach(b=>b.onclick=async()=>{const id=b.dataset.ie,i=S.items[id],r=await ask('Modifica oggetto',ITF(),{...i,use:i.use||'infinito',uses:i.uses||0,bks:bonusInit(i),stock:i.stock??0,...dmgInit(i)});if(r&&r.name)guard(IT.doc(id).update(await itData(r,i)))});
 }
