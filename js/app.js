@@ -203,7 +203,7 @@ async function boot(){
 /* ===== v2: bacheche ===== */
 tab=null;
 const TILES=[['profile','👤','Profilo'],['ego','⚡','EGO'],['npcs','🧙','Incontri'],['scanner','🔍','Scanner'],['quests','📜','Obiettivi'],['party','🏕️','Party'],['inv','🎒','Inventario'],['msgs','✉️','Messaggi'],['map','🗺️','Mappa'],['events','🎭','Eventi']];
-const KIND={mercante:'🛒 Mercante',combattente:'⚔️ Combattente'},kindOf=n=>n.kind||'mercante';
+const KIND={mercante:'🛒 Mercante',combattente:'⚔️ Combattente',civis:'🏛️ Civis (cittadino)'},kindOf=n=>n.kind||'mercante';
 const tiles=()=>{const M=masterOK&&view.name==='master';return `<div class="tiles">${TILES.filter(t=>!(M&&t[0]==='inv')&&!(!M&&t[0]==='scanner'&&!(me()&&me().scanner))&&!(!M&&t[0]==='events')).map(([k,i,l])=>{if(M&&k==='profile'){i='👥';l='Player'}return `<button class="tile" data-go="${k}"><span>${i}</span>${l}${badge(k,M)}</button>`}).join('')}</div>`};
 const BLOODS=['Non indicato','A+','A-','B+','B-','AB+','AB-','0+','0-'];
 const TR=[['vigore','VIGORE'],['agilita','AGILITÀ'],['acume','ACUME'],['panache','PANACHE'],['nexus','NEXUS']];
@@ -230,7 +230,7 @@ function render(){
   const v=view.name,M=masterOK&&v==='master';
   $('#mbtn').style.display=M?'none':'block';
   if(!db){app.innerHTML=`<div class="splash"><h2>Dati non raggiungibili</h2><p class="mut">Connessione ai dati non disponibile. Controlla js/config.js e la connessione a internet.</p></div>`;return}
-  autoLogin();if(M){checkShortAns();checkChatM();renderMaster();markViewedM(tab);rebindItems();rebindDel();rebindMP();rebindV9();rebindNI();rebindMX();return}
+  autoLogin();if(M){checkShortAns();checkChatM();renderMaster();markViewedM(tab);rebindItems();rebindDel();rebindMP();rebindV9();rebindNI();rebindDlg();rebindMX();return}
   if(!authed||!me())return renderSplash();checkShort();
   if(v!=='npc'){npcAnim=null;if(npcTy){npcTy.stop();npcTy=null}app.classList.remove('npcfx')}
   if(v==='npc')return renderNpc();
@@ -391,7 +391,7 @@ function renderMaster(){
   const C=n=>db.collection(n);let b='';
   if(!tab)b=hdr('Pannello Master')+tiles();
   if(tab==='profile')b=(editing&&selP&&S.players[selP])?editScreen():masterPlayers();else if(0)b=hdr('👥 Player',1)+(Object.entries(S.players).map(([id,p])=>`<div class="card"><div class="row sp"><b>${esc(p.username)}</b><span class="tag">🪙 ${p.currency} · ${esc(p.blood||'—')} · ${p.points||0} PT · ${p.pointsAb||0} PA · ❤️${vit(p).h}/${vit(p).hm} 🔷${vit(p).n}/${vit(p).nm}</span></div><div class="row" style="margin-top:8px"><button class="g grow" data-pe="${id}">Modifica</button><button class="g" data-pa="${id}">Abilità</button><button class="d" data-pd="${id}">Elimina</button></div></div>`).join('')||'<p class="mut">Nessun player registrato.</p>');
-  if(tab==='npcs')b=hdr('🧙 Incontri',1)+`<button id="addN" style="width:100%">+ Nuovo incontro</button>`+Object.values(S.npcs).map(n=>`<div class="card"><div class="row">${av(n)}<div class="grow"><b>${esc(n.name)}</b> <span class="tag">${KIND[kindOf(n)]}</span> <span class="tag" style="color:${attOf(n).c}">${attOf(n).i} ${attOf(n).l}</span> ${n.active===false?'<span class="tag">nascosto</span>':''} ${koTag(n)}<div class="mut">${esc(n.desc)}</div><div class="mut">👁 ${n.to&&n.to.length?n.to.map(i=>esc(S.players[i]?.username||'?')).join(', '):'Tutti i player'}</div></div></div><div class="row" style="margin-top:8px"><button class="${n.active===false?'':'g'}" data-nv="${n.id}">${n.active===false?'👁 Rendi visibile':'🙈 Nascondi'}</button><button class="g grow" data-ne="${n.id}">Modifica</button><button class="g" data-np="${n.id}">📷</button><button class="d" data-nd="${n.id}">✕</button></div>${kindOf(n)==='mercante'?`<div class="row sp" style="margin-top:12px"><b>Shop</b><button data-ia="${n.id}">+ Oggetto</button></div>`+Object.values(S.items).filter(i=>i.npc===n.id).map(i=>`<div class="row sp" style="margin-top:8px"><div>${esc(i.name)} <span class="tag">🪙${i.price} · ${esc(i.rtype)}${i.rtype!=='item'?' +'+i.amount:''} · ${i.stock!=null?i.stock:'∞'}</span></div><div class="row"><button class="g" data-ie="${i.id}">✎</button><button class="d" data-id="${i.id}">✕</button></div></div>`).join(''):npcInvHtml(n)}</div>`).join('');
+  if(tab==='npcs')b=hdr('🧙 Incontri',1)+`<button id="addN" style="width:100%">+ Nuovo incontro</button>`+Object.values(S.npcs).map(n=>`<div class="card"><div class="row">${av(n)}<div class="grow"><b>${esc(n.name)}</b> <span class="tag">${KIND[kindOf(n)]}</span> <span class="tag" style="color:${attOf(n).c}">${attOf(n).i} ${attOf(n).l}</span> ${n.active===false?'<span class="tag">nascosto</span>':''} ${koTag(n)}<div class="mut">${esc(n.desc)}</div><div class="mut">👁 ${n.to&&n.to.length?n.to.map(i=>esc(S.players[i]?.username||'?')).join(', '):'Tutti i player'}</div></div></div><div class="row" style="margin-top:8px"><button class="${n.active===false?'':'g'}" data-nv="${n.id}">${n.active===false?'👁 Rendi visibile':'🙈 Nascondi'}</button><button class="g grow" data-ne="${n.id}">Modifica</button><button class="g" data-np="${n.id}">📷</button><button class="d" data-nd="${n.id}">✕</button></div>${kindOf(n)==='mercante'?`<div class="row sp" style="margin-top:12px"><b>Shop</b><button data-ia="${n.id}">+ Oggetto</button></div>`+Object.values(S.items).filter(i=>i.npc===n.id).map(i=>`<div class="row sp" style="margin-top:8px"><div>${esc(i.name)} <span class="tag">🪙${i.price} · ${esc(i.rtype)}${i.rtype!=='item'?' +'+i.amount:''} · ${i.stock!=null?i.stock:'∞'}</span></div><div class="row"><button class="g" data-ie="${i.id}">✎</button><button class="d" data-id="${i.id}">✕</button></div></div>`).join(''):npcInvHtml(n)}${dlgMasterHtml(n)}</div>`).join('');
   if(tab==='quests')b=hdr('📜 Obiettivi',1)+`<button id="addQ" style="width:100%">+ Nuovo obiettivo</button>`+Object.values(S.quests).map(q=>`<div class="card">${questCard(q)}<div class="mut">Per: ${q.to&&q.to.length?q.to.map(i=>esc(S.players[i]?.username||'?')).join(', '):'tutti i player'}</div><div class="row" style="margin-top:8px;flex-wrap:wrap">${qAllDone(q)?'':`<button class="grow" data-qc="${q.id}">✅ Completato</button>`}${(q.doneBy||[]).length?`<button class="g grow" data-qo="${q.id}">↩ Riapri</button>`:''}<button class="g" data-qe="${q.id}">Modifica</button><button class="d" data-qd="${q.id}">✕</button></div></div>`).join('');
   if(tab==='party')b=masterParty();else if(0){const ids=(S.party.main&&S.party.main.members)||[];b=hdr('🏕️ Party',1)+`<button id="pmem" style="width:100%">Gestisci membri</button>`+(ids.filter(i=>S.players[i]).map(i=>memCard(S.players[i],false)).join('')||'<p class="mut">Nessun membro nel party.</p>')}
   if(tab==='msgs')b=masterMsgs();
@@ -402,7 +402,7 @@ function renderMaster(){
   on('pe',async id=>{const p=S.players[id],t=trOf(p),r=await ask('Player',[{l:'Username',n:'username'},{l:'Nummus',n:'currency',t:'number'},{l:'Gruppo sanguigno',n:'blood',t:'select',o:BLOODS},{l:'Punti tratti',n:'points',t:'number'},{l:'Punti abilità',n:'pointsAb',t:'number'},{l:'HP massimi',n:'hpMax',t:'number'},{l:'HP attuali',n:'hp',t:'number'},{l:'NEXUS massimo',n:'nxMax',t:'number'},{l:'NEXUS attuale',n:'nx',t:'number'},...TR.map(([k,l])=>({l:l+' (valore)',n:k,t:'number'}))],{...p,points:p.points||0,pointsAb:p.pointsAb||0,...t,hpMax:vit(p).hm,hp:vit(p).h,nxMax:vit(p).nm,nx:vit(p).n});if(r){const vf=vigFix(p,Math.min(99,r.vigore),r.hpMax,r.hp);if(vf.gain)toast('💪 VIGORE: HP massimi '+(vf.gain>0?'+':'')+vf.gain+' → '+vf.hpMax);moneyNote(id,(r.currency||0)-(p.currency||0));guard(C('players').doc(id).update({vigRolls:vf.vigRolls,username:r.username||p.username,currency:r.currency,blood:r.blood,points:r.points,pointsAb:r.pointsAb,hpMax:vf.hpMax,hp:vf.hp,nxMax:r.nxMax,nx:Math.min(r.nx,r.nxMax),traits:Object.fromEntries(TR.map(([k])=>[k,Math.min(99,r[k])]))}))}});
   on('pa',async id=>{const p=S.players[id],r=await ask('Abilità',AB.map(([k,l])=>({l,n:k,t:'number'})),abOf(p));if(r)guard(C('players').doc(id).update({abilities:Object.fromEntries(AB.map(([k])=>[k,Math.min(99,r[k])]))}))});
   on('pd',id=>{if(confirm('Eliminare il player?'))guard(C('players').doc(id).delete())});
-  const npcF=()=>[{l:'Nome',n:'name'},{l:'Descrizione',n:'desc',t:'area'},{l:'Frasi di approccio (una per riga: se ce ne sono più di una, ne esce una a caso)',n:'keys',t:'area'},{l:'Tipo',n:'kind',t:'select',o:['mercante','combattente']},{l:'Atteggiamento',n:'att',t:'select',o:['neutrale','ostile','buono']},{l:'Visibile',n:'vis',t:'select',o:['sì','no']},{l:'Chi lo vede (nessuno selezionato = tutti i player)',n:'to',t:'multi',o:Object.entries(S.players).map(([i,p])=>[i,p.username])},{l:'Foto (max 2 MB)',n:'photo',t:'file'}];
+  const npcF=()=>[{l:'Nome',n:'name'},{l:'Descrizione',n:'desc',t:'area'},{l:'Frasi di approccio (una per riga: se ce ne sono più di una, ne esce una a caso)',n:'keys',t:'area'},{l:'Tipo',n:'kind',t:'select',o:['mercante','combattente','civis']},{l:'Atteggiamento',n:'att',t:'select',o:['neutrale','ostile','buono']},{l:'Visibile',n:'vis',t:'select',o:['sì','no']},{l:'Chi lo vede (nessuno selezionato = tutti i player)',n:'to',t:'multi',o:Object.entries(S.players).map(([i,p])=>[i,p.username])},{l:'Foto (max 2 MB)',n:'photo',t:'file'}];
   const upl=async f=>{if(!f)return '';if(!assets){toast('Upload non disponibile');return ''}if(f.size>2e6){toast('Foto oltre 2 MB');return ''}const a=await guard(assets.upload(f));return a?a.url:''};
   if($('#addN'))$('#addN').onclick=async()=>{const r=await ask('Nuovo incontro',npcF(),{kind:'mercante',vis:'sì',to:[]});if(r&&r.name){const id=uid8(),photo=await upl(r.photo);guard(C('npcs').doc(id).set({id,name:r.name,desc:r.desc,kind:r.kind,att:r.att,keys:splitL(r.keys),active:r.vis==='sì',photo,to:r.to}))}};
   on('ne',async id=>{const n=S.npcs[id],r=await ask('Modifica incontro',npcF(),{...n,keys:(n.keys||[]).join('\n'),kind:kindOf(n),vis:n.active===false?'no':'sì'});if(r&&r.name){const ph=r.photo?await upl(r.photo):'';guard(C('npcs').doc(id).update({name:r.name,desc:r.desc,kind:r.kind,att:r.att,keys:splitL(r.keys),active:r.vis==='sì',to:r.to,...(ph?{photo:ph}:{})}))}});
@@ -462,8 +462,8 @@ let encOpen=false;
 function renderNpc(){
   const n=S.npcs[view.id],p=me();if(!n||!visN(n)){view={name:'npcs'};return render()}
   const m=kindOf(n)==='mercante',its=Object.values(S.items).filter(i=>i.npc===n.id&&i.active!==false);
-  app.innerHTML=hdr(esc(n.name),1)+`<div class="hero npc"><div class="portrait">${n.photo?`<img src="${esc(n.photo)}">`:'🩸'}</div><div><span class="pill">${KIND[kindOf(n)]}</span> <span class="pill" style="color:${attOf(n).c};border-color:${attOf(n).c}">${attOf(n).i} ${attOf(n).l}</span>${n.ko?' <span class="pill" style="color:var(--danger);border-color:var(--danger)">💀 K.O.</span>':''}<div class="npcdesc" style="margin-top:8px;white-space:pre-wrap">${esc(n.desc)}</div></div></div>`+phraseHtml(n)+(m?`<div class="wallet"><span>PORTAFOGLIO</span><b>🪙 ${p.currency}</b></div><h3>🛒 Bottega di ${esc(n.name)}</h3><div class="shopgrid">${its.map(i=>{const out=i.stock===0,poor=p.currency<i.price;return `<div class="item ${out?'out':''}" data-ii="${i.id}"><div class="ico">${i.photo?`${itImg(i.photo,72)}`:CATI[i.cat||'oggetto']}</div><b>${esc(i.name)}</b><span class="tag">${CATI[i.cat||'oggetto']} ${CATL[i.cat||'oggetto']}</span>${i.rtype==='currency'?`<div class="mut">Ricevi 🪙 ${i.amount}</div>`:''}${(i.cat==='armatura'&&i.arm)?`<div class="mut">🛡️ −${i.arm} danni</div>`:''}${(i.cat==='arma'&&hasDmg(i))?`<div class="mut">💥 ${dmgTxt(i)}</div>`:''}${costTxt(i)?`<div class="mut">${costTxt(i)} / uso</div>`:''}<div class="mut">${i.stock!=null?(out?'ESAURITO':'Scorte: '+i.stock):'Sempre disponibile'}</div><button data-r="${i.id}" ${out||poor?'disabled':''}>🪙 ${i.price}</button>${poor&&!out?'<div class="mut" style="font-size:.75em">Nummus insufficienti</div>':''}</div>`}).join('')||'<p class="mut">La bottega è vuota.</p>'}</div>`:'<div class="card"><h3>⚔️ Combattente</h3><p class="mut">Nessuna azione disponibile per ora.</p></div>');
-  markViewed('npcs',n.id);bind();app.querySelectorAll('[data-r]').forEach(b=>b.onclick=ev=>{ev.stopPropagation();buy(S.items[b.dataset.r],n)});
+  app.innerHTML=hdr(esc(n.name),1)+`<div class="hero npc"><div class="portrait">${n.photo?`<img src="${esc(n.photo)}">`:'🩸'}</div><div><span class="pill">${KIND[kindOf(n)]}</span> <span class="pill" style="color:${attOf(n).c};border-color:${attOf(n).c}">${attOf(n).i} ${attOf(n).l}</span>${n.ko?' <span class="pill" style="color:var(--danger);border-color:var(--danger)">💀 K.O.</span>':''}<div class="npcdesc" style="margin-top:8px;white-space:pre-wrap">${esc(n.desc)}</div></div></div>`+phraseHtml(n)+dlgHtml(n)+(m?`<div class="wallet"><span>PORTAFOGLIO</span><b>🪙 ${p.currency}</b></div><h3>🛒 Bottega di ${esc(n.name)}</h3><div class="shopgrid">${its.map(i=>{const out=i.stock===0,poor=p.currency<i.price;return `<div class="item ${out?'out':''}" data-ii="${i.id}"><div class="ico">${i.photo?`${itImg(i.photo,72)}`:CATI[i.cat||'oggetto']}</div><b>${esc(i.name)}</b><span class="tag">${CATI[i.cat||'oggetto']} ${CATL[i.cat||'oggetto']}</span>${i.rtype==='currency'?`<div class="mut">Ricevi 🪙 ${i.amount}</div>`:''}${(i.cat==='armatura'&&i.arm)?`<div class="mut">🛡️ −${i.arm} danni</div>`:''}${(i.cat==='arma'&&hasDmg(i))?`<div class="mut">💥 ${dmgTxt(i)}</div>`:''}${costTxt(i)?`<div class="mut">${costTxt(i)} / uso</div>`:''}<div class="mut">${i.stock!=null?(out?'ESAURITO':'Scorte: '+i.stock):'Sempre disponibile'}</div><button data-r="${i.id}" ${out||poor?'disabled':''}>🪙 ${i.price}</button>${poor&&!out?'<div class="mut" style="font-size:.75em">Nummus insufficienti</div>':''}</div>`}).join('')||'<p class="mut">La bottega è vuota.</p>'}</div>`:(kindOf(n)==='civis'||dlgOf(n))?'':'<div class="card"><h3>⚔️ Combattente</h3><p class="mut">Nessuna azione disponibile per ora.</p></div>');
+  markViewed('npcs',n.id);bind();dlgBind(n);app.querySelectorAll('[data-r]').forEach(b=>b.onclick=ev=>{ev.stopPropagation();buy(S.items[b.dataset.r],n)});
   app.querySelectorAll('[data-ii]').forEach(c=>c.onclick=()=>buy(S.items[c.dataset.ii],n));
   npcFx(n);
 }
@@ -2798,6 +2798,85 @@ async function npcLoot(id){
   }));
   await guard(db.collection('npcs').doc(id).update({inv:inv.filter(e=>!r.its.includes(e.id))}));
   SND.play('loot',1);toast('🎁 Bottino assegnato a '+who.length+' player');
+}
+
+/* ===== v20: incontri «Civis» e dialoghi con ricompense =====
+   Ogni incontro può avere un albero di dialogo: battute dell'NPC (nodi) e risposte del player.
+   Una risposta può portare a un'altra battuta o chiudere il dialogo, e può dare Nummus e/o oggetti
+   (una sola volta per player, se il Master lo vuole). Dati: npc.dlg={start,nodes:[{id,text,opts:[{id,text,next,nm,items,once,pv}]}]};
+   le ricompense già prese stanno nel player: dlgDone['npc|nodo|risposta']=true. */
+const dlgOf=n=>n&&n.dlg&&Array.isArray(n.dlg.nodes)&&n.dlg.nodes.length?n.dlg:null;
+const dlgRwTxt=o=>{const a=[];if((o.nm|0)>0)a.push('🪙 '+o.nm+' Nummus');(o.items||[]).forEach(e=>a.push((CATI[e.cat||'oggetto']||'🎁')+' '+esc(e.name)));return a.join(' · ')};
+/* ---- lato player ---- */
+function dlgHtml(n){
+  const d=dlgOf(n);if(!d)return '';
+  const p=me(),st=view.dl;
+  const box=inner=>`<div class="card" id="dlgbox"><div class="row sp"><h3>💬 Dialogo</h3>${st&&st.started?'<button class="g mini" data-dgr>↺ Ricomincia</button>':''}</div>${inner}</div>`;
+  if(!st||!st.started)return box(`<button style="width:100%" data-dgo>💬 Parla con ${esc(n.name)}</button>`);
+  const node=d.nodes.find(x=>x.id===st.node);
+  const bub=(who,t)=>who==='n'?`<div style="display:flex;margin:6px 0"><div style="max-width:88%;padding:8px 12px;border-radius:14px 14px 14px 4px;background:rgba(255,255,255,.07);border:1px solid var(--acc2,#888)"><b>${esc(n.name)}</b><div style="white-space:pre-wrap">${esc(t)}</div></div></div>`:who==='p'?`<div style="display:flex;justify-content:flex-end;margin:6px 0"><div style="max-width:88%;padding:8px 12px;border-radius:14px 14px 4px 14px;background:var(--acc,#6a5acd);color:#fff"><div style="white-space:pre-wrap">${esc(t)}</div></div></div>`:`<div style="text-align:center;margin:8px 0"><span class="pill eu" style="white-space:normal">🎁 ${t}</span></div>`;
+  const log=st.log.map(l=>bub(l.w,l.w==='r'?l.t:l.t)).join('');
+  let opts='';
+  if(node){
+    opts=(node.opts||[]).map(o=>{
+      const done=(p.dlgDone||{})[n.id+'|'+node.id+'|'+o.id],rw=dlgRwTxt(o);
+      return `<button class="g" data-dop="${o.id}" style="width:100%;text-align:left;margin:4px 0;white-space:normal">${esc(o.text)}${o.pv&&rw&&!(o.once&&done)?` <span class="tag">${rw}</span>`:''}${o.once&&done&&rw?' <span class="tag">✓ già ottenuto</span>':''}</button>`;
+    }).join('')||'<p class="mut">Il personaggio non ha altro da dire.</p>';
+  }else opts='<p class="mut" style="text-align:center">— Fine della conversazione —</p>';
+  return box(log+`<div style="margin-top:10px">${opts}</div>`);
+}
+function dlgBind(n){
+  const d=dlgOf(n);if(!d)return;
+  const go=app.querySelector('[data-dgo]'),rs=app.querySelector('[data-dgr]');
+  const start=()=>{const f=d.nodes.find(x=>x.id===d.start)||d.nodes[0];view.dl={started:true,node:f.id,log:[{w:'n',t:f.text}]};render()};
+  if(go)go.onclick=start;if(rs)rs.onclick=start;
+  app.querySelectorAll('[data-dop]').forEach(b=>b.onclick=()=>dlgPick(n,b.dataset.dop));
+  if(view.dl&&view.dl.scroll){view.dl.scroll=false;const el=document.getElementById('dlgbox');if(el)el.scrollIntoView({block:'end',behavior:'smooth'})}
+}
+async function dlgPick(n,oid){
+  const d=dlgOf(n),st=view.dl,p=me();if(!d||!st||!p)return;
+  const node=d.nodes.find(x=>x.id===st.node),op=node&&(node.opts||[]).find(o=>o.id===oid);if(!op)return;
+  st.log.push({w:'p',t:op.text});
+  const key=n.id+'|'+node.id+'|'+op.id,done=(p.dlgDone||{})[key],nm=Math.max(0,op.nm|0),its=op.items||[];
+  if((nm||its.length)&&!(op.once&&done)){
+    const gift=its.map(e=>({...e,id:uid8()}));
+    const upd={currency:(p.currency||0)+nm,dlgDone:{...(p.dlgDone||{}),[key]:true}};
+    if(gift.length)upd.inv=[...(p.inv||[]),...gift];
+    try{await guard(db.collection('players').doc(uid).update(JSON.parse(JSON.stringify(upd))))}catch(e){}
+    st.log.push({w:'r',t:'Hai ricevuto: '+dlgRwTxt(op)});
+    SND.play('loot',1);toast('🎁 '+n.name+': ricompensa ricevuta');
+  }
+  const nx=op.next&&d.nodes.find(x=>x.id===op.next);
+  if(nx){st.node=nx.id;st.log.push({w:'n',t:nx.text})}else st.node=null;
+  st.scroll=true;render();
+}
+/* ---- lato Master ---- */
+const dlgNodeLbl=(d,i)=>(i+1)+'. '+String(d.nodes[i].text||'').replace(/\s+/g,' ').slice(0,34);
+const dlgMasterHtml=n=>{
+  const d=dlgOf(n)||{start:'',nodes:[]};
+  return `<div class="row sp" style="margin-top:14px"><b>💬 Dialogo <span class="tag">${d.nodes.length} battute</span></b><button data-dna="${n.id}">+ Battuta</button></div>`+
+  (d.nodes.map((nd,i)=>`<div class="move" style="border-left-color:var(--acc);display:block"><div class="row sp"><div class="grow"><b>${i+1}.</b> ${(nd.id===d.start||(!d.start&&i===0))?'<span class="tag">▶ inizio</span> ':''}<span style="white-space:pre-wrap">${esc(nd.text)}</span></div><div class="row"><button class="g mini" data-dne="${n.id}|${nd.id}">✎</button><button class="g mini" data-dns="${n.id}|${nd.id}" title="Imposta come inizio">▶</button><button class="d mini" data-dnd="${n.id}|${nd.id}">✕</button></div></div>`+
+    (nd.opts||[]).map(o=>{const ti=d.nodes.findIndex(x=>x.id===o.next),rw=dlgRwTxt(o);return `<div style="margin:8px 0 0 12px;padding-left:8px;border-left:2px solid var(--acc2)"><div class="row sp"><div class="grow">↳ “${esc(o.text)}” <span class="tag">${ti>=0?'→ '+(ti+1):'fine'}</span>${rw?` <span class="tag" style="color:var(--ok)">${rw}</span>`:''}${o.once?' <span class="tag">1 volta</span>':''}</div><div class="row"><button class="g mini" data-doe="${n.id}|${nd.id}|${o.id}">✎</button><button class="d mini" data-dod="${n.id}|${nd.id}|${o.id}">✕</button></div></div>${(o.items||[]).map(e=>`<div class="row sp" style="margin:4px 0 0 10px"><span class="mut">${CATI[e.cat||'oggetto']||'🎁'} ${esc(e.name)}</span><div class="row"><button class="g mini" data-doie="${n.id}|${nd.id}|${o.id}|${e.id}">✎</button><button class="d mini" data-doid="${n.id}|${nd.id}|${o.id}|${e.id}">✕</button></div></div>`).join('')}<button class="g mini" style="margin-top:4px" data-doi="${n.id}|${nd.id}|${o.id}">+ Oggetto in ricompensa</button></div>`}).join('')+
+    `<button class="g mini" style="margin-top:8px" data-doa="${n.id}|${nd.id}">+ Risposta del player</button></div>`).join('')||'<p class="mut">Nessuna battuta: aggiungine una per creare il dialogo.</p>');
+};
+function rebindDlg(){
+  const clone=id=>{const n=S.npcs[id];return {n,d:JSON.parse(JSON.stringify(dlgOf(n)||{start:'',nodes:[]}))}};
+  const save=(id,d)=>guard(db.collection('npcs').doc(id).update({dlg:JSON.parse(JSON.stringify(d))}));
+  const onn=(a,fn)=>app.querySelectorAll(`[data-${a}]`).forEach(b=>b.onclick=()=>fn(b.dataset[a].split('|')));
+  const optF=(d,nodeId)=>[{l:'Risposta del player (il testo che può scegliere)',n:'text',t:'area'},{l:'Dove porta',n:'next',t:'select',o:['Fine del dialogo',...d.nodes.map((x,i)=>dlgNodeLbl(d,i))]},{l:'Ricompensa: Nummus (0 = nessuna)',n:'nm',t:'number'},{l:'Ricompensa data una sola volta per player?',n:'once',t:'select',o:['sì','no']},{l:'Mostra la ricompensa al player prima che scelga?',n:'pv',t:'select',o:['no','sì']}];
+  const nextId=(d,lbl)=>{const i=parseInt(lbl);return lbl&&i>0&&d.nodes[i-1]?d.nodes[i-1].id:''};
+  const nextLbl=(d,id)=>{const i=d.nodes.findIndex(x=>x.id===id);return i>=0?dlgNodeLbl(d,i):'Fine del dialogo'};
+  const itemSave=async(r,old)=>{const o=await invSave(r,old);return o};
+  onn('dna',async([id])=>{const {n,d}=clone(id);if(!n)return;const r=await ask('Nuova battuta di '+n.name,[{l:'Cosa dice il personaggio',n:'text',t:'area'}],{});if(!r||!r.text)return;const nd={id:uid8(),text:r.text,opts:[]};d.nodes.push(nd);if(!d.start)d.start=nd.id;save(id,d)});
+  onn('dne',async([id,nid])=>{const {n,d}=clone(id),nd=d.nodes.find(x=>x.id===nid);if(!nd)return;const r=await ask('Modifica battuta',[{l:'Cosa dice il personaggio',n:'text',t:'area'}],{text:nd.text});if(!r||!r.text)return;nd.text=r.text;save(id,d)});
+  onn('dns',([id,nid])=>{const {d}=clone(id);d.start=nid;save(id,d);toast('▶ Battuta iniziale impostata')});
+  onn('dnd',async([id,nid])=>{const {d}=clone(id);if(!await askYes('Eliminare questa battuta e le sue risposte?'))return;d.nodes=d.nodes.filter(x=>x.id!==nid);d.nodes.forEach(x=>(x.opts||[]).forEach(o=>{if(o.next===nid)o.next=''}));if(d.start===nid)d.start=d.nodes[0]?d.nodes[0].id:'';save(id,d)});
+  onn('doa',async([id,nid])=>{const {d}=clone(id),nd=d.nodes.find(x=>x.id===nid);if(!nd)return;const r=await ask('Nuova risposta del player',optF(d,nid),{once:'sì',pv:'no',next:'Fine del dialogo',nm:0});if(!r||!r.text)return;(nd.opts=nd.opts||[]).push({id:uid8(),text:r.text,next:nextId(d,r.next),nm:Math.min(999999,r.nm),once:r.once==='sì',pv:r.pv==='sì',items:[]});save(id,d)});
+  onn('doe',async([id,nid,oid])=>{const {d}=clone(id),nd=d.nodes.find(x=>x.id===nid),o=nd&&(nd.opts||[]).find(x=>x.id===oid);if(!o)return;const r=await ask('Modifica risposta',optF(d,nid),{text:o.text,next:nextLbl(d,o.next),nm:o.nm||0,once:o.once?'sì':'no',pv:o.pv?'sì':'no'});if(!r||!r.text)return;Object.assign(o,{text:r.text,next:nextId(d,r.next),nm:Math.min(999999,r.nm),once:r.once==='sì',pv:r.pv==='sì'});save(id,d)});
+  onn('dod',async([id,nid,oid])=>{const {d}=clone(id),nd=d.nodes.find(x=>x.id===nid);if(!nd||!await askYes('Eliminare questa risposta?'))return;nd.opts=(nd.opts||[]).filter(x=>x.id!==oid);save(id,d)});
+  onn('doi',async([id,nid,oid])=>{const {d}=clone(id),nd=d.nodes.find(x=>x.id===nid),o=nd&&(nd.opts||[]).find(x=>x.id===oid);if(!o)return;const r=await ask('Oggetto in ricompensa',IF(),{cat:'oggetto',use:'infinito',bk:'nessuno',dt:'d6'});if(!r||!r.name)return;const it=await itemSave(r);(o.items=o.items||[]).push({id:uid8(),it:'',...it});save(id,d)});
+  onn('doie',async([id,nid,oid,iid])=>{const {d}=clone(id),nd=d.nodes.find(x=>x.id===nid),o=nd&&(nd.opts||[]).find(x=>x.id===oid),e=o&&(o.items||[]).find(x=>x.id===iid);if(!e)return;const r=await ask('Modifica oggetto',IF(),{...e,use:e.uses==null?'infinito':'utilizzabile',uses:e.uses||0,bks:bonusInit(e),...dmgInit(e)});if(!r||!r.name)return;Object.assign(e,await itemSave(r,e));save(id,d)});
+  onn('doid',async([id,nid,oid,iid])=>{const {d}=clone(id),nd=d.nodes.find(x=>x.id===nid),o=nd&&(nd.opts||[]).find(x=>x.id===oid);if(!o||!await askYes('Rimuovere questo oggetto dalla ricompensa?'))return;o.items=(o.items||[]).filter(x=>x.id!==iid);save(id,d)});
 }
 
 /* ===== v18: più bonus per oggetto (tratti e abilità) ===== */
