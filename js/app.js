@@ -447,10 +447,10 @@ function renderMaster(){
 }
 /* ===== v3: profilo, incontri, shop ===== */
 const LD={},visN=n=>n.active!==false&&(!(n.to&&n.to.length)||n.to.includes(uid));
-/* armi dell'inventario mostrate anche nel profilo, sotto le skill */
+/* armi EQUIPAGGIATE mostrate nel profilo, sotto le skill */
 const weaponsCard=p=>{
-  const W=(p.inv||[]).filter(e=>(e.cat||'oggetto')==='arma');
-  return `<div class="card"><div class="row sp"><h3>⚔️ ARMI</h3><span class="pill">${W.length}</span></div>`+(W.map(e=>`<div class="move" style="border-left-color:var(--danger)"><div style="font-size:1.6em">${e.photo?`${itImg(e.photo,48)}`:CATI.arma}</div><div class="grow"><b>${esc(e.name)}</b><div class="mut">${[hasDmg(e)?'<span style="color:var(--danger)">💥 '+dmgTxt(e)+'</span>':'',e.uses!=null?e.uses+(e.uses===1?' uso':' usi'):'',bonusesOf(e).length?'<span style="color:var(--ok)">'+bonusTxt(e)+'</span>':'',costTxt(e)?'<span style="color:var(--nx)">'+costTxt(e)+' / uso</span>':''].filter(Boolean).join(' · ')||'♾ Infinito'}</div>${e.desc?`<div class="mut" style="white-space:pre-wrap;margin-top:4px">${esc(e.desc)}</div>`:''}</div>${hasDmg(e)?`<button class="mini" data-atk="${e.id}">💥 Attacca</button>`:''}</div>`).join('')||'<p class="mut">Nessuna arma nell\'inventario.</p>')+`</div>`;
+  const W=(p.inv||[]).filter(e=>(e.cat||'oggetto')==='arma'&&e.eq);
+  return `<div class="card"><div class="row sp"><h3>⚔️ ARMI</h3><span class="pill">${W.length}</span></div>`+(W.map(e=>`<div class="move" style="border-left-color:var(--danger)"><div style="font-size:1.6em">${e.photo?`${itImg(e.photo,48)}`:CATI.arma}</div><div class="grow"><b>${esc(e.name)}</b><div class="mut">${[hasDmg(e)?'<span style="color:var(--danger)">💥 '+dmgTxt(e)+'</span>':'',e.uses!=null?e.uses+(e.uses===1?' uso':' usi'):'',bonusesOf(e).length?'<span style="color:var(--ok)">'+bonusTxt(e)+'</span>':'',costTxt(e)?'<span style="color:var(--nx)">'+costTxt(e)+' / uso</span>':''].filter(Boolean).join(' · ')||'♾ Infinito'}</div>${e.desc?`<div class="mut" style="white-space:pre-wrap;margin-top:4px">${esc(e.desc)}</div>`:''}</div>${hasDmg(e)?`<button class="mini" data-atk="${e.id}">💥 Attacca</button>`:''}</div>`).join('')||'<p class="mut">Nessuna arma equipaggiata. Equipaggiala dall\'Inventario.</p>')+`</div>`;
 };
 const profileHtml=p=>{
   const t=trOf(p),a=abOf(p),pT=p.points||0,pA=p.pointsAb||0,g=egoOf(p),md=modOf(p),COL=Array(5).fill('var(--acc)');
@@ -870,6 +870,30 @@ const _wmark=(lv,x,y)=>{
   const d1=dg.map(i=>[x-12+i*6,y-12+i*6]),d2=dg.map(i=>[x+6-i*6,y-12+i*6]),pts=lv>=3?d1.concat(d2):d1;
   return `<g pointer-events="none">${pts.map(([a,b])=>R(a-2,b-2,10,10,_INK)).join('')}${pts.map(([a,b])=>R(a,b,6,6,'#ff4a52')).join('')}${pts.map(([a,b])=>R(a,b,6,2,'#ff9aa2')).join('')}${lv>=3?R(x-4,y+13,8,8,_INK)+R(x-1,y+14,2,3,'#d6334f')+R(x-3,y+16,6,4,'#d6334f'):''}</g>`;
 };
+/* stile e colori di un'armatura dedotti da nome e descrizione (ordine: il primo che combacia) */
+const ARM_ST=[
+ ['tech',/nexus|cyber|tecnolog|esoschelet|nano|plasma|energia|energetic|ologra|circuit|futur|androide|robot|laser/,['#232b55','#12163a','#7fe3ff']],
+ ['tattico',/kevlar|antiproiett|balistic|tattic|militar|swat|polizia|mimetic|gilet|corazza leggera|combat/,['#6f7f5a','#47553c','#b7c79a']],
+ ['scaglie',/scagli|drago|dragon|rettil|squam|chitin|carapace|guscio|osso|ossa|ossea/,['#6fa58a','#3f6e5a','#bfeed6']],
+ ['maglia',/maglia|cotta|catena|catene|anelli|hauberk/,['#aab4c4','#6b7488','#eef3ff']],
+ ['cuoio',/cuoio|pelle|pellame|borchi|pelliccia|corame|gambeson|imbottit|cacciator|ranger/,['#a9703c','#6e4521','#e9c08a']],
+ ['stoffa',/tunica|veste|manto|mantello|tessut|stoffa|seta|lino|cappa|tonaca|abito|toga|saio|vest[ie]|camicia|cotone|lana|mago|mistic|sacerd/,['#8a6fc0','#58418a','#d7c6ff']],
+ ['piastre',/piastr|corazza|armatura|elmo|elmetto|cavalier|ferro|acciaio|bronzo|metall|scudo|plate|schiniere|usbergo|visiera|guanto|stivale/,['#9fb0cc','#6d7c99','#e6efff']]
+];
+const ARM_CL=[
+ [/\boro\b|dorat|aure/,['#e0b100','#a07a00','#fff0a0']],
+ [/argent|mithril|platin/,['#c9d4e4','#8c98ad','#ffffff']],
+ [/nero|nera|oscur|ombra|notte|abisso|ebano/,['#4a4560','#27233a','#9a93c4']],
+ [/ross[oa]|sangue|rubino|cremisi|infern|lava|fuoco|fiamm/,['#c04450','#82242f','#ffb0b8']],
+ [/blu\b|gelo|ghiacc|azzurr|cielo|oceano|zaffiro|neve|brina/,['#5a8fd0','#385c96','#c4e0ff']],
+ [/verde|foresta|smeraldo|bosco|natura|muschio/,['#5aa86a','#37733f','#c4f2c9']],
+ [/bianc|sacr|santo|divin|luce|angel|avorio/,['#ece6d4','#b3a98a','#ffffff']],
+ [/viola|arcan|magic|incantat|mistic/,['#9a6fd0','#62408f','#e2ccff']]
+];
+const armStyle=e=>{const t=((e.name||'')+' '+(e.desc||'')).toLowerCase(),n=(e.name||'').toLowerCase();
+  const pick=tx=>ARM_ST.find(x=>x[1].test(tx));let st=pick(n)||pick(t)||ARM_ST[6],col=st[2];
+  if(st[0]!=='tech'){const c=ARM_CL.find(x=>x[0].test(n))||ARM_CL.find(x=>x[0].test(t));if(c)col=c[1]}
+  return {s:st[0],c:col[0],d:col[1],h:col[2]}};
 let _sid=0;
 const sil=(w,click,o)=>{o=o||{};const dm=o.dmg||{},hl=[].concat(o.hl||[]),sel=o.sel||[],id='sp'+(++_sid)+'_';
   const defs=PARTS.map(([k,p])=>`<path id="${id}${k}" d="${_pd(p)}"/>`).join('')+PARTS.map(([k])=>`<clipPath id="${id}c${k}"><use href="#${id}${k}" xlink:href="#${id}${k}"/></clipPath>`).join('');
@@ -882,16 +906,35 @@ const sil=(w,click,o)=>{o=o||{};const dm=o.dmg||{},hl=[].concat(o.hl||[]),sel=o.
     return `<g data-part="${k}" data-st="${_INK}" data-sw="4" data-f="${lv>=3?'drop-shadow(0 0 4px #d6334f)':''}" fill="${WC[lv]}" stroke="${on?'#ffffff':_INK}" stroke-width="${on?5:4}" stroke-linejoin="miter" style="${click?'cursor:pointer;':''}${f?'filter:'+f+';':''}">`+
       `${U(k)} stroke="none"/><g clip-path="url(#${id}c${k})" fill="none" pointer-events="none">${U(k)} transform="translate(3,3)" stroke="#fff" stroke-opacity=".5" stroke-width="6"/>${U(k)} transform="translate(-3,-3)" stroke="#000" stroke-opacity=".32" stroke-width="6"/></g>${U(k)} fill="none"/></g>`;
   }).join('');
-  /* armature equipaggiate: ogni zona protetta viene "vestita" con piastre a pixel (nessuna zona indicata = tutto il corpo) */
-  const ARMC=[['#9fb0cc','#6d7c99','#e6efff'],['#c9955a','#8d6234','#ffe1b8'],['#86b894','#55806a','#d6f5dd'],['#b58bd0','#7d5a98','#f0dcff']],zc={};
-  (o.arm||[]).forEach((e,i)=>{(e.zn&&e.zn.length?e.zn:Object.keys(PN)).forEach(k=>{if(PN[k])zc[k]=i%ARMC.length})});
-  const armr=PARTS.map(([k,p])=>{if(zc[k]==null)return '';const [c,d,h]=ARMC[zc[k]];let x0=1e9,x1=0,y0=1e9,y1=0;
+  /* armature equipaggiate: lo stile (piastre, maglia, cuoio, stoffa, tattico, tech, scaglie) dipende da nome e descrizione; il colore da materiali/colori citati */
+  const zc={},AS=[];
+  (o.arm||[]).forEach((e,i)=>{AS.push(armStyle(e));(e.zn&&e.zn.length?e.zn:Object.keys(PN)).forEach(k=>{if(PN[k])zc[k]=i})});
+  const armr=PARTS.map(([k,p])=>{if(zc[k]==null)return '';const A=AS[zc[k]],c=A.c,d=A.d,h=A.h;let x0=1e9,x1=0,y0=1e9,y1=0;
     for(let i=0;i<p.length;i+=2){x0=Math.min(x0,p[i]);x1=Math.max(x1,p[i]);y0=Math.min(y0,p[i+1]);y1=Math.max(y1,p[i+1])}
-    const bw=x1-x0,bh=y1-y0;let pl='';for(let y=y0+12;y<y1-2;y+=12)pl+=`<rect x="${x0}" y="${y}" width="${bw}" height="3" fill="${d}"/>`;
-    const cx=PCEN[k][0],cy=PCEN[k][1];
-    return `<g pointer-events="none"><g clip-path="url(#${id}c${k})"><rect x="${x0}" y="${y0}" width="${bw}" height="${bh}" fill="${c}"/>${pl}<rect x="${x0}" y="${y0}" width="${bw}" height="4" fill="${h}"/><rect x="${x0}" y="${y0}" width="4" height="${bh}" fill="${h}" opacity=".55"/><rect x="${x1-5}" y="${y0}" width="5" height="${bh}" fill="${d}" opacity=".8"/></g>${U(k)} fill="none" stroke="${_INK}" stroke-width="4" stroke-linejoin="miter"/><rect x="${cx-3}" y="${cy-3}" width="6" height="6" fill="${_INK}"/><rect x="${cx-2}" y="${cy-2}" width="4" height="4" fill="${h}"/></g>`}).join('')+
-    (zc.head!=null?`<g pointer-events="none"><rect x="100" y="22" width="40" height="18" fill="${_INK}"/><rect x="102" y="24" width="36" height="14" fill="#14204a"/><rect x="106" y="29" width="28" height="4" fill="#7fe3ff"/></g>`:'');
-  const det=`<g pointer-events="none">${zc.head!=null?'':`<g fill="${_INK}"><rect x="108" y="26" width="8" height="10"/><rect x="124" y="26" width="8" height="10"/><rect x="112" y="46" width="16" height="4"/></g><g fill="#fff"><rect x="109" y="27" width="3" height="3"/><rect x="125" y="27" width="3" height="3"/></g>`}${zc.abdomen!=null?'':`<rect x="118" y="172" width="4" height="4" fill="${_INK}"/>`}</g>`;
+    const bw=x1-x0,bh=y1-y0,R=(a,b,w,hh,f,op)=>`<rect x="${a}" y="${b}" width="${w}" height="${hh}" fill="${f}"${op?` opacity="${op}"`:''}/>`;let pt='',ex='';
+    const hs=[...k].reduce((t,ch)=>t+ch.charCodeAt(0),0);
+    if(A.s==='piastre'){for(let y=y0+12;y<y1-2;y+=12)pt+=R(x0,y,bw,3,d)}
+    else if(A.s==='maglia'){for(let y=y0,r=0;y<y1;y+=6,r++)for(let x=x0+(r%2?3:0);x<x1;x+=6)pt+=R(x,y,3,3,d)}
+    else if(A.s==='cuoio'){pt+=R(x0+bw/2-1,y0,2,bh,d)+R(x0,y1-5,bw,5,d);for(let y=y0+4;y<y1-6;y+=8)pt+=R(x0+5,y,2,4,h)+R(x1-7,y,2,4,h)}
+    else if(A.s==='stoffa'){for(let x=x0+5;x<x1-2;x+=9)pt+=R(x,y0,3,bh,d,.55);pt+=R(x0,y1-4,bw,4,d)+R(x0,y0+4,bw,2,h,.6)}
+    else if(A.s==='tattico'){for(let n=0;n<4;n++)pt+=R(x0+((hs*7+n*23)%Math.max(1,bw-10)),y0+((hs*5+n*17)%Math.max(1,bh-8)),10,8,d,.7);pt+=R(x0+4,y0+bh/2-1,bw-8,3,h,.5)}
+    else if(A.s==='tech'){pt+=R(x0+4,y0+8,bw-8,2,h,.85)+R(x0+bw/2-1,y0+8,2,bh-12,h,.85)+R(x0+bw/2-3,y0+bh/2-3,6,6,h)+R(x0+3,y1-8,6,3,h,.85)+R(x1-9,y1-8,6,3,h,.85)}
+    else if(A.s==='scaglie'){for(let y=y0,r=0;y<y1;y+=7,r++)for(let x=x0+(r%2?4:0)-4;x<x1;x+=8){const a=Math.max(x,x0),b=Math.min(x+6,x1);if(b>a)pt+=R(a,y,b-a,5,d)+R(a,y,b-a,2,h,.7)}}
+    const hi=A.s==='stoffa'||A.s==='scaglie'?'':R(x0,y0,bw,4,h)+R(x0,y0,4,bh,h,.55);
+    const cx=PCEN[k][0],cy=PCEN[k][1],riv=(A.s==='piastre'||A.s==='cuoio'||A.s==='tattico')?R(cx-3,cy-3,6,6,_INK)+R(cx-2,cy-2,4,4,h):'';
+    if(k==='abdomen'&&(A.s==='cuoio'||A.s==='tattico'))ex+=R(88,150,64,8,_INK)+R(90,152,60,4,A.s==='cuoio'?'#5a3a1c':'#2d3a2a')+R(114,148,12,12,_INK)+R(117,151,6,6,'#e0b100');
+    if(k==='torso'&&A.s==='tech')ex+=R(114,106,12,12,_INK)+R(116,108,8,8,'#7fe3ff')+R(119,111,2,2,'#fff');
+    if(k==='torso'&&A.s==='piastre')ex+=R(116,92,8,40,d,.7)+R(118,92,4,40,h,.5);
+    if(k==='torso'&&A.s==='stoffa')ex+=R(112,82,16,22,d,.45);
+    if(k==='torso'&&A.s==='scaglie')ex+=R(92,84,56,4,h,.5);
+    return `<g pointer-events="none"><g clip-path="url(#${id}c${k})">${R(x0,y0,bw,bh,c)}${pt}${hi}${R(x1-5,y0,5,bh,d,.8)}${ex}</g>${U(k)} fill="none" stroke="${_INK}" stroke-width="4" stroke-linejoin="miter"/>${riv}</g>`}).join('')+
+    (zc.head!=null?(()=>{const A=AS[zc.head],R=(a,b,w,hh,f)=>`<rect x="${a}" y="${b}" width="${w}" height="${hh}" fill="${f}"/>`;
+      if(A.s==='piastre'||A.s==='tattico'||A.s==='tech')return `<g pointer-events="none">${R(100,22,40,18,_INK)}${R(102,24,36,14,A.s==='tech'?'#0a1030':'#14204a')}${R(106,29,28,4,A.s==='tattico'?'#9fe3a0':'#7fe3ff')}${A.s==='piastre'?R(118,8,4,14,A.h):''}</g>`;
+      if(A.s==='scaglie')return `<g pointer-events="none">${R(92,8,8,16,_INK)}${R(94,10,4,12,A.h)}${R(140,8,8,16,_INK)}${R(142,10,4,12,A.h)}</g>`;
+      if(A.s==='stoffa'||A.s==='cuoio')return `<g pointer-events="none">${R(100,18,40,6,_INK)}${R(102,19,36,3,A.h)}</g>`;
+      return ''})():'');
+  const hv=zc.head!=null&&['piastre','tattico','tech'].includes(AS[zc.head].s);
+  const det=`<g pointer-events="none">${hv?'':`<g fill="${_INK}"><rect x="108" y="26" width="8" height="10"/><rect x="124" y="26" width="8" height="10"/><rect x="112" y="46" width="16" height="4"/></g><g fill="#fff"><rect x="109" y="27" width="3" height="3"/><rect x="125" y="27" width="3" height="3"/></g>`}${zc.abdomen!=null?'':`<rect x="118" y="172" width="4" height="4" fill="${_INK}"/>`}</g>`;
   const br=`<g style="stroke:var(--acc);stroke-width:3px;fill:none;opacity:.75" pointer-events="none"><path d="M4 22V4H22"/><path d="M236 22V4H218"/><path d="M4 386V404H22"/><path d="M236 386V404H218"/></g>`;
   const marks=PARTS.map(([k])=>(w[k]||0)>0?_wmark(w[k],PCEN[k][0],PCEN[k][1]):'').join('')+
     PARTS.map(([k])=>{if(!(dm[k]>0))return '';const lv=w[k]||0,cx=PCEN[k][0],by=PCEN[k][1]+(lv>0?(lv>=3?16:10):-7);
@@ -993,7 +1036,7 @@ async function composeMsg(pre,from){
 }
 async function woundDlg(id,parts){
   parts=[].concat(parts).filter(k=>PN[k]);const p=S.players[id];if(!p||!parts.length)return;
-  const N=parts.length,v=vit(p),aP=Object.fromEntries(parts.map(k=>[k,armorFor(p,k)])),arm=Math.max(0,...Object.values(aP)),armTxt=Object.values(aP).every(x=>x===aP[parts[0]])?'−'+arm+' danni'+(N>1?' per colpo/zona':''):parts.map(k=>PN[k]+' −'+aP[k]).join(', '),w0=p.wounds||{},cur=Math.max(...parts.map(k=>w0[k]||0)),allH=parts.every(k=>!(w0[k]>0));
+  const N=parts.length,v=vit(p),aP=Object.fromEntries(parts.map(k=>[k,armorFor(p,k)])),arm=Math.max(0,...Object.values(aP)),armTxt=Object.values(aP).every(x=>x===aP[parts[0]])?'−'+arm+' danni'+(N>1?' per colpo/zona':''):parts.map(k=>PN[k]+' −'+aP[k]).join(', '),w0=p.wounds||{},hd=parts.reduce((t,k)=>t+(w0[k]>0?((p.woundDmg||{})[k]||0):0),0),cur=Math.max(...parts.map(k=>w0[k]||0)),allH=parts.every(k=>!(w0[k]>0));
   const res=await new Promise(res=>{
     const m=document.createElement('div');m.className='modal';
     m.innerHTML=`<div style="max-height:92vh;overflow:auto"><h3>🩹 ${N===1?esc(PN[parts[0]]):N+' zone'} di ${esc(p.username)}</h3>${sil(Object.fromEntries(parts.map(k=>[k,cur||1])),false,{hl:parts,w:120})}
@@ -1002,7 +1045,7 @@ async function woundDlg(id,parts){
     <div data-w="hit"><label class="mut">Danni subiti (HP persi: si sottraggono subito agli HP)</label><input name="dmg" type="number" min="0" value="0" inputmode="numeric">
     ${N>1?`<label class="mut">Come applicare i danni</label><select name="mode"><option>a ogni zona</option><option>totali, divisi tra le zone</option></select>`:''}
     ${arm>0?`<label class="row" style="margin:6px 0"><input type="checkbox" name="arm" checked style="width:auto;margin:0">Applica armatura (🛡️ ${armTxt})</label>`:''}</div>
-    <div data-w="heal" style="display:none"><label class="mut">HP recuperati con la guarigione (0 = nessuno)</label><input name="heal" type="number" min="0" value="0" inputmode="numeric"></div>
+    <div data-w="heal" style="display:none"><label class="mut">HP recuperati con la guarigione (di default i danni delle ferite curate: ${hd})</label><input name="heal" type="number" min="0" value="${hd}" inputmode="numeric"></div>
     <div name="pv" class="pill" style="display:block;text-align:center;margin:8px 0;white-space:normal"></div>
     <label class="mut">Nota per il player (opzionale)</label><textarea name="note" rows="2"></textarea>
     <div class="row"><button class="g grow" data-x>Annulla</button><button class="grow" data-ok>Segnala</button></div></div>`;
