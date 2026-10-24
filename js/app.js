@@ -2566,14 +2566,14 @@ const mapBoard=M=>{
     if(!m||m.pub===false)return hdr('🗺️ Mappa',1)+list;
     const key=mapSel+'|'+m.ts;if(mpPKey!==key||!PMP){PMP=mpFromDoc(m);mpPKey=key}
     const mine=p&&p.mpos&&p.mpos[mapSel];
-    return hdr('🗺️ '+esc(m.name),1)+`<div id="mpfs" class="${mpFull?'mpfull'+(mpFullTools?' tools':''):''}"><div class="card cvcard">${zoomBar()}<div class="mapwrap" id="mapwrap"><canvas id="mapcv" class="mapcv" style="width:${mpCvW()};cursor:crosshair"></canvas></div><p class="mut" style="margin:8px 0">Tocca la mappa per segnare dove si trova il tuo personaggio.</p><div class="row" style="flex-wrap:wrap;gap:8px">${mine?'<button class="g" id="mapunpin">Rimuovi il mio segnalino</button>':''}<button class="g" id="mapclose">‹ Altre mappe</button></div></div></div>`+list;
+    return hdr('🗺️ '+esc(m.name),1)+`<div id="mpfs" class="${mpFull?'mpfull'+(mpFullTools?' tools':''):''}"><div class="card cvcard">${zoomBar()}<div class="mapwrap" id="mapwrap"><canvas id="mapcv" class="mapcv" style="width:${mpCvW()};touch-action:none;cursor:crosshair"></canvas></div><p class="mut" style="margin:8px 0">Tocca la mappa per segnare dove si trova il tuo personaggio.</p><div class="row" style="flex-wrap:wrap;gap:8px">${mine?'<button class="g" id="mapunpin">Rimuovi il mio segnalino</button>':''}<button class="g" id="mapclose">‹ Altre mappe</button></div></div></div>`+list;
   }
   if(!MP)MP=mpGenerate({...mapNorm(MAPCFG),pal:'classica'});
   const c=mapNorm(MAPCFG),sl=MAP_SL[c.type]||[],cur=mapSel&&S.maps[mapSel],
   landUI=(c.type==='terra'||c.type==='isola')?`<label class="mut" style="margin-top:10px">Forma della terra</label><div class="chips">${LANDS.map(([k,l])=>`<button class="chipb ${c.land===k?'sel':''}" data-ld="${k}">${l}</button>`).join('')}</div><p class="mut" style="margin:6px 0 0">${esc((LANDS.find(l=>l[0]===c.land)||LANDS[0])[2])}. Regola poi la quantità di acqua qui sotto.</p>`:'';
   return hdr('🗺️ '+(cur?esc(cur.name):'Editor mappe'),1)+
   `<div id="mpfs" class="${mpFull?'mpfull'+(mpFullTools?' tools':''):''}"><div class="card toolcard"><div class="chips">${MTOOLS.map(([k,i,l])=>`<button class="chipb ${mpTool===k?'sel':''}" data-mtl="${k}">${i} ${l}</button>`).join('')}</div><div class="row" style="flex-wrap:wrap;gap:6px;margin-top:10px"><button class="g mini" id="mpu" ${mpHist.length?'':'disabled'}>↶ Annulla</button><button class="g mini" id="mpr" ${mpRedo.length?'':'disabled'}>↷ Ripeti</button><button class="mini" id="mpquick">🎲 Mappa casuale</button><span class="grow"></span><span class="mut" id="mpstat">${mpStat()}</span></div></div>`+
-  `<div class="card cvcard">${zoomBar()}<div class="mapwrap" id="mapwrap"><canvas id="mapcv" class="mapcv" style="width:${mpCvW()};touch-action:${mpTool==='pan'?'auto':'none'};cursor:${mpTool==='pan'?'grab':'crosshair'}"></canvas></div></div>`+
+  `<div class="card cvcard">${zoomBar()}<div class="mapwrap" id="mapwrap"><canvas id="mapcv" class="mapcv" style="width:${mpCvW()};touch-action:none;cursor:${mpTool==='pan'?'grab':'crosshair'}"></canvas></div></div>`+
   '<div class="mpopts">'+mpOptions()+'</div></div>'+
   `<details class="card" id="dset" ${mpOpenD.set?'open':''}><summary>⚙️ Impostazioni mappa</summary><label class="mut">Palette</label><select id="mppal">${Object.keys(PAL).map(k=>`<option value="${k}" ${MP.pal===k?'selected':''}>${k[0].toUpperCase()+k.slice(1)}</option>`).join('')}</select><label class="mut">Dimensione (quadretti)</label><select id="mpsize">${sizeOpts(MP.n)}</select><div class="row"><div class="grow"><label class="mut">Scala: 1 quadretto = (0 = nascosta)</label><input id="mpscale" type="number" min="0" step="any" value="${MP.scale}" style="margin:0"></div><div><label class="mut">Unità</label><select id="mpunit" style="margin:0">${UNITS.map(u=>`<option ${MP.unit===u?'selected':''}>${u}</option>`).join('')}</select></div></div>${chk('mpgrid','Griglia',MP.grid)}${chk('mppub','Visibile ai player',MP.pub!==false)}</details>`+
   `<details class="card" id="dgen" ${mpOpenD.gen?'open':''}><summary>🎲 Generatore casuale</summary><p class="mut">Crea una base da cui partire: poi ritoccala con pennello e oggetti.</p><div class="chips">${MAP_TYPES.filter(t=>t[0]!=='isola').map(([k,l])=>`<button class="chipb ${(c.type===k||(k==='terra'&&c.type==='isola'))?'sel':''}" data-mt="${k}">${l}</button>`).join('')}</div><label class="mut" style="margin-top:8px">Seme (stesso seme = stessa mappa)</label><div class="row"><input id="mapseed" value="${esc(c.seed)}" style="margin:0"><button class="g" id="mapdice" title="Seme casuale">🎲</button></div>${landUI}<div class="row" style="margin-top:10px"><div class="grow"><label class="mut">Dimensione</label><select id="mapgsize">${sizeOpts(c.size)}</select></div><div class="grow"><label class="mut">Forma del riquadro</label><select id="mapgshape">${SHAPES.map(([k,l])=>`<option value="${k}" ${c.shape===k?'selected':''}>${l}</option>`).join('')}</select></div></div>${sl.map(([k,l,a,b])=>`<div style="margin-top:6px"><div class="row sp"><span>${l}</span><b id="mv-${k}">${c[k]}</b></div><input type="range" data-mk="${k}" min="${a}" max="${b}" value="${c[k]}"></div>`).join('')}<div class="row" style="margin-top:12px;flex-wrap:wrap;gap:8px"><button id="mapgen">⚡ Genera</button><button class="g" id="mapnew">🎲 Nuova casuale</button></div></details>`+
@@ -2589,12 +2589,57 @@ function mapInit(){
   const w=q('mapwrap'),mp=M?MP:PMP;
   if(!mp)return;
   /* zoom + scroll */
-  const zs=[1,1.5,2,3,4,6];
-  const zoomBy=d=>{const i=Math.max(0,Math.min(zs.length-1,zs.indexOf(mpZoom)+d));if(zs[i]===mpZoom)return;mpFocus={fx:(w.scrollLeft+w.clientWidth/2)/w.scrollWidth,fy:(w.scrollTop+w.clientHeight/2)/w.scrollHeight};mpZoom=zs[i];render()};
+  /* zoom fluido: rotellina/trackpad + pizzico a due dita, senza ridisegnare (il canvas cambia solo larghezza) */
+  const zMin=1,zMax=8;let zHook=null,noClick=0;
+  const zApply=(z,cx,cy)=>{
+    z=Math.max(zMin,Math.min(zMax,z));if(Math.abs(z-mpZoom)<1e-4)return;
+    const r=cv.getBoundingClientRect(),fx=(cx-r.left)/r.width,fy=(cy-r.top)/r.height;
+    mpZoom=z;cv.style.width=mpCvW();
+    const r2=cv.getBoundingClientRect();
+    w.scrollLeft+=r2.left+fx*r2.width-cx;w.scrollTop+=r2.top+fy*r2.height-cy;
+    mpScroll={l:w.scrollLeft,t:w.scrollTop};
+    const pl=document.querySelector('.zbar .pill');if(pl)pl.textContent='🔍 '+Math.round(mpZoom*100)+'%';
+    if(zHook)zHook();
+  };
+  const zoomBy=d=>{const r=w.getBoundingClientRect();zApply(mpZoom*(d>0?1.5:1/1.5),r.left+r.width/2,r.top+r.height/2)};
+  w.addEventListener('wheel',e=>{
+    e.preventDefault();
+    const k=e.deltaMode===1?33:e.deltaMode===2?400:1,dy=Math.max(-120,Math.min(120,e.deltaY*k));
+    zApply(mpZoom*Math.exp(-dy*(e.ctrlKey?.01:.0018)),e.clientX,e.clientY);
+  },{passive:false});
+  /* dita: 1 dito = sposta la mappa, 2 dita = pizzica per ingrandire/rimpicciolire (player sempre; master con lo strumento «Muovi»).
+     Con il mouse (solo player) si trascina per spostarsi. */
+  if(!M||mpTool==='pan'){
+    w.style.touchAction='none';
+    const tp=new Map();let pz=null,pn=null;
+    const cen=()=>{const [a,b]=[...tp.values()];return {x:(a.x+b.x)/2,y:(a.y+b.y)/2,d:Math.hypot(a.x-b.x,a.y-b.y)||1}};
+    w.addEventListener('pointerdown',e=>{
+      const ok=e.pointerType==='touch'||(!M&&e.pointerType==='mouse'&&e.button===0);if(!ok)return;
+      tp.set(e.pointerId,{x:e.clientX,y:e.clientY,x0:e.clientX,y0:e.clientY});
+      if(tp.size===1)pn={l:w.scrollLeft,t:w.scrollTop,x:e.clientX,y:e.clientY};
+      else if(tp.size===2){const c=cen();pz={z:mpZoom,d:c.d,x:c.x,y:c.y};pn=null;noClick=Date.now()+500}
+    });
+    w.addEventListener('pointermove',e=>{
+      const t=tp.get(e.pointerId);if(!t)return;t.x=e.clientX;t.y=e.clientY;
+      if(tp.size>=2&&pz){
+        const c=cen();w.scrollLeft+=pz.x-c.x;w.scrollTop+=pz.y-c.y;pz.x=c.x;pz.y=c.y;
+        zApply(pz.z*c.d/pz.d,c.x,c.y);noClick=Date.now()+500;
+      }else if(pn&&tp.size===1){
+        if(Math.hypot(e.clientX-t.x0,e.clientY-t.y0)>6)noClick=Date.now()+300;
+        w.scrollLeft=pn.l-(e.clientX-pn.x);w.scrollTop=pn.t-(e.clientY-pn.y);
+      }
+    });
+    const end=e=>{
+      if(!tp.delete(e.pointerId))return;
+      pz=null;if(Date.now()<noClick)noClick=Date.now()+300;
+      if(tp.size===1){const [t]=[...tp.values()];pn={l:w.scrollLeft,t:w.scrollTop,x:t.x,y:t.y}}else pn=null;
+    };
+    ['pointerup','pointercancel','pointerleave'].forEach(n=>w.addEventListener(n,end));
+  }
   if(q('mpzo'))q('mpzo').onclick=()=>zoomBy(-1);if(q('mpzi'))q('mpzi').onclick=()=>zoomBy(1);
   if(q('mpfsb'))q('mpfsb').onclick=()=>mpFullSet(!mpFull);
   if(q('mpfst'))q('mpfst').onclick=()=>{mpFullTools=!mpFullTools;mpScroll=null;render()};
-  if(!zs.includes(mpZoom))mpZoom=1;
+  mpZoom=Math.max(zMin,Math.min(zMax,+mpZoom||1));
   mpEnsure(mp);
   if(mpFocus){w.scrollLeft=mpFocus.fx*w.scrollWidth-w.clientWidth/2;w.scrollTop=mpFocus.fy*w.scrollHeight-w.clientHeight/2;mpFocus=null;mpScroll={l:w.scrollLeft,t:w.scrollTop}}
   else if(mpScroll){w.scrollLeft=mpScroll.l;w.scrollTop=mpScroll.t}
@@ -2602,7 +2647,7 @@ function mapInit(){
   const pt=e=>{const r=cv.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*mp.n,y=(e.clientY-r.top)/r.height*mp.n,t=v=>Math.min(mp.n-1,Math.max(0,Math.floor(v)));return {x,y,tx:t(x),ty:t(y)}};
   if(!M){
     mpDraw(cv,mp,false,null,mapMarks(false));
-    cv.onclick=e=>{const p=pt(e);if(mp.ter[p.ty*mp.n+p.tx]===18)return toast('Fuori dalla mappa');const me_=me();if(me_){SND.play('pin',1);guard(db.collection('players').doc(uid).update({mpos:{...(me_.mpos||{}),[mapSel]:{x:p.tx,y:p.ty}}}))}};
+    cv.onclick=e=>{if(Date.now()<noClick)return;const p=pt(e);if(mp.ter[p.ty*mp.n+p.tx]===18)return toast('Fuori dalla mappa');const me_=me();if(me_){SND.play('pin',1);guard(db.collection('players').doc(uid).update({mpos:{...(me_.mpos||{}),[mapSel]:{x:p.tx,y:p.ty}}}))}};
     const up=q('mapunpin');if(up)up.onclick=()=>{const p=me(),o={...((p&&p.mpos)||{})};delete o[mapSel];guard(db.collection('players').doc(uid).update({mpos:o}))};
     const cl=q('mapclose');if(cl)cl.onclick=()=>{mapSel=null;mpScroll=null;render()};
     return;
@@ -2621,7 +2666,7 @@ function mapInit(){
   const redraw=()=>mpDraw(cv,mp,true,ov(),mapMarks(true));
   const rd=()=>{if(!raf)raf=requestAnimationFrame(()=>{raf=0;redraw()})};
   const stat=()=>{const s=q('mpstat');if(s)s.textContent=mpStat()};
-  redraw();
+  redraw();zHook=rd;
   const paint=(x,y,sz)=>{
     let a=1e9,b=1e9,c2=-1,d2=-1;
     mpDab(mp.n,x,y,sz||mpBr,mpBrShape,(i,j)=>{const k=j*mp.n+i;if(mpTool==='fog')mp.fog[k]=mpFogMode==='hide'?1:0;else mp.ter[k]=mpTer;if(i<a)a=i;if(i>c2)c2=i;if(j<b)b=j;if(j>d2)d2=j});
