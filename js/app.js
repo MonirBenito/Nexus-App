@@ -2592,10 +2592,11 @@ function mpPopulate(mp,c,d,rnd){
 
 function mpBlank(n,base){const k={mare:0,erba:3,neve:7,pavimento:9}[base]??3,ter=new Uint8Array(n*n).fill(k);return {n,ter,fog:new Uint8Array(n*n),fogOn:false,objs:[],pal:'classica',grid:false,scale:0,unit:'m',gt:'terra',hs:hashSeed('b'+n+base),pub:true}}
 function mpToDoc(mp){
-  return JSON.parse(JSON.stringify({v:2,n:mp.n,ter:rleEnc(mp.ter),fog:rleEnc(mp.fog),fogOn:!!mp.fogOn,objs:mp.objs,pal:mp.pal,grid:!!mp.grid,scale:mp.scale||0,unit:mp.unit,gt:mp.gt,hs:mp.hs|0,pub:mp.pub!==false,bg:mp.bg||'',cfg:{type:mp.gt,size:mp.n}}));
+  return JSON.parse(JSON.stringify({v:2,n:mp.n,ter:rleEnc(mp.ter),fog:rleEnc(mp.fog),fogOn:!!mp.fogOn,objs:mp.objs,pal:mp.pal,grid:!!mp.grid,scale:mp.scale||0,unit:mp.unit,gt:mp.gt,hs:mp.hs|0,pub:mp.pub!==false,bg:mp.bg||'',cp:PALX[mp.pal]||undefined,cfg:{type:mp.gt,size:mp.n}}));
 }
 function mpFromDoc(m){
   if(m&&m.v===2){
+    if(m.cp&&String(m.pal).startsWith('foto-'))palReg(m.pal,m.cp);
     const n=Math.min(192,Math.max(8,parseInt(m.n)||48));
     return {n,ter:rleDec(m.ter,n*n,3),fog:rleDec(m.fog,n*n,0),fogOn:!!m.fogOn,objs:(m.objs||[]).filter(o=>o&&(o.k==='testo'||STM[o.k])).map(o=>({...o,id:o.id||uid8()})),pal:PAL[m.pal]?m.pal:'classica',grid:!!m.grid,scale:+m.scale||0,unit:UNITS.includes(m.unit)?m.unit:'m',gt:m.gt||'terra',hs:m.hs||1,pub:m.pub!==false,bg:typeof m.bg==='string'?m.bg.slice(0,800):''};
   }
@@ -2730,6 +2731,13 @@ async function mpPhotoPrep(file,fit){
    La foto viene letta a campioni, ogni campione è riconosciuto come il terreno dal colore più vicino (spazio Lab)
    e ogni quadretto prende il terreno più votato. Poi: pulizia dei quadretti isolati, case al posto dei tetti,
    alberi/montagne/colline sparsi dove il terreno li suggerisce. Palette e tipo di mappa si scelgono da soli (o a mano). */
+/* palette personalizzate «dalla foto»: si salvano nel documento mappa (campo cp) e si registrano al caricamento */
+const PALX={},PH_PALS=['classica','autunno','neve','deserto','vulcano'];
+function palReg(key,cp){
+  if(!/^foto-[a-z0-9]{1,12}$/.test(key)||!cp||typeof cp!=='object')return false;
+  const ok=/^#[0-9a-f]{6}$/i,o={};for(const k in cp)if(PAL.classica[k]&&ok.test(cp[k]))o[k]=cp[k];
+  PALX[key]=o;if(!PAL[key]){PAL[key]={...PAL.classica,...o};delete COLC[key]}return true;
+}
 const PH_SETS={terra:[0,1,2,3,4,5,6,7,17,8,13,12,20,21],dungeon:[9,15,14,10,11,12,19,0,1,8],citta:[0,1,2,3,4,5,8,13,9,15,14,10,19,16,20,21]};
 const PH_SETL={terra:'terre e mari',dungeon:'dungeon / interni',citta:'città / villaggio'},PH_BIAS={terra:1,dungeon:1.03,citta:1.06},PH_KIND={'terre e mari':'terra','dungeon / interni':'dungeon','città / villaggio':'citta'};
 const phLab=(()=>{
@@ -2747,6 +2755,52 @@ function phClassifier(pal,set){
     return cache[q]=bk;
   };
 }
+/* ---- riconoscimento che si adatta ai colori della foto (mappe dipinte, pergamena, stili diversi dalla palette) ----
+   1) raggruppa i colori della foto (k-means in Lab)  2) assegna ogni gruppo al terreno che gli somiglia per TINTA (blu = acqua, verde = erba…),
+   con luminosità e croma pesati poco  3) ogni pixel prende il terreno del gruppo più vicino. */
+function phKmeans(S,k,rnd){
+  const d2=(a,b)=>(a[0]-b[0])**2+(a[1]-b[1])**2+(a[2]-b[2])**2,C=[S[Math.floor(rnd()*S.length)].slice()],near=new Float64Array(S.length).fill(1e18);
+  while(C.length<k){
+    let sum=0;const c=C[C.length-1];for(let i=0;i<S.length;i++){const d=d2(S[i],c);if(d<near[i])near[i]=d;sum+=near[i]}
+    if(sum<=0)break;let r=rnd()*sum,i=0;for(;i<S.length-1;i++){r-=near[i];if(r<=0)break}C.push(S[i].slice());
+  }
+  const cnt=new Float64Array(C.length);
+  for(let it=0;it<10;it++){
+    const A=C.map(()=>[0,0,0,0]);
+    for(const s of S){let b=0,bd=1e18;for(let j=0;j<C.length;j++){const d=d2(s,C[j]);if(d<bd){bd=d;b=j}}const t=A[b];t[0]+=s[0];t[1]+=s[1];t[2]+=s[2];t[3]++}
+    A.forEach((t,j)=>{cnt[j]=t[3];if(t[3])C[j]=[t[0]/t[3],t[1]/t[3],t[2]/t[3]]});
+  }
+  return C.map((c,j)=>({lab:c,n:cnt[j]})).filter(c=>c.n>0);
+}
+function phSem(c,p,rc,rp){
+  const Lc=(c[0]*.5+(rp[0]+(c[0]-rc[0])/Math.max(10,rc[1]-rc[0])*(rp[1]-rp[0]))*.5),Cc=Math.hypot(c[1],c[2]),Cp=Math.hypot(p[1],p[2]);
+  let dh=Math.abs(Math.atan2(c[2],c[1])-Math.atan2(p[2],p[1]));if(dh>Math.PI)dh=2*Math.PI-dh;
+  if(Cc<8||Cp<8)dh=(Cc<8&&Cp<8)?0:1.2; /* un colore neutro (neve, roccia) non ha una tinta: un colore tinto non gli somiglia */
+  const m=Math.max(Cc,Cp);return 45*(m/(m+12))*dh+.8*Math.abs(Cc-Cp)+.55*Math.abs(Lc-p[0]);
+}
+function phAdapt(px,kind){
+  const Z=1024,S=[];
+  for(let y=7;y<Z;y+=14)for(let x=7;x<Z;x+=14){const p=(y*Z+x)*4;if(px[p+3]>=128)S.push(phLab(px[p],px[p+1],px[p+2]))}
+  if(S.length<60)return null;
+  const Ls=S.map(s=>s[0]).sort((a,b)=>a-b),rc=[Ls[Math.floor(Ls.length*.03)],Ls[Math.floor(Ls.length*.97)]];
+  const K=phKmeans(S,Math.min(12,Math.max(3,Math.floor(S.length/200))),mulberry32(hashSeed('km'))),tot=K.reduce((a,c)=>a+c.n,0);
+  const avL=S.reduce((a,c)=>a+c[0],0)/S.length,avC=S.reduce((a,c)=>a+Math.hypot(c[1],c[2]),0)/S.length;
+  const cands=PH_SETS[kind]?[kind]:(avL<60&&avC<22?['terra','citta','dungeon']:['terra','citta']); /* «dungeon» solo se la foto è scura e quasi senza colore */
+  const BI={terra:1,citta:1.5,dungeon:1.1};let best=null;
+  for(const sk of cands){
+    const L=phPalLab('classica',PH_SETS[sk].filter(k=>k!==17)),Ln=L.map(q=>q[1][0]),rp=[Math.min(...Ln),Math.max(...Ln)];
+    const as=K.map(c=>{if(sk!=='dungeon'&&c.lab[2]<-8&&Math.hypot(c.lab[1],c.lab[2])>=10)return {k:c.lab[0]<45?0:1,d:0,n:c.n};/* i colori bluastri sono sempre acqua (scura = profonda) */let b=L[0][0],bd=1e18;for(const [k,p] of L){let d=phSem(c.lab,p,rc,rp);if(sk!=='dungeon'&&(k===8||k===14||k===15)&&c.n/tot>.08)d+=30;/* strade e sentieri sono sottili: un colore molto esteso è terreno */if(d<bd){bd=d;b=k}}return {k:b,d:bd,n:c.n}});
+    const srt=as.slice().sort((a,b)=>a.d-b.d);let mass=0,cost=0;for(const a of srt){if(mass>=tot*.9)break;cost+=a.d*a.n;mass+=a.n}
+    cost=cost/Math.max(1,mass)*BI[sk];
+    /* «terre e mari» è la scelta di base: gli altri tipi solo se descrivono i colori molto meglio */if(!best||(best.cost>=5&&cost<best.cost*.6)||cands.length===1)best={sk,cost,as};
+  }
+  const cache=new Int8Array(32768).fill(-1);
+  const cls=(r,g,b)=>{const q=((r>>3)<<10)|((g>>3)<<5)|(b>>3);let v=cache[q];if(v>=0)return v;
+    const l=phLab(r|4,g|4,b|4);let bd=1e18,bk=best.as[0].k;
+    K.forEach((c,j)=>{const d=(l[0]-c.lab[0])**2+(l[1]-c.lab[1])**2+(l[2]-c.lab[2])**2;if(d<bd){bd=d;bk=best.as[j].k}});
+    return cache[q]=bk};
+  return {sk:best.sk,cls};
+}
 async function mpPhotoPixels(file,fit){
   const u=URL.createObjectURL(file);
   try{
@@ -2762,7 +2816,7 @@ async function mpPhotoPixels(file,fit){
 function phPick(px,n,kind,palWant){
   const Z=1024,cw=Z/n,st=Math.max(1,Math.floor(Math.sqrt(n*n/2200))),T=[];
   for(let cy=0;cy<n;cy+=st)for(let cx=0;cx<n;cx+=st){const p=(Math.floor((cy+.5)*cw)*Z+Math.floor((cx+.5)*cw))*4;if(px[p+3]>=128)T.push(phLab(px[p],px[p+1],px[p+2]))}
-  const pals=PAL[palWant]?[palWant]:Object.keys(PAL),sks=PH_SETS[kind]?[kind]:Object.keys(PH_SETS);
+  const pals=PH_PALS.includes(palWant)?[palWant]:PH_PALS,sks=PH_SETS[kind]?[kind]:Object.keys(PH_SETS);
   let best=1e18,bp=pals[0],bs=sks[0];
   for(const pal of pals)for(const sk of sks){
     const L=phPalLab(pal,PH_SETS[sk]),ds=[];
@@ -2773,7 +2827,11 @@ function phPick(px,n,kind,palWant){
   return {pal:bp,sk:bs};
 }
 async function mpPhotoRebuild(file,o){
-  const px=await mpPhotoPixels(file,o.fit),Z=1024,n=o.n,{pal,sk}=phPick(px,n,o.kind,o.pal),set=PH_SETS[sk],cls=phClassifier(pal,set);
+  const px=await mpPhotoPixels(file,o.fit),Z=1024,n=o.n;
+  let pal='classica',sk,cls;
+  if(o.custom){const ad=phAdapt(px,o.kind);if(ad){sk=ad.sk;cls=ad.cls}}
+  if(!cls){const pk=phPick(px,n,o.kind,o.pal);pal=pk.pal;sk=pk.sk;cls=phClassifier(pal,PH_SETS[sk])}
+  const set=PH_SETS[sk];
   const W=512,W2=W*W,p1=W/n,NN=n*n,cl=(v,a,b)=>Math.max(a,Math.min(b,v));
   /* 0) immagine di lavoro 512×512 (media 2×2): colore, classe di terreno più vicina, Lab */
   const R=new Uint8Array(W2),G=new Uint8Array(W2),B=new Uint8Array(W2),A=new Uint8Array(W2),PC=new Int8Array(W2),LB=new Float32Array(W2*3);
@@ -2891,10 +2949,13 @@ async function mpPhotoRebuild(file,o){
     const f=c.f,tc=t2[c.id],wat=tc===0||tc===1,X=c.cx/p1,Y=c.cy/p1,fp=c.fp;
     if(f.blue){if(!wat&&fp>=1.1)lakes.push(c);continue}
     if(wat){if(sk!=='dungeon'&&!f.green&&fp>=.8&&fp<=5)place.push(['nave',X,Y,cl(fp*1.1,1.8,4)]);continue}
+    const col=[c.r,c.g,c.b];
     if(f.gold&&fp<1.6){place.push(['baule',X,Y,.9]);continue}
     if(sk==='dungeon')continue;
-    if(c.tri&&fp>=1&&!f.green){place.push(['montagna',X,Y,cl(fp*1.15,1.6,5)]);continue}
-    if(f.green&&fp<2.4){place.push([(c.tri||c.fill<=.6)?'pino':'quercia',X,Y,cl(fp*1.15,.8,2.2)]);continue}
+    if(c.tri&&fp>=1&&!f.green){place.push(['montagna',X,Y,cl(fp*1.15,1.6,5),col]);continue}
+    if(f.green&&fp<2.4){place.push([(c.tri||c.fill<=.6)?'pino':'quercia',X,Y,cl(fp*1.15,.8,2.2),col]);continue}
+    /* grandi macchie compatte grigie/scure/rosse = città murata */
+    if(fp>=3&&fp<=8&&c.fill>=.5&&!c.tri&&(f.gray||f.dark||f.roof)){place.push(['citta',X,Y,cl(fp*1.1,3,8)]);continue}
     if(fp<3)bld.push(c);
   }
   /* edifici vicini tra loro = una città (stampo «Città» se il quartiere è compatto, altrimenti tante case) */
@@ -2902,7 +2963,7 @@ async function mpPhotoRebuild(file,o){
   const GD=Math.max(p1*2.4,16);
   groups(bld,GD,(a,b)=>Math.hypot(a.cx-b.cx,a.cy-b.cy)<=GD).forEach(g=>{
     const one=c=>{const f=c.f,X=c.cx/p1,Y=c.cy/p1,fp=c.fp;
-      if(f.roof)place.push([fp>=1.5?'casagrande':HK[Math.floor(Math.abs(c.cx*7+c.cy*3))%HK.length],X,Y,cl(fp*1.4,1,2.4)]);
+      if(f.roof)place.push([fp>=1.5?'casagrande':HK[Math.floor(Math.abs(c.cx*7+c.cy*3))%HK.length],X,Y,cl(fp*1.4,1,2.4),[c.r,c.g,c.b]]);
       else if(fp<1.3)place.push([f.dark?'citta':'torre',X,Y,f.dark?2.6:1.6]);
       else place.push(['castello',X,Y,cl(fp*1.2,2,4)])};
     if(g.length<3){g.forEach(one);return}
@@ -2953,21 +3014,36 @@ async function mpPhotoRebuild(file,o){
       }
     }
   }
+  /* 7) colori della foto: ogni terreno prende il colore medio che ha nella foto, così la mappa le somiglia davvero */
+  let palKey=pal;
+  if(o.custom){
+    const sum=new Float64Array(96),cn=new Float64Array(32);
+    for(let p=0;p<W2;p++){if(!A[p]||skip[p])continue;const c=PC[p];if(c<0||c!==ter[cY[(p/W)|0]*n+cX[p%W]])continue;sum[c*3]+=R[p];sum[c*3+1]+=G[p];sum[c*3+2]+=B[p];cn[c]++}
+    const KEY={0:'deep',1:'shallow',2:'sand',3:'grass',4:'forest',5:'hill',6:'mount',7:'snow',8:'road',9:'floor',10:'wall',11:'rock',15:'corr',16:'roof'},cp={};
+    const hex=(r,g,b)=>'#'+[r,g,b].map(v=>cl(Math.round(v),0,255).toString(16).padStart(2,'0')).join('');
+    for(const k in KEY)if(cn[k]>=20)cp[KEY[k]]=hex(sum[k*3]/cn[k],sum[k*3+1]/cn[k],sum[k*3+2]/cn[k]);
+    const avg=ks=>{const L=place.filter(q=>ks.includes(q[0])&&q[4]);return L.length>=2?hex(L.reduce((a,q)=>a+q[4][0],0)/L.length,L.reduce((a,q)=>a+q[4][1],0)/L.length,L.reduce((a,q)=>a+q[4][2],0)/L.length):''};
+    const tc=avg(['quercia','pino']),rc=avg(['casa','casa_o','casa_b','casa_g','casa_v','casa_w','casa_t','casagrande']),mc=avg(['montagna']);
+    if(tc)cp.tree=tc;else if(cp.forest)cp.tree=cp.forest;
+    if(rc&&!cp.roof)cp.roof=rc;if(mc&&!cp.mount)cp.mount=mc;
+    if(cp.shallow)cp.water=cp.shallow;
+    if(Object.keys(cp).length>=2){palKey='foto-'+hashSeed(JSON.stringify(cp)).toString(36);palReg(palKey,cp)}
+  }
   const sm={};objs.forEach(b=>sm[b.k]=(sm[b.k]||0)+1);
-  return {ter:t2,objs,pal,sk,sm,lines:lines.length,lakes:lakes.length};
+  return {ter:t2,objs,pal:palKey,sk,sm,lines:lines.length,lakes:lakes.length};
 }
 async function mpPhotoMap(){
   const r=await ask('📷 Mappa da foto',[
     {l:'Foto della mappa (JPG, PNG o WebP)',n:'photo',t:'file'},
     {l:'Cosa fare',n:'mode',t:'select',o:['ricrea la mappa (terreni e oggetti)','tieni la foto come sfondo']},
     {l:'Tipo di mappa (aiuta a riconoscere i terreni)',n:'kind',t:'select',o:['automatico','terre e mari','dungeon / interni','città / villaggio']},
-    {l:'Palette colori',n:'pal',t:'select',o:['automatica',...Object.keys(PAL)]},
+    {l:'Colori',n:'pal',t:'select',o:['dalla foto (consigliato)','palette app: automatica',...PH_PALS]},
     {l:'Quantità di oggetti (alberi, case, montagne…)',n:'obj',t:'select',o:['nessuno','pochi','normali','molti']},
     {l:'Adattamento al quadrato',n:'fit',t:'select',o:['intera (bordi scuri)','riempi (ritaglia)']},
     {l:'Dimensione (quadretti): più grande = più fedele',n:'sz',t:'select',o:SIZES.map(x=>sizeLbl(x[0]))}
-  ],{mode:'ricrea la mappa (terreni e oggetti)',kind:'automatico',pal:'automatica',obj:'normali',fit:'intera (bordi scuri)',sz:sizeLbl(64)},'Crea');
+  ],{mode:'ricrea la mappa (terreni e oggetti)',kind:'automatico',pal:'dalla foto (consigliato)',obj:'normali',fit:'intera (bordi scuri)',sz:sizeLbl(96)},'Crea');
   if(!r)return;if(!r.photo)return toast('Scegli prima una foto');
-  const n=parseInt(r.sz)||64,fit=r.fit.startsWith('riempi')?'riempi':'intera';
+  const n=parseInt(r.sz)||96,fit=r.fit.startsWith('riempi')?'riempi':'intera';
   if(r.mode.startsWith('tieni')){ /* modalità precedente: la foto resta come sfondo e ci si disegna sopra */
     if(!assets)return toast('Upload non disponibile');
     toast('Carico la foto…');
@@ -2978,11 +3054,11 @@ async function mpPhotoMap(){
     toast('Foto caricata: ora modificala e salvala');return;
   }
   toast('Analizzo la foto e ricreo la mappa…');await new Promise(z=>setTimeout(z,50));
-  let g;try{g=await mpPhotoRebuild(r.photo,{n,fit,kind:PH_KIND[r.kind]||'',pal:r.pal,obj:r.obj})}catch(e){console.warn('foto-mappa',e);return toast('Foto non leggibile')}
+  let g;try{g=await mpPhotoRebuild(r.photo,{n,fit,kind:PH_KIND[r.kind]||'',pal:r.pal,custom:r.pal.startsWith('dalla'),obj:r.obj})}catch(e){console.warn('foto-mappa',e);return toast('Foto non leggibile')}
   MP={n,ter:g.ter,fog:new Uint8Array(n*n),fogOn:false,objs:g.objs,pal:g.pal,grid:false,scale:0,unit:'m',gt:g.sk,hs:hashSeed('p'+Date.now()),pub:true,bg:''};
   mapSel=null;mpHist=[];mpRedo=[];mpDirty=true;mpSelId=null;mpScroll=null;render();
   const sm=g.sm||{},ct=(...ks)=>ks.reduce((a,k)=>a+(sm[k]||0),0),bits=[ct('citta')&&ct('citta')+' città',ct('casa','casa_o','casa_b','casa_g','casa_v','casa_w','casa_t','casagrande')&&ct('casa','casa_o','casa_b','casa_g','casa_v','casa_w','casa_t','casagrande')+' case',ct('castello','torre')&&ct('castello','torre')+' fortezze',ct('montagna')&&ct('montagna')+' montagne',ct('pino','quercia')&&ct('pino','quercia')+' alberi',ct('nave')&&ct('nave')+' navi'].filter(Boolean);
-  toast('Mappa ricreata ('+PH_SETL[g.sk]+', palette '+g.pal+'): '+(bits.join(', ')||g.objs.length+' oggetti')+'. Ritoccala e salvala');
+  toast('Mappa ricreata ('+PH_SETL[g.sk]+', '+(g.pal.startsWith('foto-')?'colori della foto':'palette '+g.pal)+'): '+(bits.join(', ')||g.objs.length+' oggetti')+'. Ritoccala e salvala');
 }
 function mpGenAct(){
   if(MP.objs.length&&!confirm('Il generatore sostituisce terreno e oggetti della mappa aperta (puoi annullare con ↶). Continuare?'))return;
@@ -3055,7 +3131,7 @@ const mapBoard=M=>{
   `<div id="mpfs" class="${mpFull?'mpfull'+(mpFullTools?' tools':''):''}"><div class="card toolcard"><div class="chips">${MTOOLS.map(([k,i,l])=>`<button class="chipb ${mpTool===k?'sel':''}" data-mtl="${k}">${i} ${l}</button>`).join('')}</div><div class="row" style="flex-wrap:wrap;gap:6px;margin-top:10px"><button class="g mini" id="mpu" ${mpHist.length?'':'disabled'}>↶ Annulla</button><button class="g mini" id="mpr" ${mpRedo.length?'':'disabled'}>↷ Ripeti</button><button class="mini" id="mpquick">🎲 Mappa casuale</button><span class="grow"></span><span class="mut" id="mpstat">${mpStat()}</span></div></div>`+
   `<div class="card cvcard">${zoomBar()}<div class="mapwrap" id="mapwrap"><canvas id="mapcv" class="mapcv" style="width:${mpCvW()};touch-action:none;cursor:${mpTool==='pan'?'grab':'crosshair'}"></canvas></div></div>`+
   '<div class="mpopts">'+mpOptions()+'</div></div>'+
-  `<details class="card" id="dset" ${mpOpenD.set?'open':''}><summary>⚙️ Impostazioni mappa</summary><label class="mut">Palette</label><select id="mppal">${Object.keys(PAL).map(k=>`<option value="${k}" ${MP.pal===k?'selected':''}>${k[0].toUpperCase()+k.slice(1)}</option>`).join('')}</select><label class="mut">Dimensione (quadretti)</label><select id="mpsize">${sizeOpts(MP.n)}</select><div class="row"><div class="grow"><label class="mut">Scala: 1 quadretto = (0 = nascosta)</label><input id="mpscale" type="number" min="0" step="any" value="${MP.scale}" style="margin:0"></div><div><label class="mut">Unità</label><select id="mpunit" style="margin:0">${UNITS.map(u=>`<option ${MP.unit===u?'selected':''}>${u}</option>`).join('')}</select></div></div>${chk('mpgrid','Griglia',MP.grid)}${chk('mppub','Visibile ai player',MP.pub!==false)}</details>`+
+  `<details class="card" id="dset" ${mpOpenD.set?'open':''}><summary>⚙️ Impostazioni mappa</summary><label class="mut">Palette</label><select id="mppal">${Object.keys(PAL).filter(k=>!k.startsWith('foto-')||k===MP.pal).map(k=>`<option value="${k}" ${MP.pal===k?'selected':''}>${k.startsWith('foto-')?'Colori della foto':k[0].toUpperCase()+k.slice(1)}</option>`).join('')}</select><label class="mut">Dimensione (quadretti)</label><select id="mpsize">${sizeOpts(MP.n)}</select><div class="row"><div class="grow"><label class="mut">Scala: 1 quadretto = (0 = nascosta)</label><input id="mpscale" type="number" min="0" step="any" value="${MP.scale}" style="margin:0"></div><div><label class="mut">Unità</label><select id="mpunit" style="margin:0">${UNITS.map(u=>`<option ${MP.unit===u?'selected':''}>${u}</option>`).join('')}</select></div></div>${chk('mpgrid','Griglia',MP.grid)}${chk('mppub','Visibile ai player',MP.pub!==false)}</details>`+
   `<details class="card" id="dgen" ${mpOpenD.gen?'open':''}><summary>🎲 Generatore casuale</summary><p class="mut">Crea una base da cui partire: poi ritoccala con pennello e oggetti.</p><div class="chips">${MAP_TYPES.filter(t=>t[0]!=='isola').map(([k,l])=>`<button class="chipb ${(c.type===k||(k==='terra'&&c.type==='isola'))?'sel':''}" data-mt="${k}">${l}</button>`).join('')}</div><label class="mut" style="margin-top:8px">Seme (stesso seme = stessa mappa)</label><div class="row"><input id="mapseed" value="${esc(c.seed)}" style="margin:0"><button class="g" id="mapdice" title="Seme casuale">🎲</button></div>${landUI}<div class="row" style="margin-top:10px"><div class="grow"><label class="mut">Dimensione</label><select id="mapgsize">${sizeOpts(c.size)}</select></div><div class="grow"><label class="mut">Forma del riquadro</label><select id="mapgshape">${SHAPES.map(([k,l])=>`<option value="${k}" ${c.shape===k?'selected':''}>${l}</option>`).join('')}</select></div></div>${sl.map(([k,l,a,b])=>`<div style="margin-top:6px"><div class="row sp"><span>${l}</span><b id="mv-${k}">${c[k]}</b></div><input type="range" data-mk="${k}" min="${a}" max="${b}" value="${c[k]}"></div>`).join('')}<div class="row" style="margin-top:12px;flex-wrap:wrap;gap:8px"><button id="mapgen">⚡ Genera</button><button class="g" id="mapnew">🎲 Nuova casuale</button></div></details>`+
   `<div class="card"><h3>Salvataggio</h3><div class="row" style="flex-wrap:wrap;gap:8px"><button id="mapsave">💾 ${cur?'Aggiorna «'+esc(cur.name)+'»':'Salva'}</button>${cur?'<button class="g" id="mapsaveas">💾 Salva come nuova</button>':''}<button class="g" id="mapblank">🆕 Nuova vuota</button><button class="g" id="mapdl">⬇ PNG</button><button class="g" id="mapcopy">📋 Codice</button><button class="g" id="mapload">📥 Carica</button><button class="g" id="mapphoto">📷 Da foto</button>${MP.bg?'<button class="g" id="mapphotorm">🗑 Togli foto</button>':''}</div></div>`+list;
 };
