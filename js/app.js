@@ -2765,71 +2765,196 @@ function phPick(px,n,kind,palWant){
   const pals=PAL[palWant]?[palWant]:Object.keys(PAL),sks=PH_SETS[kind]?[kind]:Object.keys(PH_SETS);
   let best=1e18,bp=pals[0],bs=sks[0];
   for(const pal of pals)for(const sk of sks){
-    const L=phPalLab(pal,PH_SETS[sk]);let e=0;
-    for(const t of T){let m=1e9;for(const [,c] of L){const d=(t[0]-c[0])**2+(t[1]-c[1])**2+(t[2]-c[2])**2;if(d<m)m=d}e+=Math.sqrt(m)}
+    const L=phPalLab(pal,PH_SETS[sk]),ds=[];
+    for(const t of T){let m=1e9;for(const [,c] of L){const d=(t[0]-c[0])**2+(t[1]-c[1])**2+(t[2]-c[2])**2;if(d<m)m=d}ds.push(Math.sqrt(m))}
+    ds.sort((a,b)=>a-b);let e=0;const keep=Math.max(1,Math.floor(ds.length*.85));for(let i=0;i<keep;i++)e+=ds[i]; /* icone e scritte non devono decidere il tipo di mappa */
     e*=PH_BIAS[sk];if(e<best){best=e;bp=pal;bs=sk}
   }
   return {pal:bp,sk:bs};
 }
 async function mpPhotoRebuild(file,o){
-  const px=await mpPhotoPixels(file,o.fit),Z=1024,n=o.n,cw=Z/n,{pal,sk}=phPick(px,n,o.kind,o.pal),set=PH_SETS[sk],cls=phClassifier(pal,set);
-  const k=Math.max(2,Math.min(5,Math.floor(cw/3))),K=k*k,ter=new Uint8Array(n*n),gold=[];
-  const vote=new Float32Array(32);
-  /* 1) voto dei campioni dentro ogni quadretto (acqua e strade pesano di più, così fiumi e sentieri sottili non spariscono) */
-  for(let cy=0;cy<n;cy++)for(let cx=0;cx<n;cx++){
-    vote.fill(0);let tr=0,au=0;
-    for(let j=0;j<k;j++)for(let i=0;i<k;i++){
-      const sx=Math.floor((cx+(i+.5)/k)*cw),sy=Math.floor((cy+(j+.5)/k)*cw),p=(sy*Z+sx)*4;
-      if(px[p+3]<128){tr++;continue}
-      const r=px[p],g=px[p+1],b=px[p+2],c=cls(r,g,b);vote[c]+=(c===0||c===1||c===8)?1.5:1;
-      if(r>200&&g>150&&g<235&&b<90&&r-b>140)au++;
-    }
-    const id=cy*n+cx;
-    if(tr>K/2){ter[id]=18;continue}
-    let bv=-1,bk=3;for(const c of set)if(vote[c]>bv){bv=vote[c];bk=c}
-    ter[id]=bk;if(au>=K*.4)gold.push(id);
+  const px=await mpPhotoPixels(file,o.fit),Z=1024,n=o.n,{pal,sk}=phPick(px,n,o.kind,o.pal),set=PH_SETS[sk],cls=phClassifier(pal,set);
+  const W=512,W2=W*W,p1=W/n,NN=n*n,cl=(v,a,b)=>Math.max(a,Math.min(b,v));
+  /* 0) immagine di lavoro 512×512 (media 2×2): colore, classe di terreno più vicina, Lab */
+  const R=new Uint8Array(W2),G=new Uint8Array(W2),B=new Uint8Array(W2),A=new Uint8Array(W2),PC=new Int8Array(W2),LB=new Float32Array(W2*3);
+  for(let y=0;y<W;y++)for(let x=0;x<W;x++){
+    let r=0,g=0,b=0,a=0;
+    for(let dy=0;dy<2;dy++)for(let dx=0;dx<2;dx++){const q=((2*y+dy)*Z+2*x+dx)*4;if(px[q+3]>=128){r+=px[q];g+=px[q+1];b+=px[q+2];a++}}
+    const p=y*W+x;if(a<2){PC[p]=-1;continue}
+    A[p]=1;R[p]=r/a;G[p]=g/a;B[p]=b/a;PC[p]=cls(R[p],G[p],B[p]);
+    const l=phLab(R[p],G[p],B[p]);LB[p*3]=l[0];LB[p*3+1]=l[1];LB[p*3+2]=l[2];
   }
-  /* 2) pulizia: un quadretto isolato circondato da un altro terreno si adegua */
-  const t2=ter.slice(),cnt=new Uint8Array(32);
+  const cX=new Int16Array(W),cY=new Int16Array(W),xs0=new Int16Array(n).fill(W),xs1=new Int16Array(n);
+  for(let i=0;i<W;i++){const c=Math.min(n-1,Math.floor(i/p1));cX[i]=cY[i]=c;if(i<xs0[c])xs0[c]=i;xs1[c]=i+1}
+  /* 1) voto del terreno per quadretto (acqua e strade pesano di più); skip = pixel da ignorare (oggetti) */
+  const vote=new Float32Array(32);
+  const doVote=skip=>{
+    const t=new Uint8Array(NN),none=[];
+    for(let cy=0;cy<n;cy++)for(let cx=0;cx<n;cx++){
+      vote.fill(0);let tot=0,tr=0,all=0;
+      for(let y=xs0[cy];y<xs1[cy];y++)for(let x=xs0[cx];x<xs1[cx];x++){
+        const p=y*W+x;all++;if(!A[p]){tr++;continue}if(skip&&skip[p])continue;
+        const c=PC[p];vote[c]+=(c===0||c===1||c===8)?1.5:1;tot++;
+      }
+      const id=cy*n+cx;
+      if(tr>all/2){t[id]=18;continue}
+      if(!tot){t[id]=255;none.push(id);continue}
+      let bv=-1,bk=3;for(const c of set)if(vote[c]>bv){bv=vote[c];bk=c}t[id]=bk;
+    }
+    for(let rep=0;rep<3&&none.length;rep++){
+      const left=[];
+      for(const id of none){
+        const x=id%n,y=(id-x)/n;vote.fill(0);let any=0;
+        for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const xx=x+dx,yy=y+dy;if(xx<0||yy<0||xx>=n||yy>=n)continue;const q=t[yy*n+xx];if(q!==255&&q!==18){vote[q]++;any++}}
+        if(!any){left.push(id);continue}
+        let bv=-1,bk=3;for(let q=0;q<32;q++)if(vote[q]>bv){bv=vote[q];bk=q}t[id]=bk;
+      }
+      none.length=0;left.forEach(i=>none.push(i));
+    }
+    for(const id of none)t[id]=set[0];
+    return t;
+  };
+  const ter1=doVote(null);
+  /* 2) cosa NON è terreno: pixel molto diversi dal colore tipico del loro terreno e con una classe che non c'è nei dintorni */
+  const ter1b=new Uint8Array(NN);
+  for(let y=0;y<n;y++)for(let x=0;x<n;x++){
+    const id=y*n+x;if(ter1[id]===18){ter1b[id]=18;continue}vote.fill(0);
+    for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){const xx=x+dx,yy=y+dy;if(xx<0||yy<0||xx>=n||yy>=n)continue;const q=ter1[yy*n+xx];if(q<32&&q!==18)vote[q]+=(!dx&&!dy)?3:1}
+    let bv=-1,bk=ter1[id];for(let q=0;q<32;q++)if(vote[q]>bv){bv=vote[q];bk=q}ter1b[id]=bk;
+  }
+  const palL=new Map(phPalLab(pal,set).concat([[18,[2,0,0]]])),nbm=new Uint32Array(NN);
+  for(let y=0;y<n;y++)for(let x=0;x<n;x++){let m=0;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const xx=x+dx,yy=y+dy;if(xx<0||yy<0||xx>=n||yy>=n)continue;const q=ter1b[yy*n+xx];if(q<32)m|=1<<q}nbm[y*n+x]=m}
+  const sL=new Float32Array(NN),sA=new Float32Array(NN),sB=new Float32Array(NN),sC=new Float32Array(NN);
+  for(let p=0;p<W2;p++){if(!A[p])continue;const id=cY[(p/W)|0]*n+cX[p%W];if(PC[p]!==ter1b[id])continue;sL[id]+=LB[p*3];sA[id]+=LB[p*3+1];sB[id]+=LB[p*3+2];sC[id]++}
+  const rL=new Float32Array(NN),rA=new Float32Array(NN),rB=new Float32Array(NN);
+  for(let y=0;y<n;y++)for(let x=0;x<n;x++){
+    const id=y*n+x;let l=0,a=0,b=0,c=0;
+    for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const xx=x+dx,yy=y+dy;if(xx<0||yy<0||xx>=n||yy>=n)continue;const q=yy*n+xx;if(ter1b[q]!==ter1b[id])continue;l+=sL[q];a+=sA[q];b+=sB[q];c+=sC[q]}
+    if(c>=3){rL[id]=l/c;rA[id]=a/c;rB[id]=b/c}else{const pl=palL.get(ter1b[id])||[50,0,0];rL[id]=pl[0];rA[id]=pl[1];rB[id]=pl[2]}
+  }
+  const dE=p=>{const id=cY[(p/W)|0]*n+cX[p%W];return Math.hypot(LB[p*3]-rL[id],LB[p*3+1]-rA[id],LB[p*3+2]-rB[id])};
+  let su=0,cu=0;for(let p=0;p<W2;p+=3){if(!A[p])continue;const id=cY[(p/W)|0]*n+cX[p%W];if(PC[p]===ter1b[id]){su+=dE(p);cu++}}
+  const T=cl(2.6*(cu?su/cu:6),18,36),fg=new Uint8Array(W2);
+  for(let p=0;p<W2;p++){if(!A[p])continue;const id=cY[(p/W)|0]*n+cX[p%W];if((nbm[id]>>PC[p]&1)&&PC[p]>=0)continue;if(dE(p)>T)fg[p]=1}
+  /* 3) terreno definitivo: rivoto ignorando gli oggetti (allargati di 1 pixel), poi pulizia dei quadretti isolati */
+  const skip=new Uint8Array(W2);
+  for(let y=0;y<W;y++)for(let x=0;x<W;x++){if(!fg[y*W+x])continue;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const xx=x+dx,yy=y+dy;if(xx>=0&&yy>=0&&xx<W&&yy<W)skip[yy*W+xx]=1}}
+  const ter=doVote(skip),t2=ter.slice(),cnt=new Uint8Array(32);
   for(let y=0;y<n;y++)for(let x=0;x<n;x++){
     const i=y*n+x,c=ter[i];if(c===18)continue;cnt.fill(0);
     for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){if(!dx&&!dy)continue;const xx=x+dx,yy=y+dy;if(xx<0||yy<0||xx>=n||yy>=n)continue;cnt[ter[yy*n+xx]]++}
     if(cnt[c]<=1){let m=-1,mv=4;for(let q=0;q<32;q++)if(q!==c&&q!==18&&cnt[q]>mv){mv=cnt[q];m=q}if(m>=0)t2[i]=m}
   }
-  /* 3) oggetti */
+  /* 4) componenti connesse degli oggetti */
+  const lab=new Int32Array(W2),pool=new Int32Array(W2),stack=new Int32Array(W2),comps=[];let pl=0,nl=0;
+  for(let s=0;s<W2;s++){
+    if(!fg[s]||lab[s])continue;
+    const id=++nl,start=pl;let sp=0,minx=W,maxx=0,miny=W,maxy=0,sr=0,sg=0,sb=0;
+    stack[sp++]=s;lab[s]=id;
+    while(sp){
+      const p=stack[--sp];pool[pl++]=p;const x=p%W,y=(p-x)/W;
+      if(x<minx)minx=x;if(x>maxx)maxx=x;if(y<miny)miny=y;if(y>maxy)maxy=y;sr+=R[p];sg+=G[p];sb+=B[p];
+      for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const xx=x+dx,yy=y+dy;if(xx<0||yy<0||xx>=W||yy>=W)continue;const q=yy*W+xx;if(fg[q]&&!lab[q]){lab[q]=id;stack[sp++]=q}}
+    }
+    const area=pl-start;comps.push({s:start,e:pl,area,minx,maxx,miny,maxy,r:sr/area,g:sg/area,b:sb/area});
+  }
+  const feat=c=>{const r=c.r,g=c.g,b=c.b,mx=Math.max(r,g,b),mn=Math.min(r,g,b),v=mx/255,sat=mx?(mx-mn)/mx:0;
+    return {v,sat,dark:v<.34,light:v>.8&&sat<.22,gray:sat<.24,roof:sat>=.24&&((r>g*1.3&&r>b*1.3)||(r>g*1.12&&g>b*1.05)),green:sat>=.22&&g>r*1.06&&g>b*1.06,blue:sat>=.2&&b>r*1.15&&b>g*1.02,gold:r>200&&g>150&&b<110}};
+  const minA=Math.max(5,Math.round(.1*p1*p1)),cand=[],lines=[];
+  comps.sort((a,b)=>b.area-a.area);
+  for(const c of comps.slice(0,4000)){
+    if(c.area<minA)continue;
+    const bw=c.maxx-c.minx+1,bh=c.maxy-c.miny+1,fp=Math.max(bw,bh)/p1,mn=Math.min(bw,bh)/p1,fill=c.area/(bw*bh),cx=(c.minx+c.maxx+1)/2,cy=(c.miny+c.maxy+1)/2;
+    Object.assign(c,{bw,bh,fp,mn,fill,cx,cy,id:cY[Math.min(W-1,cy|0)]*n+cX[Math.min(W-1,cx|0)],f:feat(c)});
+    if(fp>9)continue;
+    const asp=Math.max(bw,bh)/Math.min(bw,bh);
+    if((asp>3.2&&mn<.55)||(fill<.28&&fp>2.4)){lines.push(c);continue}
+    /* triangolo (montagna / pino): in alto stretto, in basso largo */
+    let tp=0,bp=0;const th=bh/3;for(let q=c.s;q<c.e;q++){const y=(pool[q]/W)|0;if(y<c.miny+th)tp++;else if(y>=c.maxy+1-th)bp++}
+    c.tri=bh>=3&&bp>0&&(tp/bp)<.6&&fill<.8;cand.push(c);
+  }
+  /* raggruppamento con griglia spaziale (per scritte e per quartieri di case) */
+  const groups=(list,dist,ok)=>{
+    const par=list.map((_,i)=>i),fd=i=>{while(par[i]!==i){par[i]=par[par[i]];i=par[i]}return i},bk=new Map(),S=Math.max(8,Math.ceil(dist));
+    list.forEach((c,i)=>{const k=Math.floor(c.cy/S)*4096+Math.floor(c.cx/S);(bk.get(k)||bk.set(k,[]).get(k)).push(i)});
+    list.forEach((c,i)=>{const bx=Math.floor(c.cx/S),by=Math.floor(c.cy/S);for(let j=by-1;j<=by+1;j++)for(let k=bx-1;k<=bx+1;k++){const a=bk.get(j*4096+k);if(a)for(const q of a)if(q>i&&ok(c,list[q]))par[fd(q)]=fd(i)}});
+    const m=new Map();list.forEach((c,i)=>{const r=fd(i);(m.get(r)||m.set(r,[]).get(r)).push(c)});return [...m.values()];
+  };
+  /* scritte: tante lettere scure piccole in fila → ignorate */
+  const tx=cand.filter(c=>c.fp<1.5&&(c.f.dark||(c.f.gray&&c.f.v<.55))&&!c.tri);
+  groups(tx,p1*2.5,(a,b)=>{const H=Math.max(a.bh,b.bh),gx=Math.max(0,Math.max(a.minx,b.minx)-Math.min(a.maxx,b.maxx)),gy=Math.max(0,Math.max(a.miny,b.miny)-Math.min(a.maxy,b.maxy));return gx<=1.2*H&&gy<=.55*H})
+    .forEach(g=>{if(g.length<3)return;let x0=W,x1=0,y0=W,y1=0;g.forEach(c=>{x0=Math.min(x0,c.minx);x1=Math.max(x1,c.maxx);y0=Math.min(y0,c.miny);y1=Math.max(y1,c.maxy)});const w=x1-x0+1,h=y1-y0+1;if(w/h>=1.7||h/w>=1.7)g.forEach(c=>c.txt=1)});
+  /* 5) riconoscimento degli oggetti */
+  const place=[],bld=[],lakes=[],noteN={};
+  for(const c of cand){
+    if(c.txt)continue;
+    const f=c.f,tc=t2[c.id],wat=tc===0||tc===1,X=c.cx/p1,Y=c.cy/p1,fp=c.fp;
+    if(f.blue){if(!wat&&fp>=1.1)lakes.push(c);continue}
+    if(wat){if(sk!=='dungeon'&&!f.green&&fp>=.8&&fp<=5)place.push(['nave',X,Y,cl(fp*1.1,1.8,4)]);continue}
+    if(f.gold&&fp<1.6){place.push(['baule',X,Y,.9]);continue}
+    if(sk==='dungeon')continue;
+    if(c.tri&&fp>=1&&!f.green){place.push(['montagna',X,Y,cl(fp*1.15,1.6,5)]);continue}
+    if(f.green&&fp<2.4){place.push([(c.tri||c.fill<=.6)?'pino':'quercia',X,Y,cl(fp*1.15,.8,2.2)]);continue}
+    if(fp<3)bld.push(c);
+  }
+  /* edifici vicini tra loro = una città (stampo «Città» se il quartiere è compatto, altrimenti tante case) */
+  const HK=['casa','casa_o','casa_b','casa_g','casa_v','casa_w','casa_t'];
+  const GD=Math.max(p1*2.4,16);
+  groups(bld,GD,(a,b)=>Math.hypot(a.cx-b.cx,a.cy-b.cy)<=GD).forEach(g=>{
+    const one=c=>{const f=c.f,X=c.cx/p1,Y=c.cy/p1,fp=c.fp;
+      if(f.roof)place.push([fp>=1.5?'casagrande':HK[Math.floor(Math.abs(c.cx*7+c.cy*3))%HK.length],X,Y,cl(fp*1.4,1,2.4)]);
+      else if(fp<1.3)place.push([f.dark?'citta':'torre',X,Y,f.dark?2.6:1.6]);
+      else place.push(['castello',X,Y,cl(fp*1.2,2,4)])};
+    if(g.length<3){g.forEach(one);return}
+    let x0=W,x1=0,y0=W,y1=0;g.forEach(c=>{x0=Math.min(x0,c.minx);x1=Math.max(x1,c.maxx);y0=Math.min(y0,c.miny);y1=Math.max(y1,c.maxy)});
+    const span=Math.max(x1-x0+1,y1-y0+1)/p1;
+    if(span<=7.5)place.push(['citta',(x0+x1+1)/2/p1,(y0+y1+1)/2/p1,cl(span*1.25+.8,2.6,8)]);else g.forEach(one);
+  });
+  /* fiumi, strade e laghi disegnati sulla foto */
+  const paint=(c,k,frac)=>{const m=new Map();for(let q=c.s;q<c.e;q++){const p=pool[q],id=cY[(p/W)|0]*n+cX[p%W];m.set(id,(m.get(id)||0)+1)}m.forEach((v,id)=>{if(v>=frac*p1*p1&&t2[id]!==18)t2[id]=k})};
+  lines.forEach(c=>{const pc=cls(c.r,c.g,c.b);if((pc===0||pc===1)&&t2[c.id]!==0&&t2[c.id]!==1)paint(c,1,.2);else if(sk!=='dungeon'&&pc===8)paint(c,8,.2)});
+  lakes.forEach(c=>paint(c,1,.4));
+  /* 6) posa degli oggetti */
   const M={nessuno:0,pochi:.5,normali:1,molti:1.7}[o.obj]??1,rnd=mulberry32(hashSeed('foto'+Date.now())),objs=[],MAXO=1400,occ=new Map();
   const free=(x,y,r)=>{const bx=Math.floor(x/2),by=Math.floor(y/2);for(let j=by-2;j<=by+2;j++)for(let i=bx-2;i<=bx+2;i++){const a=occ.get(j*4096+i);if(a)for(const q of a)if(Math.hypot(q[0]-x,q[1]-y)<q[2]+r)return false}return true};
   const put=(kk,x,y,s,ff)=>{
     if(objs.length>=MAXO||!STM[kk])return false;
     x=Math.min(n,Math.max(0,x));y=Math.min(n,Math.max(0,y));const r=s*ff;if(!free(x,y,r))return false;
     const key=Math.floor(y/2)*4096+Math.floor(x/2);(occ.get(key)||occ.set(key,[]).get(key)).push([x,y,r]);
-    objs.push({id:uid8(),k:kk,x:+x.toFixed(2),y:+y.toFixed(2),s:+(s*(.85+rnd()*.3)).toFixed(2),r:0,f:rnd()<.5?1:0});return true;
+    objs.push({id:uid8(),k:kk,x:+x.toFixed(2),y:+y.toFixed(2),s:+s.toFixed(2),r:0,f:(kk==='nave'||rnd()<.5)?0:1});return true;
   };
   if(M>0){
-    /* case al posto dei tetti (il terreno sotto diventa quello più comune intorno) */
+    /* tetti-terreno → case (nelle foto di città) */
     if(sk==='citta'){
-      const HK=['casa','casa_o','casa_b','casa_g','casa_v','casa_w','casa_t'];
-      for(let i=0;i<n*n;i++)if(t2[i]===16)put(HK[Math.floor(rnd()*HK.length)],i%n+.5,Math.floor(i/n)+.5,1.9,.42);
+      for(let i=0;i<NN;i++)if(t2[i]===16)put(HK[Math.floor(rnd()*HK.length)],i%n+.5,Math.floor(i/n)+.5,1.9,.42);
       const base=t2.slice();
-      for(let i=0;i<n*n;i++)if(base[i]===16){
+      for(let i=0;i<NN;i++)if(base[i]===16){
         const x=i%n,y=Math.floor(i/n);cnt.fill(0);
         for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){const xx=x+dx,yy=y+dy;if(xx<0||yy<0||xx>=n||yy>=n)continue;const q=base[yy*n+xx];if(q!==16&&q!==18)cnt[q]++}
-        let m=3,mv=0;for(let q=0;q<32;q++)if(cnt[q]>mv){mv=cnt[q];m=q}
-        t2[i]=m;
+        let m=3,mv=0;for(let q=0;q<32;q++)if(cnt[q]>mv){mv=cnt[q];m=q}t2[i]=m;
       }
     }
-    if(sk==='dungeon')gold.slice(0,40).forEach(i=>put('baule',i%n+.5,Math.floor(i/n)+.5,.9,.4));
+    /* oggetti riconosciuti nella foto (città e strutture per prime) */
+    const pr={citta:0,castello:1,torre:2,casagrande:3,nave:4,baule:4};
+    place.sort((a,b)=>(pr[a[0]]??5)-(pr[b[0]]??5));
+    for(const [k,x,y,s] of place){
+      if((k==='montagna'||k==='pino'||k==='quercia')&&M<1&&rnd()>M)continue;
+      put(k,x,y,s,.22);
+    }
+    const det=k=>objs.reduce((a,b)=>a+(b.k===k?1:0),0),facM=det('montagna')>=8?.3:1,facT=det('pino')+det('quercia')>=8?.3:1;
+    /* riempimento dai terreni (boschi, colline, montagne…) dove la foto non mostra icone */
     if(sk!=='dungeon'){
-      const ord=[...Array(n*n).keys()];for(let i=ord.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[ord[i],ord[j]]=[ord[j],ord[i]]}
+      const ord=[...Array(NN).keys()];for(let i=ord.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[ord[i],ord[j]]=[ord[j],ord[i]]}
       const cold=pal==='neve',dry=pal==='deserto',hot=pal==='vulcano',tree=()=>cold?'pino':dry?(rnd()<.4?'cactus':'cespuglio'):hot?'morto':(rnd()<.55?'quercia':'pino');
-      const R=[[6,.2,()=>'montagna',2.6,.36],[5,.14,()=>'collina',2.1,.34],[4,.6,tree,1.25,.3],[13,.12,()=>'cespuglio',.9,.3],[3,.03,()=>rnd()<.6?'cespuglio':'fiori',.8,.3],[2,.02,()=>dry?'cactus':cold?'roccia':'palma',1.2,.3]];
-      for(const [c,p,kf,s,ff] of R)for(const i of ord){
+      const RL=[[6,.2*facM,()=>'montagna',2.6,.36],[5,.14,()=>'collina',2.1,.34],[4,.6*facT,tree,1.25,.3],[13,.12,()=>'cespuglio',.9,.3],[3,.03,()=>rnd()<.6?'cespuglio':'fiori',.8,.3],[2,.02,()=>dry?'cactus':cold?'roccia':'palma',1.2,.3]];
+      for(const [c,p,kf,s,ff] of RL)for(const i of ord){
         if(objs.length>=MAXO)break;if(t2[i]!==c||rnd()>p*M)continue;
-        put(kf(),i%n+.2+rnd()*.6,Math.floor(i/n)+.2+rnd()*.6,s,ff);
+        put(kf(),i%n+.2+rnd()*.6,Math.floor(i/n)+.2+rnd()*.6,s*(.85+rnd()*.3),ff);
       }
     }
   }
-  return {ter:t2,objs,pal,sk};
+  const sm={};objs.forEach(b=>sm[b.k]=(sm[b.k]||0)+1);
+  return {ter:t2,objs,pal,sk,sm,lines:lines.length,lakes:lakes.length};
 }
 async function mpPhotoMap(){
   const r=await ask('📷 Mappa da foto',[
@@ -2856,7 +2981,8 @@ async function mpPhotoMap(){
   let g;try{g=await mpPhotoRebuild(r.photo,{n,fit,kind:PH_KIND[r.kind]||'',pal:r.pal,obj:r.obj})}catch(e){console.warn('foto-mappa',e);return toast('Foto non leggibile')}
   MP={n,ter:g.ter,fog:new Uint8Array(n*n),fogOn:false,objs:g.objs,pal:g.pal,grid:false,scale:0,unit:'m',gt:g.sk,hs:hashSeed('p'+Date.now()),pub:true,bg:''};
   mapSel=null;mpHist=[];mpRedo=[];mpDirty=true;mpSelId=null;mpScroll=null;render();
-  toast('Mappa ricreata: '+PH_SETL[g.sk]+' · palette '+g.pal+' · '+g.objs.length+' oggetti. Ritoccala e salvala');
+  const sm=g.sm||{},ct=(...ks)=>ks.reduce((a,k)=>a+(sm[k]||0),0),bits=[ct('citta')&&ct('citta')+' città',ct('casa','casa_o','casa_b','casa_g','casa_v','casa_w','casa_t','casagrande')&&ct('casa','casa_o','casa_b','casa_g','casa_v','casa_w','casa_t','casagrande')+' case',ct('castello','torre')&&ct('castello','torre')+' fortezze',ct('montagna')&&ct('montagna')+' montagne',ct('pino','quercia')&&ct('pino','quercia')+' alberi',ct('nave')&&ct('nave')+' navi'].filter(Boolean);
+  toast('Mappa ricreata ('+PH_SETL[g.sk]+', palette '+g.pal+'): '+(bits.join(', ')||g.objs.length+' oggetti')+'. Ritoccala e salvala');
 }
 function mpGenAct(){
   if(MP.objs.length&&!confirm('Il generatore sostituisce terreno e oggetti della mappa aperta (puoi annullare con ↶). Continuare?'))return;
