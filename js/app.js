@@ -2726,17 +2726,137 @@ async function mpPhotoPrep(file,fit){
     return new File([blob],'mappa.jpg',{type:'image/jpeg'});
   }finally{URL.revokeObjectURL(u)}
 }
+/* ---- mappa da foto: RICOSTRUZIONE automatica (terreni + oggetti) ----
+   La foto viene letta a campioni, ogni campione è riconosciuto come il terreno dal colore più vicino (spazio Lab)
+   e ogni quadretto prende il terreno più votato. Poi: pulizia dei quadretti isolati, case al posto dei tetti,
+   alberi/montagne/colline sparsi dove il terreno li suggerisce. Palette e tipo di mappa si scelgono da soli (o a mano). */
+const PH_SETS={terra:[0,1,2,3,4,5,6,7,17,8,13,12,20,21],dungeon:[9,15,14,10,11,12,19,0,1,8],citta:[0,1,2,3,4,5,8,13,9,15,14,10,19,16,20,21]};
+const PH_SETL={terra:'terre e mari',dungeon:'dungeon / interni',citta:'città / villaggio'},PH_BIAS={terra:1,dungeon:1.03,citta:1.06},PH_KIND={'terre e mari':'terra','dungeon / interni':'dungeon','città / villaggio':'citta'};
+const phLab=(()=>{
+  const G=new Float32Array(256);for(let i=0;i<256;i++){const c=i/255;G[i]=c<=.04045?c/12.92:Math.pow((c+.055)/1.055,2.4)}
+  const f=t=>t>.008856?Math.cbrt(t):7.787*t+16/116;
+  return (r,g,b)=>{const R=G[r],V=G[g],B=G[b],x=f((R*.4124+V*.3576+B*.1805)/.95047),y=f(R*.2126+V*.7152+B*.0722),z=f((R*.0193+V*.1192+B*.9505)/1.08883);return [116*y-16,500*(x-y),200*(y-z)]};
+})();
+const phPalLab=(pal,set)=>{const cols=colsFor(pal);return set.map(k=>[k,phLab(...hexRGB(cols[k].hex))])};
+function phClassifier(pal,set){
+  const L=phPalLab(pal,set),cache=new Int8Array(32768).fill(-1);
+  return (r,g,b)=>{
+    const q=((r>>3)<<10)|((g>>3)<<5)|(b>>3);let v=cache[q];if(v>=0)return v;
+    const l=phLab(r|4,g|4,b|4);let best=1e9,bk=L[0][0];
+    for(const [k,c] of L){const d=(l[0]-c[0])**2+(l[1]-c[1])**2+(l[2]-c[2])**2;if(d<best){best=d;bk=k}}
+    return cache[q]=bk;
+  };
+}
+async function mpPhotoPixels(file,fit){
+  const u=URL.createObjectURL(file);
+  try{
+    const im=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=u});
+    const Z=1024,cv=document.createElement('canvas');cv.width=cv.height=Z;const c=cv.getContext('2d',{willReadFrequently:true});
+    c.imageSmoothingQuality='high';
+    const w=im.naturalWidth,h=im.naturalHeight,k=fit==='riempi'?Math.max(Z/w,Z/h):Math.min(Z/w,Z/h),dw=w*k,dh=h*k;
+    c.drawImage(im,(Z-dw)/2,(Z-dh)/2,dw,dh); /* fuori dalla foto resta trasparente: diventa «Vuoto» */
+    return c.getImageData(0,0,Z,Z).data;
+  }finally{URL.revokeObjectURL(u)}
+}
+/* sceglie palette e tipo di mappa che descrivono meglio i colori della foto */
+function phPick(px,n,kind,palWant){
+  const Z=1024,cw=Z/n,st=Math.max(1,Math.floor(Math.sqrt(n*n/2200))),T=[];
+  for(let cy=0;cy<n;cy+=st)for(let cx=0;cx<n;cx+=st){const p=(Math.floor((cy+.5)*cw)*Z+Math.floor((cx+.5)*cw))*4;if(px[p+3]>=128)T.push(phLab(px[p],px[p+1],px[p+2]))}
+  const pals=PAL[palWant]?[palWant]:Object.keys(PAL),sks=PH_SETS[kind]?[kind]:Object.keys(PH_SETS);
+  let best=1e18,bp=pals[0],bs=sks[0];
+  for(const pal of pals)for(const sk of sks){
+    const L=phPalLab(pal,PH_SETS[sk]);let e=0;
+    for(const t of T){let m=1e9;for(const [,c] of L){const d=(t[0]-c[0])**2+(t[1]-c[1])**2+(t[2]-c[2])**2;if(d<m)m=d}e+=Math.sqrt(m)}
+    e*=PH_BIAS[sk];if(e<best){best=e;bp=pal;bs=sk}
+  }
+  return {pal:bp,sk:bs};
+}
+async function mpPhotoRebuild(file,o){
+  const px=await mpPhotoPixels(file,o.fit),Z=1024,n=o.n,cw=Z/n,{pal,sk}=phPick(px,n,o.kind,o.pal),set=PH_SETS[sk],cls=phClassifier(pal,set);
+  const k=Math.max(2,Math.min(5,Math.floor(cw/3))),K=k*k,ter=new Uint8Array(n*n),gold=[];
+  const vote=new Float32Array(32);
+  /* 1) voto dei campioni dentro ogni quadretto (acqua e strade pesano di più, così fiumi e sentieri sottili non spariscono) */
+  for(let cy=0;cy<n;cy++)for(let cx=0;cx<n;cx++){
+    vote.fill(0);let tr=0,au=0;
+    for(let j=0;j<k;j++)for(let i=0;i<k;i++){
+      const sx=Math.floor((cx+(i+.5)/k)*cw),sy=Math.floor((cy+(j+.5)/k)*cw),p=(sy*Z+sx)*4;
+      if(px[p+3]<128){tr++;continue}
+      const r=px[p],g=px[p+1],b=px[p+2],c=cls(r,g,b);vote[c]+=(c===0||c===1||c===8)?1.5:1;
+      if(r>200&&g>150&&g<235&&b<90&&r-b>140)au++;
+    }
+    const id=cy*n+cx;
+    if(tr>K/2){ter[id]=18;continue}
+    let bv=-1,bk=3;for(const c of set)if(vote[c]>bv){bv=vote[c];bk=c}
+    ter[id]=bk;if(au>=K*.4)gold.push(id);
+  }
+  /* 2) pulizia: un quadretto isolato circondato da un altro terreno si adegua */
+  const t2=ter.slice(),cnt=new Uint8Array(32);
+  for(let y=0;y<n;y++)for(let x=0;x<n;x++){
+    const i=y*n+x,c=ter[i];if(c===18)continue;cnt.fill(0);
+    for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){if(!dx&&!dy)continue;const xx=x+dx,yy=y+dy;if(xx<0||yy<0||xx>=n||yy>=n)continue;cnt[ter[yy*n+xx]]++}
+    if(cnt[c]<=1){let m=-1,mv=4;for(let q=0;q<32;q++)if(q!==c&&q!==18&&cnt[q]>mv){mv=cnt[q];m=q}if(m>=0)t2[i]=m}
+  }
+  /* 3) oggetti */
+  const M={nessuno:0,pochi:.5,normali:1,molti:1.7}[o.obj]??1,rnd=mulberry32(hashSeed('foto'+Date.now())),objs=[],MAXO=1400,occ=new Map();
+  const free=(x,y,r)=>{const bx=Math.floor(x/2),by=Math.floor(y/2);for(let j=by-2;j<=by+2;j++)for(let i=bx-2;i<=bx+2;i++){const a=occ.get(j*4096+i);if(a)for(const q of a)if(Math.hypot(q[0]-x,q[1]-y)<q[2]+r)return false}return true};
+  const put=(kk,x,y,s,ff)=>{
+    if(objs.length>=MAXO||!STM[kk])return false;
+    x=Math.min(n,Math.max(0,x));y=Math.min(n,Math.max(0,y));const r=s*ff;if(!free(x,y,r))return false;
+    const key=Math.floor(y/2)*4096+Math.floor(x/2);(occ.get(key)||occ.set(key,[]).get(key)).push([x,y,r]);
+    objs.push({id:uid8(),k:kk,x:+x.toFixed(2),y:+y.toFixed(2),s:+(s*(.85+rnd()*.3)).toFixed(2),r:0,f:rnd()<.5?1:0});return true;
+  };
+  if(M>0){
+    /* case al posto dei tetti (il terreno sotto diventa quello più comune intorno) */
+    if(sk==='citta'){
+      const HK=['casa','casa_o','casa_b','casa_g','casa_v','casa_w','casa_t'];
+      for(let i=0;i<n*n;i++)if(t2[i]===16)put(HK[Math.floor(rnd()*HK.length)],i%n+.5,Math.floor(i/n)+.5,1.9,.42);
+      const base=t2.slice();
+      for(let i=0;i<n*n;i++)if(base[i]===16){
+        const x=i%n,y=Math.floor(i/n);cnt.fill(0);
+        for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){const xx=x+dx,yy=y+dy;if(xx<0||yy<0||xx>=n||yy>=n)continue;const q=base[yy*n+xx];if(q!==16&&q!==18)cnt[q]++}
+        let m=3,mv=0;for(let q=0;q<32;q++)if(cnt[q]>mv){mv=cnt[q];m=q}
+        t2[i]=m;
+      }
+    }
+    if(sk==='dungeon')gold.slice(0,40).forEach(i=>put('baule',i%n+.5,Math.floor(i/n)+.5,.9,.4));
+    if(sk!=='dungeon'){
+      const ord=[...Array(n*n).keys()];for(let i=ord.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[ord[i],ord[j]]=[ord[j],ord[i]]}
+      const cold=pal==='neve',dry=pal==='deserto',hot=pal==='vulcano',tree=()=>cold?'pino':dry?(rnd()<.4?'cactus':'cespuglio'):hot?'morto':(rnd()<.55?'quercia':'pino');
+      const R=[[6,.2,()=>'montagna',2.6,.36],[5,.14,()=>'collina',2.1,.34],[4,.6,tree,1.25,.3],[13,.12,()=>'cespuglio',.9,.3],[3,.03,()=>rnd()<.6?'cespuglio':'fiori',.8,.3],[2,.02,()=>dry?'cactus':cold?'roccia':'palma',1.2,.3]];
+      for(const [c,p,kf,s,ff] of R)for(const i of ord){
+        if(objs.length>=MAXO)break;if(t2[i]!==c||rnd()>p*M)continue;
+        put(kf(),i%n+.2+rnd()*.6,Math.floor(i/n)+.2+rnd()*.6,s,ff);
+      }
+    }
+  }
+  return {ter:t2,objs,pal,sk};
+}
 async function mpPhotoMap(){
-  if(!assets)return toast('Upload non disponibile');
-  const r=await ask('📷 Mappa da foto',[{l:'Foto (JPG, PNG o WebP)',n:'photo',t:'file'},{l:'Adattamento al quadrato',n:'fit',t:'select',o:['intera (bordi scuri)','riempi (ritaglia)']},{l:'Dimensione (quadretti)',n:'sz',t:'select',o:SIZES.map(x=>sizeLbl(x[0]))}],{fit:'intera (bordi scuri)',sz:sizeLbl(48)});
+  const r=await ask('📷 Mappa da foto',[
+    {l:'Foto della mappa (JPG, PNG o WebP)',n:'photo',t:'file'},
+    {l:'Cosa fare',n:'mode',t:'select',o:['ricrea la mappa (terreni e oggetti)','tieni la foto come sfondo']},
+    {l:'Tipo di mappa (aiuta a riconoscere i terreni)',n:'kind',t:'select',o:['automatico','terre e mari','dungeon / interni','città / villaggio']},
+    {l:'Palette colori',n:'pal',t:'select',o:['automatica',...Object.keys(PAL)]},
+    {l:'Quantità di oggetti (alberi, case, montagne…)',n:'obj',t:'select',o:['nessuno','pochi','normali','molti']},
+    {l:'Adattamento al quadrato',n:'fit',t:'select',o:['intera (bordi scuri)','riempi (ritaglia)']},
+    {l:'Dimensione (quadretti): più grande = più fedele',n:'sz',t:'select',o:SIZES.map(x=>sizeLbl(x[0]))}
+  ],{mode:'ricrea la mappa (terreni e oggetti)',kind:'automatico',pal:'automatica',obj:'normali',fit:'intera (bordi scuri)',sz:sizeLbl(64)},'Crea');
   if(!r)return;if(!r.photo)return toast('Scegli prima una foto');
-  toast('Carico la foto…');
-  let f;try{f=await mpPhotoPrep(r.photo,r.fit.startsWith('riempi')?'riempi':'intera')}catch(e){return toast('Foto non leggibile')}
-  const url=await uploadPhoto(f);if(!url)return;
-  const n=parseInt(r.sz)||48;
-  MP={n,ter:new Uint8Array(n*n).fill(255),fog:new Uint8Array(n*n),fogOn:false,objs:[],pal:'classica',grid:false,scale:0,unit:'m',gt:'terra',hs:hashSeed('p'+Date.now()),pub:true,bg:url};
+  const n=parseInt(r.sz)||64,fit=r.fit.startsWith('riempi')?'riempi':'intera';
+  if(r.mode.startsWith('tieni')){ /* modalità precedente: la foto resta come sfondo e ci si disegna sopra */
+    if(!assets)return toast('Upload non disponibile');
+    toast('Carico la foto…');
+    let f;try{f=await mpPhotoPrep(r.photo,fit)}catch(e){return toast('Foto non leggibile')}
+    const url=await uploadPhoto(f);if(!url)return;
+    MP={n,ter:new Uint8Array(n*n).fill(255),fog:new Uint8Array(n*n),fogOn:false,objs:[],pal:'classica',grid:false,scale:0,unit:'m',gt:'terra',hs:hashSeed('p'+Date.now()),pub:true,bg:url};
+    mapSel=null;mpHist=[];mpRedo=[];mpDirty=true;mpSelId=null;mpScroll=null;render();
+    toast('Foto caricata: ora modificala e salvala');return;
+  }
+  toast('Analizzo la foto e ricreo la mappa…');await new Promise(z=>setTimeout(z,50));
+  let g;try{g=await mpPhotoRebuild(r.photo,{n,fit,kind:PH_KIND[r.kind]||'',pal:r.pal,obj:r.obj})}catch(e){console.warn('foto-mappa',e);return toast('Foto non leggibile')}
+  MP={n,ter:g.ter,fog:new Uint8Array(n*n),fogOn:false,objs:g.objs,pal:g.pal,grid:false,scale:0,unit:'m',gt:g.sk,hs:hashSeed('p'+Date.now()),pub:true,bg:''};
   mapSel=null;mpHist=[];mpRedo=[];mpDirty=true;mpSelId=null;mpScroll=null;render();
-  toast('Foto caricata: ora modificala e salvala');
+  toast('Mappa ricreata: '+PH_SETL[g.sk]+' · palette '+g.pal+' · '+g.objs.length+' oggetti. Ritoccala e salvala');
 }
 function mpGenAct(){
   if(MP.objs.length&&!confirm('Il generatore sostituisce terreno e oggetti della mappa aperta (puoi annullare con ↶). Continuare?'))return;
